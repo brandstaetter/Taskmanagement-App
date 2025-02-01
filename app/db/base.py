@@ -12,6 +12,9 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
 
+# Import all models here for Alembic to detect
+from app.db.models.task import Task  # noqa
+
 # Dependency
 def get_db():
     db = SessionLocal()
