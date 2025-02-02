@@ -1,32 +1,43 @@
-from typing import List
+from typing import List, Optional
+from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy.orm import Session
 
-from app import crud
+from app.core.printing import PrinterFactory
 from app.db.base import get_db
-from app.schemas.task import Task, TaskCreate
+from app.schemas.task import Task, TaskCreate, TaskUpdate
+from app.crud.task import (
+    create_task,
+    get_task,
+    get_tasks,
+)
 
 router = APIRouter()
 
 
-@router.get("/", response_model=List[Task])
+@router.get("", response_model=List[Task])
 def read_tasks(
-    skip: int = 0, limit: int = 100, db: Session = Depends(get_db)
-) -> List[Task]:
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+):
     """
     Retrieve tasks.
     """
-    tasks = crud.get_tasks(db, skip=skip, limit=limit)
+    tasks = get_tasks(db, skip=skip, limit=limit)
     return tasks
 
 
-@router.post("/", response_model=Task)
-def create_task(task: TaskCreate, db: Session = Depends(get_db)) -> Task:
+@router.post("", response_model=Task)
+def create_new_task(
+    task: TaskCreate,
+    db: Session = Depends(get_db),
+):
     """
     Create new task.
     """
-    return crud.create_task(db=db, task=task)
+    return create_task(db=db, task=task)
 
 
 @router.get("/due/", response_model=List[Task])
@@ -34,8 +45,9 @@ def read_due_tasks(db: Session = Depends(get_db)) -> List[Task]:
     """
     Retrieve all tasks that are due within the next 24 hours.
     """
-    tasks = crud.get_due_tasks(db)
-    return tasks
+    tasks = get_tasks(db, skip=0, limit=100)
+    due_tasks = [task for task in tasks if task.due_date and (task.due_date - datetime.now()).days <= 1]
+    return due_tasks
 
 
 @router.get("/random/", response_model=Task)
@@ -44,21 +56,25 @@ def read_random_task(db: Session = Depends(get_db)) -> Task:
     Get a random task, prioritizing tasks that are due sooner.
     Raises HTTPException if no tasks are available.
     """
-    task = crud.get_random_task(db)
-    if task is None:
+    tasks = get_tasks(db, skip=0, limit=100)
+    if not tasks:
         raise HTTPException(status_code=404, detail="No tasks available")
-    return task
+    tasks.sort(key=lambda task: task.due_date if task.due_date else datetime.max)
+    return tasks[0]
 
 
 @router.get("/{task_id}", response_model=Task)
-def read_task(task_id: int, db: Session = Depends(get_db)) -> Task:
+def read_task(
+    task_id: int,
+    db: Session = Depends(get_db),
+):
     """
-    Get a specific task by ID.
+    Get task by ID.
     """
-    task = crud.get_task(db, task_id=task_id)
-    if task is None:
+    db_task = get_task(db=db, task_id=task_id)
+    if db_task is None:
         raise HTTPException(status_code=404, detail="Task not found")
-    return task
+    return db_task
 
 
 @router.post("/{task_id}/complete", response_model=Task)
@@ -66,12 +82,12 @@ def complete_task(task_id: int, db: Session = Depends(get_db)) -> Task:
     """
     Mark a task as completed.
     """
-    task = crud.get_task(db, task_id=task_id)
+    task = get_task(db, task_id=task_id)
     if task is None:
         raise HTTPException(status_code=404, detail="Task not found")
     if task.state == "done":
         raise HTTPException(status_code=400, detail="Task is already completed")
-    return crud.complete_task(db=db, task=task)
+    return update_task(db=db, task_id=task_id, task={"state": "done"})
 
 
 @router.post("/{task_id}/start", response_model=Task)
@@ -79,20 +95,59 @@ def start_task(task_id: int, db: Session = Depends(get_db)) -> Task:
     """
     Mark a task as in progress.
     """
-    task = crud.get_task(db, task_id=task_id)
+    task = get_task(db, task_id=task_id)
     if task is None:
         raise HTTPException(status_code=404, detail="Task not found")
     if task.state == "done":
         raise HTTPException(status_code=400, detail="Cannot start a completed task")
     if task.state == "in_progress":
         raise HTTPException(status_code=400, detail="Task is already in progress")
-    return crud.start_task(db=db, task=task)
+    return update_task(db=db, task_id=task_id, task={"state": "in_progress"})
 
 
-@router.post("/{task_id}/print")
-def print_task(task_id: int, db: Session = Depends(get_db)):
+@router.get("/{task_id}/print")
+async def print_task(
+    task_id: int,
+    printer_type: Optional[str] = Query(None, description="Type of printer to use"),
+    db: Session = Depends(get_db),
+) -> Response:
     """
-    Print a task. Implementation pending.
+    Print a task using the specified printer (defaults to PDF).
     """
-    # Implementation will be added later
-    pass
+    # Get the task
+    db_task = get_task(db=db, task_id=task_id)
+    if db_task is None:
+        raise HTTPException(status_code=404, detail="Task not found")
+    
+    # Convert task to dictionary
+    task_dict = {
+        "id": db_task.id,
+        "title": db_task.title,
+        "description": db_task.description,
+        "state": db_task.state,
+        "due_date": db_task.due_date if db_task.due_date else None,
+        "created_at": db_task.created_at,
+        "started_at": db_task.started_at if db_task.started_at else None,
+    }
+    
+    try:
+        # Create printer instance
+        printer = PrinterFactory.create_printer(printer_type)
+        
+        # Format data for printing
+        print_data = {
+            "title": f"Task Details - {db_task.title}",
+            "content": [{
+                "Field": key.replace("_", " ").title(),
+                "Value": str(value) if value is not None else ""
+            } for key, value in task_dict.items()]
+        }
+         
+        # Generate and return the printed document
+        return await printer.print(print_data)
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error printing task: {str(e)}"
+        )
