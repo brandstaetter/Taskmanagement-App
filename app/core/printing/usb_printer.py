@@ -1,6 +1,7 @@
 from typing import Any, Dict
 import os
 from datetime import datetime
+import textwrap
 
 from escpos.printer import Usb
 from fastapi import Response, HTTPException
@@ -20,6 +21,9 @@ class USBPrinter(BasePrinter):
         self.product_id = int(os.getenv("USB_PRINTER_PRODUCT_ID", "0x0289"), 16)
         self.profile = os.getenv("USB_PRINTER_PROFILE", "ZJ-5870")
         self.frontend_url = os.getenv("FRONTEND_URL", "http://localhost:4200")
+        # Receipt is 32 characters wide, first line has 13 chars label
+        self.max_line_length = 32
+        self.first_line_offset = 13
 
     def format_datetime(self, dt_str: str) -> datetime:
         """Convert ISO datetime string to datetime object."""
@@ -33,11 +37,68 @@ class USBPrinter(BasePrinter):
     def styleLabel(self, printer: Usb) -> None:
         printer.set(align="left", bold=True, double_height=False, double_width=False)
 
+    def normalize_text(self, text: str) -> str:
+        """Replace German umlauts with ASCII characters."""
+        return text.replace("ä", "ae").replace("ö", "oe").replace("ü", "ue") \
+                  .replace("ß", "ss").replace("Ä", "Ae").replace("Ö", "Oe") \
+                  .replace("Ü", "Ue")
+
+    def wrap_text(self, text: str, first_line: bool = True) -> list[str]:
+        """Wrap text to fit receipt width, considering label space on first line."""
+        # Calculate available width for this line
+        width = self.max_line_length - self.first_line_offset if first_line else self.max_line_length
+        
+        # Split text into words
+        words = self.normalize_text(text).split()
+        if not words:
+            return [""]
+
+        lines = []
+        current_line = []
+        current_length = 0
+
+        for word in words:
+            # Check if adding this word exceeds the line width
+            word_length = len(word)
+            if current_length + word_length + (1 if current_line else 0) <= width:
+                # Add word to current line
+                if current_line:
+                    current_line.append(word)
+                    current_length += word_length + 1  # +1 for space
+                else:
+                    current_line.append(word)
+                    current_length += word_length
+            else:
+                # Complete current line and start new one
+                if current_line:
+                    lines.append(" ".join(current_line))
+                current_line = [word]
+                current_length = word_length
+                # Subsequent lines use full width
+                width = self.max_line_length
+
+        # Add last line if there is one
+        if current_line:
+            lines.append(" ".join(current_line))
+
+        return lines
+
     def printValue(self, printer: Usb, text: str, wide=False) -> None:
+        """Print text value with proper wrapping and formatting."""
         printer.set(align="left", bold=False, double_height=False, double_width=wide)
-        printer.text(text.replace("ä", "ae").replace("ö", "oe").replace("ü", "ue")
-                    .replace("ß", "ss").replace("Ä", "Ae").replace("Ö", "Oe")
-                    .replace("Ü", "Ue"))
+        
+        # Get wrapped lines
+        lines = self.wrap_text(text, first_line=True)
+        
+        # Print first line
+        if lines:
+            printer.text(lines[0])
+            
+        # Print subsequent lines with proper indentation
+        if len(lines) > 1:
+            printer.text('\n')
+            for line in lines[1:]:
+                printer.text(line + '\n')
 
     def printHeading(self, printer: Usb, task: Task) -> None:
         self.styleHeading(printer)
