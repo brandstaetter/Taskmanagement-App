@@ -4,21 +4,19 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from app.core.auth import require_admin
+from app.core.auth import verify_admin
 from app.db.base import Base, engine
 
 router = APIRouter()
 
 
 @router.post("/db/init")
-async def init_db(is_admin: bool = Depends(require_admin)):
+async def init_db(authorized: bool = Depends(verify_admin)):
     """
-    Initialize the database by creating all tables.
-    This is useful for initial setup or testing.
+    Initialize database by creating all tables.
     Requires admin authentication.
     """
     try:
-        # Create all tables
         Base.metadata.create_all(bind=engine)
         return {"message": "Database initialized successfully"}
     except Exception as e:
@@ -28,10 +26,9 @@ async def init_db(is_admin: bool = Depends(require_admin)):
 
 
 @router.post("/db/migrate")
-async def run_migrations(is_admin: bool = Depends(require_admin)):
+async def run_migrations(authorized: bool = Depends(verify_admin)):
     """
     Run all pending Alembic migrations.
-    This should be used when updating the database schema.
     Requires admin authentication.
     """
     try:
@@ -58,7 +55,7 @@ async def run_migrations(is_admin: bool = Depends(require_admin)):
             )
 
         return {
-            "message": "Database migrations completed successfully",
+            "message": "Migrations completed successfully",
             "details": result.stdout,
         }
     except HTTPException:

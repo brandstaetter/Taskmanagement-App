@@ -9,10 +9,7 @@ from app.core.config import get_settings
 
 settings = get_settings()
 
-# OAuth2 scheme for JWT tokens
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
-
-# API Key header scheme for admin endpoints
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token", auto_error=False)
 api_key_header = APIKeyHeader(name="X-Admin-Key", auto_error=False)
 
 
@@ -33,37 +30,51 @@ def create_admin_token(expires_delta: Optional[timedelta] = None) -> str:
 
 
 async def verify_admin(
-    token: str = Depends(oauth2_scheme),
+    token: Optional[str] = Depends(oauth2_scheme),
     api_key: Optional[str] = Security(api_key_header),
 ) -> bool:
     """
     Verify that the request is from an admin.
-    Accepts either a valid JWT token with admin role or the admin API key.
+    Returns True if valid, raises HTTPException if not.
     """
-    # First check API key if provided
+    # First try API key authentication
     if api_key:
         if api_key == settings.ADMIN_API_KEY:
             return True
-        raise HTTPException(status_code=403, detail="Invalid admin API key")
+        raise HTTPException(
+            status_code=403,
+            detail="Invalid API key",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
-    # If no API key, check JWT token
-    credentials_exception = HTTPException(
+    # Then try JWT token authentication
+    if token:
+        try:
+            payload = jwt.decode(
+                token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+            )
+            role: str = payload.get("role")
+            if role is None or role != "admin":
+                raise HTTPException(
+                    status_code=403,
+                    detail="Not enough permissions",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+            return True
+        except JWTError:
+            raise HTTPException(
+                status_code=401,
+                detail="Could not validate credentials",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+    # If neither API key nor token is provided
+    raise HTTPException(
         status_code=401,
-        detail="Could not validate credentials",
+        detail="Authentication required",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    try:
-        payload = jwt.decode(
-            token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
-        )
-        role: str = payload.get("role")
-        if role is None or role != "admin":
-            raise credentials_exception
-    except JWTError:
-        raise credentials_exception
-
-    return True
 
 
 # Dependency for admin-only endpoints
-require_admin = Security(verify_admin)
+require_admin = Depends(verify_admin)
