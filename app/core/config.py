@@ -1,4 +1,5 @@
 from functools import lru_cache
+from typing import List, Optional
 
 from pydantic_settings import BaseSettings
 
@@ -7,6 +8,9 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "Task Management API"
     VERSION: str = "1.0.0"
     API_V1_STR: str = "/api/v1"
+
+    # CORS Configuration
+    BACKEND_CORS_ORIGINS: List[str] = ["http://localhost:4200"]  # Angular default port
 
     # Database
     DATABASE_URL: str = "sqlite:///./task_management.db"
@@ -30,5 +34,6 @@ class Settings(BaseSettings):
 
 
 @lru_cache()
-def get_settings():
+def get_settings() -> Settings:
+    """Get cached settings instance."""
     return Settings()

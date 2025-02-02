@@ -1,15 +1,22 @@
 import random
 from datetime import datetime, timedelta, timezone
-from typing import List, Optional
+from typing import List, Optional, Union, Dict, Any
 
 from sqlalchemy.orm import Session
+from sqlalchemy import desc
 
 from app.db.models.task import Task
-from app.schemas.task import TaskCreate
+from app.schemas.task import TaskCreate, TaskUpdate
 
 
 def get_tasks(db: Session, skip: int = 0, limit: int = 100) -> List[Task]:
-    return db.query(Task).offset(skip).limit(limit).all()
+    return (
+        db.query(Task)
+        .order_by(Task.due_date.asc().nulls_last())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
 
 
 def create_task(db: Session, task: TaskCreate) -> Task:
@@ -109,6 +116,30 @@ def get_task(db: Session, task_id: int) -> Optional[Task]:
     return db.query(Task).filter(Task.id == task_id).first()
 
 
+def update_task(db: Session, task_id: int, task: Union[TaskUpdate, Dict[str, Any]]) -> Optional[Task]:
+    """
+    Update a task with new values.
+    
+    Args:
+        db: Database session
+        task_id: ID of task to update
+        task: TaskUpdate model or dictionary with new values
+    
+    Returns:
+        Updated task or None if task not found
+    """
+    db_task = get_task(db, task_id)
+    if db_task:
+        # Handle both Pydantic models and dictionaries
+        update_data = task.model_dump(exclude_unset=True) if hasattr(task, 'model_dump') else task
+        
+        for field, value in update_data.items():
+            setattr(db_task, field, value)
+        db.commit()
+        db.refresh(db_task)
+    return db_task
+
+
 def complete_task(db: Session, task: Task) -> Task:
     """
     Mark a task as completed and set the completion timestamp.
@@ -129,3 +160,21 @@ def start_task(db: Session, task: Task) -> Task:
     db.commit()
     db.refresh(task)
     return task
+
+
+def delete_task(db: Session, task_id: int) -> Optional[Task]:
+    """
+    Delete a task by ID.
+    
+    Args:
+        db: Database session
+        task_id: ID of task to delete
+    
+    Returns:
+        Deleted task or None if task not found
+    """
+    db_task = get_task(db, task_id)
+    if db_task:
+        db.delete(db_task)
+        db.commit()
+    return db_task
