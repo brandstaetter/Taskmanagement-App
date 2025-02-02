@@ -18,6 +18,7 @@ pip install -r requirements.txt
 3. Set up environment variables:
 ```powershell
 Copy-Item .env.example .env
+.\venv\Scripts\Activate.ps1; python -c "import secrets; print(f'SECRET_KEY: {secrets.token_hex(32)}\nADMIN_API_KEY: {secrets.token_hex(32)}')"
 ```
 
 4. Run database migrations:

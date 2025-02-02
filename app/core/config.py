@@ -14,6 +14,11 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     
+    # Admin Authentication
+    ADMIN_API_KEY: str = "your-admin-key-here"  # Change in production
+    ADMIN_USERNAME: str = "admin"
+    ADMIN_PASSWORD: str = "admin"  # Change in production
+    
     class Config:
         case_sensitive = True
         env_file = ".env"
