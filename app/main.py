@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
 from app.api.v1.api import api_router
 from app.core.config import get_settings
 
@@ -8,7 +9,7 @@ settings = get_settings()
 app = FastAPI(
     title="Task Management API",
     description="Backend API for Task Management Application",
-    version="1.0.0"
+    version="1.0.0",
 )
 
 # Configure CORS
@@ -21,6 +22,7 @@ app.add_middleware(
 )
 
 app.include_router(api_router, prefix=settings.API_V1_STR)
+
 
 @app.get("/")
 async def root():

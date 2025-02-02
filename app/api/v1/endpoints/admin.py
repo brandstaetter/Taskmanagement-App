@@ -1,13 +1,14 @@
-from fastapi import APIRouter, HTTPException, Depends
-from sqlalchemy import text
-from app.db.base import engine, Base
-from app.core.auth import require_admin
-import alembic.config
 import subprocess
 import sys
 from pathlib import Path
 
+from fastapi import APIRouter, Depends, HTTPException
+
+from app.core.auth import require_admin
+from app.db.base import Base, engine
+
 router = APIRouter()
+
 
 @router.post("/db/init")
 async def init_db(is_admin: bool = Depends(require_admin)):
@@ -22,9 +23,9 @@ async def init_db(is_admin: bool = Depends(require_admin)):
         return {"message": "Database initialized successfully"}
     except Exception as e:
         raise HTTPException(
-            status_code=500,
-            detail=f"Failed to initialize database: {str(e)}"
+            status_code=500, detail=f"Failed to initialize database: {str(e)}"
         )
+
 
 @router.post("/db/migrate")
 async def run_migrations(is_admin: bool = Depends(require_admin)):
@@ -36,14 +37,11 @@ async def run_migrations(is_admin: bool = Depends(require_admin)):
     try:
         # Get the project root directory
         project_root = Path(__file__).parent.parent.parent.parent.parent
-        
+
         # Create Alembic config
         alembic_ini_path = project_root / "alembic.ini"
         if not alembic_ini_path.exists():
-            raise HTTPException(
-                status_code=500,
-                detail="alembic.ini not found"
-            )
+            raise HTTPException(status_code=500, detail="alembic.ini not found")
 
         # Run alembic upgrade using subprocess
         # We use subprocess because alembic.config.main() is not thread-safe
@@ -51,23 +49,21 @@ async def run_migrations(is_admin: bool = Depends(require_admin)):
             [sys.executable, "-m", "alembic", "upgrade", "head"],
             cwd=str(project_root),
             capture_output=True,
-            text=True
+            text=True,
         )
 
         if result.returncode != 0:
             raise HTTPException(
-                status_code=500,
-                detail=f"Migration failed: {result.stderr}"
+                status_code=500, detail=f"Migration failed: {result.stderr}"
             )
 
         return {
             "message": "Database migrations completed successfully",
-            "details": result.stdout
+            "details": result.stdout,
         }
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(
-            status_code=500,
-            detail=f"Failed to run migrations: {str(e)}"
+            status_code=500, detail=f"Failed to run migrations: {str(e)}"
         )

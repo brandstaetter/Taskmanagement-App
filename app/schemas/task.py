@@ -1,6 +1,7 @@
-from typing import List, Optional, Literal
+from typing import Literal, Optional
+
 from pydantic import BaseModel, ConfigDict
-from datetime import datetime
+
 
 class TaskBase(BaseModel):
     title: str
@@ -11,14 +12,17 @@ class TaskBase(BaseModel):
     created_at: Optional[str] = None
     started_at: Optional[str] = None
     completed_at: Optional[str] = None
-    
+
     model_config = ConfigDict(from_attributes=True)
+
 
 class Task(TaskBase):
     id: int
 
+
 class TaskCreate(TaskBase):
     pass
+
 
 class TaskUpdate(BaseModel):
     title: Optional[str] = None
@@ -26,8 +30,9 @@ class TaskUpdate(BaseModel):
     state: Optional[Literal["todo", "in_progress", "done"]] = None
     due_date: Optional[str] = None
     reward: Optional[str] = None
-    
+
     model_config = ConfigDict(from_attributes=True)
+
 
 class TaskInDB(Task):
     pass
