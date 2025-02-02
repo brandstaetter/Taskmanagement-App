@@ -8,7 +8,9 @@ from app.crud.task import (
     create_task,
     get_task,
     get_tasks,
-    update_task
+    update_task,
+    read_random_task,
+    delete_task
 )
 from app.db.session import get_db
 from app.schemas.task import Task, TaskCreate, TaskUpdate
@@ -59,17 +61,17 @@ def read_due_tasks(db: Session = Depends(get_db)) -> List[Task]:
     return due_tasks
 
 
-@router.get("/random/", response_model=Task)
-def read_random_task(db: Session = Depends(get_db)) -> Task:
+@router.get("/random", response_model=Optional[Task])
+def get_random_task(
+    db: Session = Depends(get_db),
+) -> Optional[Task]:
     """
-    Get a random task, prioritizing tasks that are due sooner.
-    Raises HTTPException if no tasks are available.
+    Get a random task, prioritizing tasks that are:
+    1. Not completed
+    2. Due sooner
+    3. Not yet started
     """
-    tasks = get_tasks(db, skip=0, limit=100)
-    if not tasks:
-        raise HTTPException(status_code=404, detail="No tasks available")
-    tasks.sort(key=lambda task: task.due_date if task.due_date else datetime.max)
-    return tasks[0]
+    return read_random_task(db=db)
 
 
 @router.get("/{task_id}", response_model=Task)

@@ -5,7 +5,7 @@ from typing import List, Optional, Union, Dict, Any
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 
-from app.db.models.task import Task
+from app.db.models.task import Task, TaskState
 from app.schemas.task import TaskCreate, TaskUpdate
 
 
@@ -178,3 +178,59 @@ def delete_task(db: Session, task_id: int) -> Optional[Task]:
         db.delete(db_task)
         db.commit()
     return db_task
+
+
+def read_random_task(db: Session) -> Optional[Task]:
+    """
+    Get a random task, prioritizing tasks that are:
+    1. Not completed
+    2. Due sooner
+    3. Not yet started
+    
+    Uses weighted random selection where tasks due sooner have higher weights.
+    """
+    # Get all non-completed tasks, ordered by due date
+    tasks = (
+        db.query(Task)
+        .filter(Task.state != TaskState.done.value)
+        .order_by(Task.due_date.asc().nulls_last())
+        .all()
+    )
+    
+    if not tasks:
+        return None
+    
+    # Calculate weights based on position in the sorted list
+    # Earlier tasks (due sooner) get higher weights
+    now = datetime.now(timezone.utc)
+    weights = []
+    
+    for task in tasks:
+        weight = 1.0  # Base weight
+        
+        # Increase weight for tasks that are due soon or overdue
+        if task.due_date:
+            due_date = datetime.fromisoformat(task.due_date.replace('Z', '+00:00'))
+            time_until_due = due_date - now
+            days_until_due = time_until_due.total_seconds() / (24 * 3600)
+            
+            if days_until_due <= 0:  # Overdue tasks
+                weight *= 3.0
+            elif days_until_due <= 1:  # Due within 24 hours
+                weight *= 2.5
+            elif days_until_due <= 7:  # Due within a week
+                weight *= 2.0
+        
+        # Increase weight for tasks that haven't been started
+        if task.state == TaskState.todo:
+            weight *= 1.5
+        
+        weights.append(weight)
+    
+    # Normalize weights
+    total_weight = sum(weights)
+    if total_weight > 0:
+        weights = [w/total_weight for w in weights]
+    
+    # Select random task using weights
+    return random.choices(tasks, weights=weights, k=1)[0]
