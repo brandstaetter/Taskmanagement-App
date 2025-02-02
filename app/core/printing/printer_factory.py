@@ -5,6 +5,7 @@ from typing import Dict, Type
 
 from .base_printer import BasePrinter
 from .pdf_printer import PDFPrinter
+from .usb_printer import USBPrinter
 
 logger = logging.getLogger(__name__)
 
@@ -13,7 +14,8 @@ class PrinterFactory:
     """Factory class for creating printer instances."""
 
     _printer_classes: Dict[str, Type[BasePrinter]] = {
-        "pdf": PDFPrinter
+        "pdf": PDFPrinter,
+        "usb": USBPrinter
     }
 
     @classmethod
@@ -45,6 +47,15 @@ class PrinterFactory:
                 "name": "PDF Printer",
                 "description": "Creates and downloads PDF files",
                 "class": "PDFPrinter"
+            }
+            config["usb"] = {
+                "type": "usb",
+                "name": "USB Receipt Printer",
+                "description": "Prints to USB thermal printer",
+                "class": "USBPrinter",
+                "vendor_id": "0x28E9",
+                "product_id": "0x0289",
+                "profile": "ZJ-5870"
             }
             with open(config_path, "w") as f:
                 config.write(f)
