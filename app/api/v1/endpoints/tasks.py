@@ -13,6 +13,7 @@ from app.crud.task import (
 from app.db.session import get_db
 from app.schemas.task import Task, TaskCreate, TaskUpdate
 from app.core.printing.printer_factory import PrinterFactory
+from app.db.models.task import TaskState
 
 router = APIRouter()
 
@@ -85,19 +86,6 @@ def read_task(
     return db_task
 
 
-@router.post("/{task_id}/complete", response_model=Task)
-def complete_task(task_id: int, db: Session = Depends(get_db)) -> Task:
-    """
-    Mark a task as completed.
-    """
-    task = get_task(db, task_id=task_id)
-    if task is None:
-        raise HTTPException(status_code=404, detail="Task not found")
-    if task.state == "done":
-        raise HTTPException(status_code=400, detail="Task is already completed")
-    return update_task(db=db, task_id=task_id, task={"state": "done"})
-
-
 @router.post("/{task_id}/start", response_model=Task)
 def start_task(
     task_id: int,
@@ -111,16 +99,46 @@ def start_task(
     if current_task is None:
         raise HTTPException(status_code=404, detail="Task not found")
     
-    if current_task.state == "done":
+    if current_task.state == TaskState.done:
         raise HTTPException(status_code=400, detail="Cannot start a completed task")
-    if current_task.state == "in_progress":
+    if current_task.state == TaskState.in_progress:
         raise HTTPException(status_code=400, detail="Task is already in progress")
 
-    # Create TaskUpdate instance with the new state and timestamp
-    task_update = TaskUpdate(
-        state="in_progress",
-        started_at=datetime.now(timezone.utc).isoformat()
-    )
+    # Update task with new state and timestamp
+    task_update = {
+        "state": TaskState.in_progress,
+        "started_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    # Update the task
+    db_task = update_task(db=db, task_id=task_id, task=task_update)
+    if db_task is None:
+        raise HTTPException(status_code=404, detail="Task not found")
+    
+    return db_task
+
+
+@router.post("/{task_id}/complete", response_model=Task)
+def complete_task(
+    task_id: int,
+    db: Session = Depends(get_db)
+) -> Task:
+    """
+    Mark a task as completed and set the completed_at timestamp.
+    """
+    # Check current task state
+    current_task = get_task(db=db, task_id=task_id)
+    if current_task is None:
+        raise HTTPException(status_code=404, detail="Task not found")
+    
+    if current_task.state == TaskState.done:
+        raise HTTPException(status_code=400, detail="Task is already completed")
+
+    # Update task with new state and timestamp
+    task_update = {
+        "state": TaskState.done,
+        "completed_at": datetime.now(timezone.utc).isoformat()
+    }
     
     # Update the task
     db_task = update_task(db=db, task_id=task_id, task=task_update)
