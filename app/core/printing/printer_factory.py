@@ -55,7 +55,8 @@ class PrinterFactory:
                 "class": "USBPrinter",
                 "vendor_id": "0x28E9",
                 "product_id": "0x0289",
-                "profile": "ZJ-5870"
+                "profile": "ZJ-5870",
+                "frontend_url": "http://localhost:4200"
             }
             with open(config_path, "w") as f:
                 config.write(f)

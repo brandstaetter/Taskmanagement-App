@@ -119,35 +119,15 @@ async def print_task(
     if db_task is None:
         raise HTTPException(status_code=404, detail="Task not found")
     
-    # Convert task to dictionary
-    task_dict = {
-        "id": db_task.id,
-        "title": db_task.title,
-        "description": db_task.description,
-        "state": db_task.state,
-        "due_date": db_task.due_date if db_task.due_date else None,
-        "created_at": db_task.created_at,
-        "started_at": db_task.started_at if db_task.started_at else None,
-    }
-    
     try:
         # Create printer instance
         printer = PrinterFactory.create_printer(printer_type)
-        
-        # Format data for printing
-        print_data = {
-            "title": f"Task Details - {db_task.title}",
-            "content": [{
-                "Field": key.replace("_", " ").title(),
-                "Value": str(value) if value is not None else ""
-            } for key, value in task_dict.items()]
-        }
          
         # Generate and return the printed document
-        return await printer.print(print_data)
+        return await printer.print(db_task)
         
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Error printing task: {str(e)}"
+            detail=f"Error printing task: {str(e)} {type(e)}"
         )

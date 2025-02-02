@@ -2,6 +2,9 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict
 
 from fastapi import Response
+from sqlalchemy.orm import Session
+
+from app.schemas.task import Task
 
 
 class BasePrinter(ABC):
@@ -11,6 +14,6 @@ class BasePrinter(ABC):
         self.config = config
 
     @abstractmethod
-    async def print(self, data: Dict[str, Any]) -> Response:
-        """Print the data and return a FastAPI Response object."""
+    async def print(self, task: Task) -> Response:
+        """Print the task and return a FastAPI Response object."""
         pass

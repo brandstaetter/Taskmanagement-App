@@ -11,6 +11,9 @@ class Settings(BaseSettings):
     # Database
     DATABASE_URL: str = "sqlite:///./task_management.db"
 
+    # Frontend
+    FRONTEND_URL: str = "http://localhost:4200"
+
     # JWT
     SECRET_KEY: str = "your-secret-key-here"  # Change in production
     ALGORITHM: str = "HS256"
