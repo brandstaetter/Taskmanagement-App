@@ -12,7 +12,9 @@ python -m venv venv
 
 2. Install dependencies:
 ```powershell
-pip install -r requirements.txt
+pip install -r requirements.txt  # For development with flexible versions
+# OR
+pip install -r requirements.lock  # For exact versions (recommended for production)
 ```
 
 3. Set up environment variables:
