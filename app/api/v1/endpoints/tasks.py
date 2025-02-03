@@ -5,8 +5,14 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy.orm import Session
 
 from app.core.printing.printer_factory import PrinterFactory
-from app.crud.task import (create_task, delete_task, get_task, get_tasks,
-                           read_random_task, update_task)
+from app.crud.task import (
+    create_task,
+    delete_task,
+    get_task,
+    get_tasks,
+    read_random_task,
+    update_task,
+)
 from app.db.models.task import TaskState
 from app.db.session import get_db
 from app.schemas.task import Task, TaskCreate

@@ -2,8 +2,15 @@ from datetime import datetime, timedelta
 
 from sqlalchemy.orm import Session
 
-from app.crud.task import (complete_task, create_task, delete_task, get_task,
-                           get_tasks, start_task, update_task)
+from app.crud.task import (
+    complete_task,
+    create_task,
+    delete_task,
+    get_task,
+    get_tasks,
+    start_task,
+    update_task,
+)
 from app.schemas.task import TaskCreate, TaskUpdate
 
 
