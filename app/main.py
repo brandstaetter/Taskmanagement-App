@@ -1,5 +1,5 @@
 from contextlib import asynccontextmanager
-import logging
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -14,6 +14,7 @@ logger = setup_logging()
 # Get settings
 settings = get_settings()
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
@@ -27,11 +28,12 @@ async def lifespan(app: FastAPI):
     logger.info("Shutting down application")
     stop_scheduler()
 
+
 app = FastAPI(
     title=settings.PROJECT_NAME,
     description="API for managing tasks with printing capabilities",
     version=settings.VERSION,
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # Setup CORS
@@ -47,6 +49,7 @@ if origins:
 
 # Include API router
 app.include_router(api_router, prefix=settings.API_V1_STR)
+
 
 @app.get("/")
 async def root():

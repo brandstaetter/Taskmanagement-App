@@ -1,21 +1,15 @@
-from typing import List, Optional
 from datetime import datetime, timezone
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy.orm import Session
 
-from app.crud.task import (
-    create_task,
-    get_task,
-    get_tasks,
-    update_task,
-    read_random_task,
-    delete_task
-)
-from app.db.session import get_db
-from app.schemas.task import Task, TaskCreate, TaskUpdate
 from app.core.printing.printer_factory import PrinterFactory
+from app.crud.task import (create_task, get_task, get_tasks,
+                           read_random_task, update_task)
 from app.db.models.task import TaskState
+from app.db.session import get_db
+from app.schemas.task import Task, TaskCreate
 
 router = APIRouter()
 
@@ -51,12 +45,20 @@ def read_due_tasks(db: Session = Depends(get_db)) -> List[Task]:
     """
     tasks = get_tasks(db, skip=0, limit=100)
     due_tasks = [
-        task for task in tasks 
-        if task.due_date and (datetime.fromisoformat(task.due_date.replace('Z', '+00:00')) - datetime.now(timezone.utc)).days <= 1
+        task
+        for task in tasks
+        if task.due_date
+        and (
+            datetime.fromisoformat(task.due_date.replace("Z", "+00:00"))
+            - datetime.now(timezone.utc)
+        ).days
+        <= 1
     ]
     # Sort tasks by due date, handling None values
     due_tasks.sort(
-        key=lambda x: datetime.fromisoformat(x.due_date.replace('Z', '+00:00')) if x.due_date else datetime.max.replace(tzinfo=timezone.utc)
+        key=lambda x: datetime.fromisoformat(x.due_date.replace("Z", "+00:00"))
+        if x.due_date
+        else datetime.max.replace(tzinfo=timezone.utc)
     )
     return due_tasks
 
@@ -89,10 +91,7 @@ def read_task(
 
 
 @router.post("/{task_id}/start", response_model=Task)
-def start_task(
-    task_id: int,
-    db: Session = Depends(get_db)
-) -> Task:
+def start_task(task_id: int, db: Session = Depends(get_db)) -> Task:
     """
     Mark a task as in progress and set the started_at timestamp.
     """
@@ -100,7 +99,7 @@ def start_task(
     current_task = get_task(db=db, task_id=task_id)
     if current_task is None:
         raise HTTPException(status_code=404, detail="Task not found")
-    
+
     if current_task.state == TaskState.done:
         raise HTTPException(status_code=400, detail="Cannot start a completed task")
     if current_task.state == TaskState.in_progress:
@@ -109,22 +108,19 @@ def start_task(
     # Update task with new state and timestamp
     task_update = {
         "state": TaskState.in_progress,
-        "started_at": datetime.now(timezone.utc).isoformat()
+        "started_at": datetime.now(timezone.utc).isoformat(),
     }
-    
+
     # Update the task
     db_task = update_task(db=db, task_id=task_id, task=task_update)
     if db_task is None:
         raise HTTPException(status_code=404, detail="Task not found")
-    
+
     return db_task
 
 
 @router.post("/{task_id}/complete", response_model=Task)
-def complete_task(
-    task_id: int,
-    db: Session = Depends(get_db)
-) -> Task:
+def complete_task(task_id: int, db: Session = Depends(get_db)) -> Task:
     """
     Mark a task as completed and set the completed_at timestamp.
     """
@@ -132,21 +128,21 @@ def complete_task(
     current_task = get_task(db=db, task_id=task_id)
     if current_task is None:
         raise HTTPException(status_code=404, detail="Task not found")
-    
+
     if current_task.state == TaskState.done:
         raise HTTPException(status_code=400, detail="Task is already completed")
 
     # Update task with new state and timestamp
     task_update = {
         "state": TaskState.done,
-        "completed_at": datetime.now(timezone.utc).isoformat()
+        "completed_at": datetime.now(timezone.utc).isoformat(),
     }
-    
+
     # Update the task
     db_task = update_task(db=db, task_id=task_id, task=task_update)
     if db_task is None:
         raise HTTPException(status_code=404, detail="Task not found")
-    
+
     return db_task
 
 
@@ -163,18 +159,17 @@ async def print_task(
     db_task = get_task(db=db, task_id=task_id)
     if db_task is None:
         raise HTTPException(status_code=404, detail="Task not found")
-    
+
     try:
         # Create printer instance
         printer = PrinterFactory.create_printer(printer_type)
-         
+
         # Generate and return the printed document
         return await printer.print(db_task)
-        
+
     except Exception as e:
         raise HTTPException(
-            status_code=500,
-            detail=f"Error printing task: {str(e)} {type(e)}"
+            status_code=500, detail=f"Error printing task: {str(e)} {type(e)}"
         )
 
 
@@ -185,12 +180,11 @@ async def trigger_maintenance(db: Session = Depends(get_db)):
     This will process due tasks and clean up old ones.
     """
     from app.jobs.task_maintenance import run_maintenance
-    
+
     try:
         await run_maintenance()
         return {"status": "success", "message": "Maintenance job completed"}
     except Exception as e:
         raise HTTPException(
-            status_code=500,
-            detail=f"Error running maintenance job: {str(e)}"
+            status_code=500, detail=f"Error running maintenance job: {str(e)}"
         )

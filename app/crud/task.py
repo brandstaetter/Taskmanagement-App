@@ -1,9 +1,8 @@
 import random
 from datetime import datetime, timedelta, timezone
-from typing import List, Optional, Union, Dict, Any
+from typing import Any, Dict, List, Optional, Union
 
 from sqlalchemy.orm import Session
-from sqlalchemy import desc
 
 from app.db.models.task import Task, TaskState
 from app.schemas.task import TaskCreate, TaskUpdate
@@ -116,23 +115,27 @@ def get_task(db: Session, task_id: int) -> Optional[Task]:
     return db.query(Task).filter(Task.id == task_id).first()
 
 
-def update_task(db: Session, task_id: int, task: Union[TaskUpdate, Dict[str, Any]]) -> Optional[Task]:
+def update_task(
+    db: Session, task_id: int, task: Union[TaskUpdate, Dict[str, Any]]
+) -> Optional[Task]:
     """
     Update a task with new values.
-    
+
     Args:
         db: Database session
         task_id: ID of task to update
         task: TaskUpdate model or dictionary with new values
-    
+
     Returns:
         Updated task or None if task not found
     """
     db_task = get_task(db, task_id)
     if db_task:
         # Handle both Pydantic models and dictionaries
-        update_data = task.model_dump(exclude_unset=True) if hasattr(task, 'model_dump') else task
-        
+        update_data = (
+            task.model_dump(exclude_unset=True) if hasattr(task, "model_dump") else task
+        )
+
         for field, value in update_data.items():
             setattr(db_task, field, value)
         db.commit()
@@ -165,11 +168,11 @@ def start_task(db: Session, task: Task) -> Task:
 def delete_task(db: Session, task_id: int) -> Optional[Task]:
     """
     Delete a task by ID.
-    
+
     Args:
         db: Database session
         task_id: ID of task to delete
-    
+
     Returns:
         Deleted task or None if task not found
     """
@@ -186,7 +189,7 @@ def read_random_task(db: Session) -> Optional[Task]:
     1. Not completed
     2. Due sooner
     3. Not yet started
-    
+
     Uses weighted random selection where tasks due sooner have higher weights.
     """
     # Get all non-completed tasks, ordered by due date
@@ -196,41 +199,41 @@ def read_random_task(db: Session) -> Optional[Task]:
         .order_by(Task.due_date.asc().nulls_last())
         .all()
     )
-    
+
     if not tasks:
         return None
-    
+
     # Calculate weights based on position in the sorted list
     # Earlier tasks (due sooner) get higher weights
     now = datetime.now(timezone.utc)
     weights = []
-    
+
     for task in tasks:
         weight = 1.0  # Base weight
-        
+
         # Increase weight for tasks that are due soon or overdue
         if task.due_date:
-            due_date = datetime.fromisoformat(task.due_date.replace('Z', '+00:00'))
+            due_date = datetime.fromisoformat(task.due_date.replace("Z", "+00:00"))
             time_until_due = due_date - now
             days_until_due = time_until_due.total_seconds() / (24 * 3600)
-            
+
             if days_until_due <= 0:  # Overdue tasks
                 weight *= 3.0
             elif days_until_due <= 1:  # Due within 24 hours
                 weight *= 2.5
             elif days_until_due <= 7:  # Due within a week
                 weight *= 2.0
-        
+
         # Increase weight for tasks that haven't been started
         if task.state == TaskState.todo:
             weight *= 1.5
-        
+
         weights.append(weight)
-    
+
     # Normalize weights
     total_weight = sum(weights)
     if total_weight > 0:
-        weights = [w/total_weight for w in weights]
-    
+        weights = [w / total_weight for w in weights]
+
     # Select random task using weights
     return random.choices(tasks, weights=weights, k=1)[0]

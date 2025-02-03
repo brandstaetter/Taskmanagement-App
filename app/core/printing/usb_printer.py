@@ -1,13 +1,13 @@
-from typing import Any, Dict
 import os
 from datetime import datetime
-import textwrap
+from typing import Any, Dict
 
 from escpos.printer import Usb
-from fastapi import Response, HTTPException
+from fastapi import HTTPException, Response
 from fastapi.responses import JSONResponse
 
 from app.schemas.task import Task
+
 from .base_printer import BasePrinter
 
 
@@ -39,15 +39,25 @@ class USBPrinter(BasePrinter):
 
     def normalize_text(self, text: str) -> str:
         """Replace German umlauts with ASCII characters."""
-        return text.replace("ä", "ae").replace("ö", "oe").replace("ü", "ue") \
-                  .replace("ß", "ss").replace("Ä", "Ae").replace("Ö", "Oe") \
-                  .replace("Ü", "Ue")
+        return (
+            text.replace("ä", "ae")
+            .replace("ö", "oe")
+            .replace("ü", "ue")
+            .replace("ß", "ss")
+            .replace("Ä", "Ae")
+            .replace("Ö", "Oe")
+            .replace("Ü", "Ue")
+        )
 
     def wrap_text(self, text: str, first_line: bool = True) -> list[str]:
         """Wrap text to fit receipt width, considering label space on first line."""
         # Calculate available width for this line
-        width = self.max_line_length - self.first_line_offset if first_line else self.max_line_length
-        
+        width = (
+            self.max_line_length - self.first_line_offset
+            if first_line
+            else self.max_line_length
+        )
+
         # Split text into words
         words = self.normalize_text(text).split()
         if not words:
@@ -86,36 +96,36 @@ class USBPrinter(BasePrinter):
     def printValue(self, printer: Usb, text: str, wide=False) -> None:
         """Print text value with proper wrapping and formatting."""
         printer.set(align="left", bold=False, double_height=False, double_width=wide)
-        
+
         # Get wrapped lines
         lines = self.wrap_text(text, first_line=True)
-        
+
         # Print first line
         if lines:
             printer.text(lines[0])
-            
+
         # Print subsequent lines with proper indentation
         if len(lines) > 1:
-            printer.text('\n')
+            printer.text("\n")
             for line in lines[1:]:
-                printer.text(line + '\n')
+                printer.text(line + "\n")
 
     def printHeading(self, printer: Usb, task: Task) -> None:
         self.styleHeading(printer)
-        printer.text(f'{task.title}\n\n')
+        printer.text(f"{task.title}\n\n")
 
     def printTaskDetails(self, printer: Usb, task: Task) -> None:
         label = {
             "description": "Description: ",
-            "due_date":    "   Due Date: ",
-            "created_at":  "    Created: ",
-            "reward":      "     Reward: ",
+            "due_date": "   Due Date: ",
+            "created_at": "    Created: ",
+            "reward": "     Reward: ",
         }
         # Print Description
         if task.description:
             self.styleLabel(printer)
             printer.text(label["description"])
-            self.printValue(printer, f'{task.description}\n\n')
+            self.printValue(printer, f"{task.description}\n\n")
 
         # Print Due Date
         if task.due_date:
@@ -123,7 +133,9 @@ class USBPrinter(BasePrinter):
             if due_date:
                 self.styleLabel(printer)
                 printer.text(label["due_date"])
-                self.printValue(printer, f'{due_date.strftime("%Y-%m-%d %H:%M")}\n\n', wide=True)
+                self.printValue(
+                    printer, f'{due_date.strftime("%Y-%m-%d %H:%M")}\n\n', wide=True
+                )
 
         # Print Created At
         created_at = self.format_datetime(task.created_at)
@@ -143,29 +155,25 @@ class USBPrinter(BasePrinter):
     def printFooter(self, printer: Usb, task: Task) -> None:
         printer.set(align="center")
         printer.text("\n")
-        printer.qr(f'{self.frontend_url}/tasks/{task.id}', size=6)
+        printer.qr(f"{self.frontend_url}/tasks/{task.id}", size=6)
         printer.text("\n")
         printer.text("Scan to view task details\n")
 
     async def print(self, task: Task) -> Response:
         """
         Print a task to a USB printer using ESC/POS commands.
-        
+
         Args:
             task: Task model instance to print
         """
         try:
             # Initialize printer
             try:
-                printer = Usb(
-                    self.vendor_id,
-                    self.product_id,
-                    profile=self.profile
-                )
+                printer = Usb(self.vendor_id, self.product_id, profile=self.profile)
             except Exception as e:
                 raise HTTPException(
                     status_code=500,
-                    detail=f"Failed to connect to USB printer: {str(e)}"
+                    detail=f"Failed to connect to USB printer: {str(e)}",
                 )
 
             # Print title
@@ -185,12 +193,10 @@ class USBPrinter(BasePrinter):
             printer.close()
 
             return JSONResponse(
-                content={"message": "Task printed successfully"},
-                status_code=200
+                content={"message": "Task printed successfully"}, status_code=200
             )
 
         except Exception as e:
             raise HTTPException(
-                status_code=500,
-                detail=f"Failed to print task: {str(e)}"
+                status_code=500, detail=f"Failed to print task: {str(e)}"
             )

@@ -2,7 +2,6 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict
 
 from fastapi import Response
-from sqlalchemy.orm import Session
 
 from app.schemas.task import Task
 

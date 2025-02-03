@@ -15,38 +15,40 @@ class PrinterFactory:
 
     _printer_classes: Dict[str, Type[BasePrinter]] = {
         "pdf": PDFPrinter,
-        "usb": USBPrinter
+        "usb": USBPrinter,
     }
 
     @classmethod
     def create_printer(cls, printer_type: str = None) -> BasePrinter:
         """
         Create a printer instance based on the configuration.
-        
+
         Args:
             printer_type: Optional printer type to override the default from config
-        
+
         Returns:
             An instance of the configured printer
         """
         # Load printer configuration
         config = configparser.ConfigParser()
-        config_path = Path(__file__).parent.parent.parent.parent / "config" / "printers.ini"
-        
+        config_path = (
+            Path(__file__).parent.parent.parent.parent / "config" / "printers.ini"
+        )
+
         logger.debug(f"Looking for printer config at: {config_path}")
-        
+
         # Create default config if it doesn't exist
         if not config_path.exists():
-            logger.warning(f"Printer config not found at {config_path}, creating default")
+            logger.warning(
+                f"Printer config not found at {config_path}, creating default"
+            )
             config_path.parent.mkdir(parents=True, exist_ok=True)
-            config["DEFAULT"] = {
-                "default_printer": "pdf"
-            }
+            config["DEFAULT"] = {"default_printer": "pdf"}
             config["pdf"] = {
                 "type": "pdf",
                 "name": "PDF Printer",
                 "description": "Creates and downloads PDF files",
-                "class": "PDFPrinter"
+                "class": "PDFPrinter",
             }
             config["usb"] = {
                 "type": "usb",
@@ -56,11 +58,11 @@ class PrinterFactory:
                 "vendor_id": "0x28E9",
                 "product_id": "0x0289",
                 "profile": "ZJ-5870",
-                "frontend_url": "http://localhost:4200"
+                "frontend_url": "http://localhost:4200",
             }
             with open(config_path, "w") as f:
                 config.write(f)
-        
+
         config.read(config_path)
         logger.debug(f"Loaded printer config sections: {config.sections()}")
 

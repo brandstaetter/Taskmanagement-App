@@ -1,4 +1,3 @@
-from typing import Any, Dict
 import tempfile
 from datetime import datetime
 
@@ -6,10 +5,11 @@ from fastapi import Response
 from fastapi.responses import FileResponse
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
 from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.platypus import Paragraph, SimpleDocTemplate, Table, TableStyle
 
 from app.schemas.task import Task
+
 from .base_printer import BasePrinter
 
 
@@ -25,7 +25,7 @@ class PDFPrinter(BasePrinter):
     async def print(self, task: Task) -> Response:
         """
         Create a PDF from the task and return it as a downloadable response.
-        
+
         Args:
             task: Task model instance to print
         """
@@ -38,7 +38,7 @@ class PDFPrinter(BasePrinter):
                 rightMargin=72,
                 leftMargin=72,
                 topMargin=72,
-                bottomMargin=72
+                bottomMargin=72,
             )
 
             # Container for the 'Flowable' objects
@@ -78,19 +78,23 @@ class PDFPrinter(BasePrinter):
 
             # Create table
             table = Table(table_data)
-            table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                ('FONTSIZE', (0, 0), (-1, 0), 14),
-                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-                ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-                ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
-                ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-                ('FONTSIZE', (0, 1), (-1, -1), 12),
-                ('GRID', (0, 0), (-1, -1), 1, colors.black)
-            ]))
+            table.setStyle(
+                TableStyle(
+                    [
+                        ("BACKGROUND", (0, 0), (-1, 0), colors.grey),
+                        ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
+                        ("ALIGN", (0, 0), (-1, -1), "LEFT"),
+                        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                        ("FONTSIZE", (0, 0), (-1, 0), 14),
+                        ("BOTTOMPADDING", (0, 0), (-1, 0), 12),
+                        ("BACKGROUND", (0, 1), (-1, -1), colors.beige),
+                        ("TEXTCOLOR", (0, 1), (-1, -1), colors.black),
+                        ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
+                        ("FONTSIZE", (0, 1), (-1, -1), 12),
+                        ("GRID", (0, 0), (-1, -1), 1, colors.black),
+                    ]
+                )
+            )
             elements.append(table)
 
             # Build PDF
@@ -100,5 +104,5 @@ class PDFPrinter(BasePrinter):
             return FileResponse(
                 path=tmp_file.name,
                 filename=f"task_{task.id}_{task.title.lower().replace(' ', '_')}.pdf",
-                media_type="application/pdf"
+                media_type="application/pdf",
             )
