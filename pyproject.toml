@@ -8,9 +8,15 @@ version = "0.1.0"
 authors = [
   { name = "Your Name", email = "your.email@example.com" },
 ]
-description = "A Task Management Application"
+description = "A task management application with Python backend and Angular frontend"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.11"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
 dependencies = [
     "fastapi>=0.100.0,<0.105.0",
     "uvicorn[standard]>=0.23.0,<0.25.0",
@@ -26,8 +32,62 @@ dependencies = [
     "httpx>=0.25.0,<0.26.0",
 ]
 
-[tool.pytest.ini_options]
-pythonpath = [
-    "."
+[project.optional-dependencies]
+test = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "black>=23.0.0",
+    "flake8>=6.0.0",
+    "mypy>=1.0.0",
 ]
+
+[tool.pytest.ini_options]
 testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-v --cov=app --cov-report=term-missing"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::UserWarning",
+]
+
+[tool.black]
+line-length = 88
+target-version = ['py311']
+include = '\.pyi?$'
+extend-exclude = '''
+# A regex preceded with ^/ will apply only to files and directories
+# in the root of the project.
+^/venv/
+'''
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+plugins = [
+    "sqlalchemy.ext.mypy.plugin",
+    "pydantic.mypy"
+]
+
+[tool.coverage.run]
+source = ["app"]
+omit = [
+    "*/migrations/*",
+    "*/tests/*",
+    "*/venv/*",
+    "setup.py",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "pass",
+    "raise ImportError",
+    "except ImportError:",
+    "if TYPE_CHECKING:",
+]
