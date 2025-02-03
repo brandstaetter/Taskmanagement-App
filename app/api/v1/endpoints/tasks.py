@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy.orm import Session
 
 from app.core.printing.printer_factory import PrinterFactory
-from app.crud.task import (create_task, get_task, get_tasks,
+from app.crud.task import (create_task, delete_task, get_task, get_tasks,
                            read_random_task, update_task)
 from app.db.models.task import TaskState
 from app.db.session import get_db
@@ -143,6 +143,19 @@ def complete_task(task_id: int, db: Session = Depends(get_db)) -> Task:
     if db_task is None:
         raise HTTPException(status_code=404, detail="Task not found")
 
+    return db_task
+
+
+@router.delete("/{task_id}", response_model=Task)
+def delete_task_endpoint(task_id: int, db: Session = Depends(get_db)) -> Task:
+    """
+    Delete a task by ID.
+    """
+    from app.crud.task import delete_task
+    
+    db_task = delete_task(db=db, task_id=task_id)
+    if db_task is None:
+        raise HTTPException(status_code=404, detail="Task not found")
     return db_task
 
 
