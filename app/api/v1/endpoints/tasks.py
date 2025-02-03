@@ -151,8 +151,6 @@ def delete_task_endpoint(task_id: int, db: Session = Depends(get_db)) -> Task:
     """
     Delete a task by ID.
     """
-    from app.crud.task import delete_task
-    
     db_task = delete_task(db=db, task_id=task_id)
     if db_task is None:
         raise HTTPException(status_code=404, detail="Task not found")
