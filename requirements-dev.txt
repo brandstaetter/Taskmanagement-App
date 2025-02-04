@@ -24,7 +24,7 @@ argparse==1.4.0
     # via python-escpos
 bcrypt==4.2.1
     # via passlib
-black==24.3.0
+black==25.1.0
     # via taskmanagement_app (pyproject.toml)
 certifi==2025.1.31
     # via
