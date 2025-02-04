@@ -4,6 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [project]
 readme = "README.md"
+name = "taskmanagement_app"
 requires-python = ">=3.11,<4.0"
 classifiers = [
     "Programming Language :: Python :: 3",
@@ -12,7 +13,6 @@ classifiers = [
 ]
 
 [tool.poetry]
-name = "taskmanagement_app"
 version = "0.1.0"
 description = "A task management application"
 authors = ["Your Name <your.email@example.com>"]
