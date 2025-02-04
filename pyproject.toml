@@ -3,7 +3,6 @@ requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [project]
-license = "MIT"
 readme = "README.md"
 name = "taskmanagement_app"
 version = "0.1.0"
@@ -14,28 +13,28 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
+license = "MIT"
 dependencies = [
-    "fastapi (>=0.100.0,<0.105.0)",
-    "uvicorn[standard] (>=0.23.0,<0.25.0)",
-    "sqlalchemy (>=2.0.23,<3.0.0)",
-    "pydantic (>=2.4.0,<3.0.0)",
-    "pydantic-settings (>=2.0.0)",
-    "python-dotenv (>=1.0.0,<2.0.0)",
-    "alembic (>=1.12.0,<2.0.0)",
-    "python-jose[cryptography] (>=3.3.0,<4.0.0)",
-    "passlib[bcrypt] (>=1.7.4,<2.0.0)",
-    "python-multipart (>=0.0.6,<0.1.0)",
-    "httpx(>=0.25.0,<0.29.0)",
-    "reportlab (==4.0.4)",
-    "python-escpos (==3.0a8)",
-    "APScheduler (==3.11.0)"
+    "fastapi==0.104.1",
+    "starlette==0.27.0",
+    "uvicorn[standard]==0.24.0",
+    "sqlalchemy>=2.0.23,<3.0.0",
+    "pydantic==2.10.6",
+    "pydantic-core==2.27.2",
+    "pydantic-settings>=2.0.0",
+    "python-dotenv>=1.0.0,<2.0.0",
+    "alembic>=1.12.0,<2.0.0",
+    "python-jose[cryptography]>=3.3.0,<4.0.0",
+    "passlib[bcrypt]>=1.7.4,<2.0.0",
+    "python-multipart>=0.0.6,<0.1.0",
+    "httpx==0.25.0",
+    "reportlab==4.0.4",
+    "python-escpos==3.0a8",
+    "APScheduler==3.11.0"
 ]
 
 [tool.poetry]
 packages = [{include = "taskmanagement_app"}]
-
-[tool.poetry.dependencies]
-
 
 [tool.poetry.group.dev.dependencies]
 pytest = ">=7.4.0,<8.0.0"
@@ -50,6 +49,7 @@ types-passlib = "*"
 types-python-dateutil = "*"
 types-requests = "*"
 types-setuptools = "*"
+httpx = ">=0.25.0,<0.29.0"
 
 [tool.black]
 line-length = 88
