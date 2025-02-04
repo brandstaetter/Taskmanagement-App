@@ -2,6 +2,8 @@
 
 Backend REST API for the Task Management application.
 
+[![codecov](https://codecov.io/gh/brandstaetter/Taskmanagement-App/graph/badge.svg?token=WOG6NB0DBV)](https://codecov.io/gh/brandstaetter/Taskmanagement-App)
+
 ## Setup
 
 1. Create a virtual environment:

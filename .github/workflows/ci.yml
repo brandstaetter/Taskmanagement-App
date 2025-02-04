@@ -46,12 +46,11 @@ jobs:
       run: |
         pytest --cov-branch --cov-report=xml --junitxml=junit.xml -o junit_family=legacy
 
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
+    - name: Upload coverage reports to Codecov
+      uses: codecov/codecov-action@v5
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
-        file: ./coverage.xml
-        fail_ci_if_error: true
+        slug: brandstaetter/Taskmanagement-App
     
     - name: Upload test results to Codecov
       if: ${{ !cancelled() }}
