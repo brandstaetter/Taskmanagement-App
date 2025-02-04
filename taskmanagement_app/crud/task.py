@@ -1,6 +1,6 @@
 import random
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Sequence, Union
 
 from sqlalchemy.orm import Session
 
@@ -8,7 +8,7 @@ from taskmanagement_app.db.models.task import TaskModel, TaskState
 from taskmanagement_app.schemas.task import TaskCreate, TaskUpdate
 
 
-def get_tasks(db: Session, skip: int = 0, limit: int = 100) -> List[TaskModel]:
+def get_tasks(db: Session, skip: int = 0, limit: int = 100) -> Sequence[TaskModel]:
     return (
         db.query(TaskModel)
         .order_by(TaskModel.due_date.asc().nulls_last())
@@ -32,7 +32,7 @@ def create_task(db: Session, task: TaskCreate) -> TaskModel:
     return db_task
 
 
-def get_due_tasks(db: Session) -> List[TaskModel]:
+def get_due_tasks(db: Session) -> Sequence[TaskModel]:
     """Get all tasks that are due within the next 24 hours."""
     now = datetime.now()
     tomorrow = now + timedelta(days=1)
@@ -50,7 +50,7 @@ def get_due_tasks(db: Session) -> List[TaskModel]:
     )
 
 
-def weighted_random_choice(tasks: List[TaskModel]) -> Optional[TaskModel]:
+def weighted_random_choice(tasks: Sequence[TaskModel]) -> Optional[TaskModel]:
     """
     Select a random task with higher probability for tasks due sooner.
     Tasks without due dates are treated as lowest priority.
