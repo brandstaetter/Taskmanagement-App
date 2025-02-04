@@ -1,6 +1,6 @@
 import random
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional, Union, cast
+from typing import Any, Dict, List, Optional, Sequence, Union
 
 from sqlalchemy.orm import Session
 
@@ -8,14 +8,13 @@ from taskmanagement_app.db.models.task import TaskModel, TaskState
 from taskmanagement_app.schemas.task import TaskCreate, TaskUpdate
 
 
-def get_tasks(db: Session, skip: int = 0, limit: int = 100) -> List[TaskModel]:
-    return cast(
-        List[TaskModel],
+def get_tasks(db: Session, skip: int = 0, limit: int = 100) -> Sequence[TaskModel]:
+    return (
         db.query(TaskModel)
         .order_by(TaskModel.due_date.asc().nulls_last())
         .offset(skip)
         .limit(limit)
-        .all(),
+        .all()
     )
 
 
@@ -33,13 +32,12 @@ def create_task(db: Session, task: TaskCreate) -> TaskModel:
     return db_task
 
 
-def get_due_tasks(db: Session) -> List[TaskModel]:
+def get_due_tasks(db: Session) -> Sequence[TaskModel]:
     """Get all tasks that are due within the next 24 hours."""
     now = datetime.now()
     tomorrow = now + timedelta(days=1)
 
-    return cast(
-        List[TaskModel],
+    return (
         db.query(TaskModel)
         .filter(
             TaskModel.due_date.isnot(None),  # Filter out tasks with no due date
@@ -48,11 +46,11 @@ def get_due_tasks(db: Session) -> List[TaskModel]:
             TaskModel.due_date >= now.strftime("%Y-%m-%d %H:%M:%S"),  # Due after now
             TaskModel.state != TaskState.done,  # Not already completed
         )
-        .all(),
+        .all()
     )
 
 
-def weighted_random_choice(tasks: List[TaskModel]) -> Optional[TaskModel]:
+def weighted_random_choice(tasks: Sequence[TaskModel]) -> Optional[TaskModel]:
     """
     Select a random task with higher probability for tasks due sooner.
     Tasks without due dates are treated as lowest priority.
@@ -106,10 +104,7 @@ def get_random_task(db: Session) -> Optional[TaskModel]:
     Only considers non-completed tasks.
     """
     # Get all non-completed tasks
-    tasks = cast(
-        List[TaskModel],
-        db.query(TaskModel).filter(TaskModel.state != TaskState.done).all(),
-    )
+    tasks = db.query(TaskModel).filter(TaskModel.state != TaskState.done).all()
 
     return weighted_random_choice(tasks)
 
@@ -118,10 +113,7 @@ def get_task(db: Session, task_id: int) -> Optional[TaskModel]:
     """
     Get a task by its ID.
     """
-    return cast(
-        Optional[TaskModel],
-        db.query(TaskModel).filter(TaskModel.id == task_id).first(),
-    )
+    return db.query(TaskModel).filter(TaskModel.id == task_id).first()
 
 
 def update_task(
@@ -203,10 +195,7 @@ def read_random_task(db: Session) -> Optional[TaskModel]:
 
     Uses weighted random selection where tasks due sooner have higher weights.
     """
-    tasks = cast(
-        List[TaskModel],
-        db.query(TaskModel).filter(TaskModel.state != TaskState.done).all(),
-    )
+    tasks = db.query(TaskModel).filter(TaskModel.state != TaskState.done).all()
 
     if not tasks:
         return None
