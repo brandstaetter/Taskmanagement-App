@@ -23,7 +23,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -r requirements.txt
+        pip install -e .
         pip install black flake8 mypy pytest pytest-cov isort
 
     - name: Check imports with isort
@@ -40,11 +40,11 @@ jobs:
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=88 --statistics
 
     - name: Type checking with mypy
-      run: mypy app/ tests/
+      run: mypy taskmanagement_app/ tests/
 
     - name: Run tests with pytest and coverage
       run: |
-        pytest --cov=app --cov-report=xml --cov-report=term-missing tests/
+        pytest --cov=taskmanagement_app --cov-report=xml --cov-report=term-missing tests/
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3

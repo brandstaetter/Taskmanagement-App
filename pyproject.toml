@@ -1,12 +1,12 @@
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
 
 [project]
-name = "taskmanagement-app"
+name = "taskmanagement_app"
 version = "0.1.0"
 authors = [
-  { name = "Your Name", email = "your.email@example.com" },
+  { name="Your Name", email="your.email@example.com" },
 ]
 description = "A task management application with Python backend and Angular frontend"
 readme = "README.md"
@@ -16,19 +16,15 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
-
 dependencies = [
     "fastapi>=0.100.0,<0.105.0",
     "uvicorn[standard]>=0.23.0,<0.25.0",
-    "sqlalchemy>=2.0.23,<3.0.0",
-    "pydantic>=2.4.0,<3.0.0",
-    "python-dotenv>=1.0.0,<2.0.0",
-    "alembic>=1.12.0,<2.0.0",
-    "pytest>=7.4.0,<8.0.0",
-    "pytest-cov>=4.1.0,<5.0.0",
+    "sqlalchemy>=2.0.0,<3.0.0",
+    "pydantic>=2.0.0,<3.0.0",
     "python-jose[cryptography]>=3.3.0,<4.0.0",
     "passlib[bcrypt]>=1.7.4,<2.0.0",
     "python-multipart>=0.0.6,<0.1.0",
+    "alembic>=1.12.0,<2.0.0",
     "httpx>=0.25.0,<0.26.0",
 ]
 
@@ -39,12 +35,18 @@ test = [
     "black>=23.0.0",
     "flake8>=6.0.0",
     "mypy>=1.0.0",
+    "types-sqlalchemy",
+    "types-requests",
+    "pytest-mypy",
 ]
+
+[tool.setuptools]
+packages = ["taskmanagement_app"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
-addopts = "-v --cov=app --cov-report=term-missing"
+addopts = "-v --cov=taskmanagement_app --cov-report=term-missing"
 filterwarnings = [
     "ignore::DeprecationWarning",
     "ignore::UserWarning",

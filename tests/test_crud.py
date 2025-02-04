@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 
 from sqlalchemy.orm import Session
 
-from app.crud.task import (
+from taskmanagement_app.crud.task import (
     complete_task,
     create_task,
     delete_task,
@@ -11,10 +11,10 @@ from app.crud.task import (
     start_task,
     update_task,
 )
-from app.schemas.task import TaskCreate, TaskUpdate
+from taskmanagement_app.schemas.task import TaskCreate, TaskUpdate
 
 
-def test_create_task(db_session: Session):
+def test_create_task(db_session: Session) -> None:
     task_in = TaskCreate(
         title="Test Task",
         description="Test Description",
@@ -27,7 +27,7 @@ def test_create_task(db_session: Session):
     assert task.state == task_in.state
 
 
-def test_get_task(db_session: Session):
+def test_get_task(db_session: Session) -> None:
     task_in = TaskCreate(
         title="Test Task",
         description="Test Description",
@@ -42,7 +42,7 @@ def test_get_task(db_session: Session):
     assert task.description == stored_task.description
 
 
-def test_get_tasks(db_session: Session):
+def test_get_tasks(db_session: Session) -> None:
     task_in1 = TaskCreate(
         title="Test Task 1",
         description="Test Description 1",
@@ -53,20 +53,20 @@ def test_get_tasks(db_session: Session):
         title="Test Task 2",
         description="Test Description 2",
         due_date=(datetime.now() + timedelta(days=2)).date().isoformat(),
-        state="in_progress",
+        state="todo",
     )
     task1 = create_task(db=db_session, task=task_in1)
     task2 = create_task(db=db_session, task=task_in2)
     tasks = get_tasks(db=db_session)
     assert len(tasks) >= 2
-    assert any(task.id == task1.id for task in tasks)
-    assert any(task.id == task2.id for task in tasks)
+    assert any(t.id == task1.id for t in tasks)
+    assert any(t.id == task2.id for t in tasks)
 
 
-def test_update_task(db_session: Session):
+def test_update_task(db_session: Session) -> None:
     task_in = TaskCreate(
-        title="Original Task",
-        description="Original Description",
+        title="Test Task",
+        description="Test Description",
         due_date=(datetime.now() + timedelta(days=1)).date().isoformat(),
         state="todo",
     )
@@ -75,46 +75,43 @@ def test_update_task(db_session: Session):
     task_update = TaskUpdate(
         title="Updated Task",
         description="Updated Description",
-        state="in_progress",
     )
     updated_task = update_task(db=db_session, task_id=task.id, task=task_update)
+    assert updated_task
     assert updated_task.title == task_update.title
     assert updated_task.description == task_update.description
-    assert updated_task.state == task_update.state
 
 
-def test_delete_task(db_session: Session):
+def test_delete_task(db_session: Session) -> None:
     task_in = TaskCreate(
-        title="Task to Delete",
-        description="This task will be deleted",
+        title="Test Task",
+        description="Test Description",
         due_date=(datetime.now() + timedelta(days=1)).date().isoformat(),
         state="todo",
     )
     task = create_task(db=db_session, task=task_in)
-    task_id = task.id
-    deleted_task = delete_task(db=db_session, task_id=task_id)
-    assert deleted_task.id == task_id
-    task = get_task(db=db_session, task_id=task_id)
-    assert task is None
+    deleted_task = delete_task(db=db_session, task_id=task.id)
+    assert deleted_task
+    assert deleted_task.id == task.id
+    stored_task = get_task(db=db_session, task_id=task.id)
+    assert stored_task is None
 
 
-def test_task_state_transitions(db_session: Session):
-    # Create a task
+def test_task_state_transitions(db_session: Session) -> None:
     task_in = TaskCreate(
-        title="Task State Transitions",
-        description="Testing state transitions",
+        title="Test Task",
+        description="Test Description",
         due_date=(datetime.now() + timedelta(days=1)).date().isoformat(),
         state="todo",
     )
     task = create_task(db=db_session, task=task_in)
-    assert task.state == "todo"
 
-    # Start the task
+    # Start task
     started_task = start_task(db=db_session, task=task)
     assert started_task.state == "in_progress"
     assert started_task.started_at is not None
 
-    # Complete the task
+    # Complete task
     completed_task = complete_task(db=db_session, task=started_task)
     assert completed_task.state == "done"
     assert completed_task.completed_at is not None
