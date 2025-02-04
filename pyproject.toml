@@ -75,6 +75,9 @@ force_grid_wrap = 0
 use_parentheses = true
 ensure_newline_before_comments = true
 line_length = 88
+skip = ["venv", ".git", "__pycache__"]
+known_first_party = ["taskmanagement_app"]
+sections = ["FUTURE", "STDLIB", "THIRDPARTY", "FIRSTPARTY", "LOCALFOLDER"]
 
 [tool.mypy]
 python_version = "3.11"
@@ -89,8 +92,38 @@ warn_redundant_casts = true
 warn_unused_ignores = true
 warn_no_return = true
 warn_unreachable = true
-plugins = []
+strict_optional = true
+exclude = "venv/"
+namespace_packages = true
+explicit_package_bases = true
 
 [[tool.mypy.overrides]]
-module = ["pytest.*", "setuptools.*", "apscheduler.*", "escpos.*"]
+module = "taskmanagement_app.*"
+disallow_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+
+[[tool.mypy.overrides]]
+module = ["pytest.*", "fastapi.*", "sqlalchemy.*", "escpos.*", "alembic.*", "reportlab.*", "jose.*", "pydantic_settings.*", "setuptools.*"]
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "alembic.*"
+ignore_errors = true
+
+[tool.flake8]
+max-line-length = 88  # Match black's line length
+exclude = [".git", "__pycache__", "build", "dist", "venv"]
+per-file-ignores = """
+    # Allow unused imports in __init__.py files
+    __init__.py: F401,W391
+    # Allow line break before/after binary operator and module level imports not at top in test files
+    test_*.py: E501,E402
+"""
+ignore = [
+    "W503",  # Allow line break before binary operator
+    "W504",  # Allow line break after binary operator
+    "D103",  # Don't require docstrings for tests
+]

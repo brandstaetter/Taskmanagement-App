@@ -1,15 +1,15 @@
 [flake8]
-max-line-length = 100
+max-line-length = 88
 exclude = .git,__pycache__,build,dist,venv
 per-file-ignores =
     # Allow unused imports in __init__.py files
     __init__.py: F401,W391
-    # Allow long lines and module level imports not at top in test files
-    test_*.py: E501,E402
+    # Allow line break before/after binary operator and module level imports not at top in test files
+    test_*.py: E501,E402,W503,W504
 ignore =
-    # Allow line break before binary operator
-    W503
-    # Allow line break after binary operator
-    W504
     # Don't require docstrings for tests
     D103
+extend-ignore = E203  # Needed for compatibility with black
+max-complexity = 10
+statistics = True
+count = True
