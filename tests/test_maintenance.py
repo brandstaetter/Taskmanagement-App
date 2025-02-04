@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+from typing import Literal
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -6,13 +7,21 @@ from sqlalchemy.orm import Session
 
 from taskmanagement_app.core.printing.base_printer import BasePrinter
 from taskmanagement_app.crud.task import create_task, get_task
-from taskmanagement_app.jobs.task_maintenance import cleanup_old_tasks, process_due_tasks
+from taskmanagement_app.db.models.task import TaskModel
+from taskmanagement_app.jobs.task_maintenance import (
+    cleanup_old_tasks,
+    process_due_tasks,
+)
 from taskmanagement_app.schemas.task import TaskCreate
 
 
 def create_test_task(
-    db: Session, *, title: str, state: str, completed_at: str | None = None
-) -> None:
+    db: Session,
+    *,
+    title: str,
+    state: Literal["todo", "in_progress", "done"],
+    completed_at: str | None = None,
+) -> TaskModel:
     task_in = TaskCreate(
         title=title,
         description="Test Description",
@@ -36,12 +45,12 @@ def test_cleanup_old_tasks(db_session: Session) -> None:
         completed_at=(datetime.now(timezone.utc) - timedelta(hours=25)).isoformat(),
     )
 
-    # Create a recently completed task
+    # Create a task completed less than 24 hours ago
     recent_task = create_test_task(
         db_session,
         title="Recent Task",
         state="done",
-        completed_at=(datetime.now(timezone.utc) - timedelta(hours=12)).isoformat(),
+        completed_at=(datetime.now(timezone.utc) - timedelta(hours=23)).isoformat(),
     )
 
     # Create an incomplete task
@@ -67,13 +76,18 @@ def test_cleanup_old_tasks(db_session: Session) -> None:
 class MockPrinter(BasePrinter):
     """Mock printer for testing."""
 
-    def __init__(self, config: dict = {}):
+    def __init__(self, config: dict = {}) -> None:
         """Initialize with config."""
         super().__init__(config=config)
+        self._print = AsyncMock()
 
-    async def print(self, task):
-        """Mock print method."""
-        pass
+    @property
+    def print(self):
+        return self._print
+
+    @print.setter
+    def print(self, value):
+        self._print = value
 
 
 @pytest.mark.asyncio
@@ -96,9 +110,7 @@ async def test_process_due_tasks(db_session: Session) -> None:
         title="Not Due Task",
         state="todo",
     )
-    not_due_task.due_date = (
-        datetime.now(timezone.utc) + timedelta(days=2)
-    ).isoformat()
+    not_due_task.due_date = (datetime.now(timezone.utc) + timedelta(days=2)).isoformat()
     db_session.commit()
 
     # Create a task that's already in progress
