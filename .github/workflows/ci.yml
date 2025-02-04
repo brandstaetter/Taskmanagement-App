@@ -44,7 +44,7 @@ jobs:
 
     - name: Run tests with pytest and coverage
       run: |
-        pytest --cov=taskmanagement_app --junitxml=junit.xml -o junit_family=legacy --cov-report=xml --cov-report=term-missing tests/
+        pytest --cov-branch --cov-report=xml --junitxml=junit.xml -o junit_family=legacy
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
