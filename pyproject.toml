@@ -21,6 +21,7 @@ dependencies = [
     "uvicorn[standard]>=0.23.0,<0.25.0",
     "sqlalchemy>=2.0.23,<3.0.0",
     "pydantic>=2.4.0,<3.0.0",
+    "pydantic-settings>=2.0.0",
     "python-dotenv>=1.0.0,<2.0.0",
     "alembic>=1.12.0,<2.0.0",
     "python-jose[cryptography]>=3.3.0,<4.0.0",
@@ -46,7 +47,6 @@ dev = [
     "types-python-dateutil",
     "types-requests",
     "types-setuptools",
-    "pydantic-settings>=2.0.0",
 ]
 
 [tool.setuptools]

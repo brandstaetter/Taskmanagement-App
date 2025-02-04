@@ -22,6 +22,7 @@ black>=23.11.0,<24.0.0
 flake8>=6.1.0,<7.0.0
 isort>=5.12.0,<6.0.0
 mypy>=1.0.0
+pydantic-settings>=2.0.0
 
 # Type stubs
 types-python-jose
