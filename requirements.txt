@@ -1,14 +1,10 @@
+# Main dependencies
 fastapi>=0.100.0,<0.105.0
 uvicorn[standard]>=0.23.0,<0.25.0
 sqlalchemy>=2.0.23,<3.0.0
 pydantic>=2.4.0,<3.0.0
 python-dotenv>=1.0.0,<2.0.0
 alembic>=1.12.0,<2.0.0
-pytest>=7.4.0,<8.0.0
-pytest-cov>=4.1.0,<5.0.0
-black>=23.11.0,<24.0.0
-flake8>=6.1.0,<7.0.0
-isort>=5.12.0,<6.0.0
 python-jose[cryptography]>=3.3.0,<4.0.0
 passlib[bcrypt]>=1.7.4,<2.0.0
 python-multipart>=0.0.6,<0.1.0
@@ -16,3 +12,20 @@ httpx>=0.25.0,<0.26.0
 reportlab==4.0.4
 python-escpos==3.0a8
 APScheduler==3.10.4
+
+# Development dependencies
+pytest>=7.4.0,<8.0.0
+pytest-cov>=4.1.0,<5.0.0
+pytest-asyncio>=0.23.0,<0.24.0
+black>=23.11.0,<24.0.0
+flake8>=6.1.0,<7.0.0
+isort>=5.12.0,<6.0.0
+mypy>=1.0.0
+
+# Type stubs
+types-sqlalchemy
+types-python-jose
+types-passlib
+types-python-dateutil
+types-requests
+types-setuptools
