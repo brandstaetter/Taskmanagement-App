@@ -1,12 +1,13 @@
 import os
 import sys
 from logging.config import fileConfig
+from typing import Dict
 
 from sqlalchemy import engine_from_config, pool
 
 from alembic import context
-from app.core.config import get_settings
-from app.db.base import Base
+from taskmanagement_app.core.config import get_settings
+from taskmanagement_app.db.base import Base
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
@@ -33,8 +34,12 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
-    configuration = config.get_section(config.config_ini_section)
+    # Get alembic section configuration
+    configuration: Dict[str, str] = dict(
+        config.get_section(config.config_ini_section) or {}
+    )
     configuration["sqlalchemy.url"] = settings.DATABASE_URL
+
     connectable = engine_from_config(
         configuration,
         prefix="sqlalchemy.",
