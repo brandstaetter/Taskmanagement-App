@@ -13,6 +13,7 @@ classifiers = [
 ]
 
 [tool.poetry]
+name = "taskmanagement_app"
 version = "0.1.0"
 description = "A task management application"
 authors = ["Your Name <your.email@example.com>"]
