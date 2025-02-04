@@ -44,7 +44,7 @@ jobs:
 
     - name: Run tests with pytest and coverage
       run: |
-        pytest --cov-branch --cov-report=xml
+        pytest --cov=taskmanagement_app --cov-report=xml --cov-report=term-missing tests/
 
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@v5
