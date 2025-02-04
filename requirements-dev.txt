@@ -24,7 +24,7 @@ argparse==1.4.0
     # via python-escpos
 bcrypt==4.2.1
     # via passlib
-black==23.12.1
+black==24.3.0
     # via taskmanagement_app (pyproject.toml)
 certifi==2025.1.31
     # via
@@ -172,7 +172,7 @@ sqlalchemy==2.0.37
     # via
     #   alembic
     #   taskmanagement_app (pyproject.toml)
-starlette==0.27.0
+starlette==0.40.0
     # via fastapi
 types-passlib==1.7.7.20241221
     # via taskmanagement_app (pyproject.toml)
