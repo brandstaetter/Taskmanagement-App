@@ -4,6 +4,7 @@ omit =
     */migrations/*
     */tests/*
     */venv/*
+    */.venv/*
     setup.py
 
 [report]
