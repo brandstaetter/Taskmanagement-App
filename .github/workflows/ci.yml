@@ -44,7 +44,7 @@ jobs:
 
     - name: Run tests with pytest and coverage
       run: |
-        pytest --cov=taskmanagement_app --cov-report=xml --cov-report=term-missing tests/
+        pytest --cov=taskmanagement_app --junitxml=junit.xml -o junit_family=legacy --cov-report=xml --cov-report=term-missing tests/
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
@@ -52,3 +52,9 @@ jobs:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: ./coverage.xml
         fail_ci_if_error: true
+    
+    - name: Upload test results to Codecov
+      if: ${{ !cancelled() }}
+      uses: codecov/test-results-action@v1
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
