@@ -130,7 +130,7 @@ pytest==7.4.4
     #   taskmanagement_app (pyproject.toml)
 pytest-asyncio==0.23.8
     # via taskmanagement_app (pyproject.toml)
-pytest-cov==4.1.0
+pytest-cov==6.0.0
     # via taskmanagement_app (pyproject.toml)
 python-barcode==0.15.1
     # via python-escpos
