@@ -9,7 +9,9 @@ per-file-ignores =
 ignore =
     # Don't require docstrings for tests
     D103
-extend-ignore = E203  # Needed for compatibility with black
+extend-ignore = 
+    # Needed for compatibility with black
+    E203 
 max-complexity = 10
 statistics = True
 count = True
