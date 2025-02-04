@@ -26,7 +26,8 @@ def cleanup_old_tasks(db: Session) -> None:
                     task.completed_at.replace("Z", "+00:00")
                 )
                 logger.debug(
-                    f"Checking task {task.id} - completed at: {completed_at.isoformat()}"
+                    f"Checking task {task.id} - "
+                    f"completed at: {completed_at.isoformat()}"
                 )
 
                 if completed_at < cutoff:
@@ -84,17 +85,20 @@ async def process_due_tasks(db: Session) -> None:
                         updated_task = update_task(db, task.id, task_update)
                         if updated_task:
                             logger.debug(
-                                f"Updated task state: {task.id} - new state: {updated_task.state}"
+                                f"Updated task state: {task.id} - "
+                                f"new state: {updated_task.state}"
                             )
                         else:
                             logger.error(f"Failed to update task {task.id}")
                     else:
                         logger.debug(
-                            f"Task {task.id} not due yet. Due date: {due_date.isoformat()}"
+                            f"Task {task.id} not due yet. "
+                            f"Due date: {due_date.isoformat()}"
                         )
                 else:
                     logger.debug(
-                        f"Skipping task {task.id} - state: {task.state}, due date: {task.due_date}"
+                        f"Skipping task {task.id} - state: {task.state}, "
+                        f"due date: {task.due_date}"
                     )
             except Exception as e:
                 logger.error(

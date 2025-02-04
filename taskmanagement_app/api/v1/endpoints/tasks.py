@@ -104,7 +104,8 @@ def start_task(task_id: int, db: Session = Depends(get_db)) -> Task:
     if db_task.state != TaskState.todo:
         raise HTTPException(
             status_code=400,
-            detail=f"Cannot start task in state {db_task.state}. Task must be in 'todo' state.",
+            detail=f"Cannot start task in state {db_task.state}. "
+            "Task must be in 'todo' state.",
         )
 
     updated_db_task = start_task_crud(db, db_task)
