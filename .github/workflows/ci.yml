@@ -37,7 +37,7 @@ jobs:
       run: poetry install
 
     - name: Check imports with isort
-      run: poetry run isort . --check-only --diff
+      run: poetry run isort . --check-only --diff --sp pyproject.toml
 
     - name: Check code formatting with Black
       run: poetry run black . --check
