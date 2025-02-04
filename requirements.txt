@@ -55,7 +55,7 @@ httpcore==1.0.7
     # via httpx
 httptools==0.6.4
     # via uvicorn
-httpx==0.25.2
+httpx==0.28.1
     # via taskmanagement_app (pyproject.toml)
 idna==3.10
     # via
