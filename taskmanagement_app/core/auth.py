@@ -26,7 +26,8 @@ def create_admin_token(expires_delta: Optional[timedelta] = None) -> str:
     encoded_jwt = jwt.encode(
         to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM
     )
-    return encoded_jwt
+    # Ensure we always return a str, regardless of platform
+    return str(encoded_jwt)
 
 
 async def verify_admin(
