@@ -1,6 +1,6 @@
 [flake8]
 max-line-length = 88
-exclude = .git,__pycache__,build,dist,venv
+exclude = .git,__pycache__,build,dist,venv,.venv
 per-file-ignores =
     # Allow unused imports in __init__.py files
     __init__.py: F401,W391
@@ -8,7 +8,7 @@ per-file-ignores =
     test_*.py: E501,E402,W503,W504
 ignore =
     # Don't require docstrings for tests
-    D103
+    D103,W503
 extend-ignore = 
     # Needed for compatibility with black
     E203 
