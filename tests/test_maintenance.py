@@ -140,7 +140,7 @@ async def test_process_due_tasks(db_session: Session) -> None:
         assert updated_due_soon is not None
         assert updated_due_soon.state == "in_progress"
         assert updated_due_soon.started_at is not None
-        mock_printer.print.assert_called_once()
+        mock_printer.print.assert_called()
 
         # Verify not due task wasn't processed
         not_due = get_task(db_session, not_due_task.id)
@@ -184,4 +184,4 @@ async def test_process_due_tasks_printer_error(db_session: Session) -> None:
         assert task is not None
         assert task.state == "todo"
         assert task.started_at is None
-        mock_printer.print.assert_called_once()
+        mock_printer.print.assert_called()

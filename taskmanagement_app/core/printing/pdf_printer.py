@@ -1,18 +1,19 @@
-from datetime import datetime
 import logging
-from pathlib import Path
 import tempfile
+from datetime import datetime
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from fastapi import Response
 from fastapi.responses import FileResponse
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.platypus import Flowable, Paragraph, SimpleDocTemplate, Table, TableStyle
 
 from taskmanagement_app.core.exceptions import PrinterError
 from taskmanagement_app.schemas.task import Task
+
 from .base_printer import BasePrinter
 
 
@@ -21,7 +22,7 @@ class PDFPrinter(BasePrinter):
 
     def __init__(self, config: Dict[str, Any]) -> None:
         """Initialize the PDF printer with output directory and logger.
-        
+
         Args:
             config: Dictionary containing configuration values
         """
@@ -30,17 +31,21 @@ class PDFPrinter(BasePrinter):
         self.output_dir = Path(config.get("output_dir", "output"))
         try:
             self.output_dir.mkdir(exist_ok=True)
-            self.logger.info("PDF printer initialized. Output directory: %s", self.output_dir)
+            self.logger.info(
+                "PDF printer initialized. Output directory: %s", self.output_dir
+            )
         except Exception as e:
-            self.logger.error("Failed to create output directory: %s", str(e), exc_info=True)
+            self.logger.error(
+                "Failed to create output directory: %s", str(e), exc_info=True
+            )
             raise PrinterError(f"Failed to initialize PDF printer: {str(e)}")
 
     def format_datetime(self, dt_str: str) -> Optional[datetime]:
         """Convert ISO datetime string to datetime object.
-        
+
         Args:
             dt_str: ISO format datetime string
-            
+
         Returns:
             datetime object or None if parsing fails
         """
@@ -52,43 +57,45 @@ class PDFPrinter(BasePrinter):
 
     def create_table_style(self) -> TableStyle:
         """Create the table style for the PDF document.
-        
+
         Returns:
             TableStyle object with formatting rules
         """
-        return TableStyle([
-            ("BACKGROUND", (0, 0), (-1, 0), colors.grey),
-            ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
-            ("ALIGN", (0, 0), (-1, -1), "LEFT"),
-            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-            ("FONTSIZE", (0, 0), (-1, 0), 14),
-            ("BOTTOMPADDING", (0, 0), (-1, 0), 12),
-            ("BACKGROUND", (0, 1), (-1, -1), colors.beige),
-            ("TEXTCOLOR", (0, 1), (-1, -1), colors.black),
-            ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
-            ("FONTSIZE", (0, 1), (-1, -1), 12),
-            ("GRID", (0, 0), (-1, -1), 1, colors.black),
-        ])
+        return TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), colors.grey),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
+                ("ALIGN", (0, 0), (-1, -1), "LEFT"),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("FONTSIZE", (0, 0), (-1, 0), 14),
+                ("BOTTOMPADDING", (0, 0), (-1, 0), 12),
+                ("BACKGROUND", (0, 1), (-1, -1), colors.beige),
+                ("TEXTCOLOR", (0, 1), (-1, -1), colors.black),
+                ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
+                ("FONTSIZE", (0, 1), (-1, -1), 12),
+                ("GRID", (0, 0), (-1, -1), 1, colors.black),
+            ]
+        )
 
     def print_task(self, task: Task) -> Response:
         """Print a task to a PDF file.
-        
+
         Args:
             task: Task model instance to print
-            
+
         Returns:
             FileResponse containing the generated PDF
-            
+
         Raises:
             PrinterError: If PDF generation fails
         """
         try:
             self.logger.info("Starting PDF generation for task %d", task.id)
             filename = f"task_{task.id}_{task.title.lower().replace(' ', '_')}.pdf"
-            
+
             with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
                 self.logger.debug("Creating temporary file: %s", tmp_file.name)
-                
+
                 # Create the PDF document
                 doc = SimpleDocTemplate(
                     tmp_file.name,
@@ -115,17 +122,24 @@ class PDFPrinter(BasePrinter):
                     "Title": task.title,
                     "Description": task.description or "",
                     "Status": task.state,
-                    "Reward": task.reward or "None"
+                    "Reward": task.reward or "None",
                 }
 
                 # Add dates if they exist
-                for date_field in ["due_date", "created_at", "started_at", "completed_at"]:
+                for date_field in [
+                    "due_date",
+                    "created_at",
+                    "started_at",
+                    "completed_at",
+                ]:
                     date_str = getattr(task, date_field, None)
                     if date_str:
                         date_obj = self.format_datetime(date_str)
                         if date_obj:
                             formatted_name = date_field.replace("_", " ").title()
-                            task_dict[formatted_name] = date_obj.strftime("%Y-%m-%d %H:%M")
+                            task_dict[formatted_name] = date_obj.strftime(
+                                "%Y-%m-%d %H:%M"
+                            )
 
                 # Create table data
                 table_data = [["Field", "Value"]]  # Headers
@@ -156,15 +170,15 @@ class PDFPrinter(BasePrinter):
 
     async def print(self, task: Task) -> Response:
         """Print the task and return a FastAPI Response object.
-        
+
         This is the implementation of the abstract method from BasePrinter.
-        
+
         Args:
             task: Task model instance to print
-            
+
         Returns:
             FileResponse containing the generated PDF
-            
+
         Raises:
             PrinterError: If PDF generation fails
         """

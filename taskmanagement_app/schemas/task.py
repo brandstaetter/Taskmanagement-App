@@ -6,7 +6,7 @@ from pydantic import BaseModel, ConfigDict
 class TaskBase(BaseModel):
     title: str
     description: str
-    state: Literal["todo", "in_progress", "done"] = "todo"
+    state: Literal["todo", "in_progress", "done", "archived"] = "todo"
     due_date: Optional[str] = None
     reward: Optional[str] = None
     created_at: Optional[str] = None
@@ -27,7 +27,7 @@ class TaskCreate(TaskBase):
 class TaskUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
-    state: Optional[Literal["todo", "in_progress", "done"]] = None
+    state: Optional[Literal["todo", "in_progress", "done", "archived"]] = None
     due_date: Optional[str] = None
     reward: Optional[str] = None
 

@@ -11,6 +11,9 @@ from taskmanagement_app.schemas.task import TaskCreate, TaskUpdate
 def get_tasks(db: Session, skip: int = 0, limit: int = 100) -> Sequence[TaskModel]:
     return (
         db.query(TaskModel)
+        .filter(
+            TaskModel.state != TaskState.archived,  # Filter out archived tasks
+        )
         .order_by(TaskModel.due_date.asc().nulls_last())
         .offset(skip)
         .limit(limit)
@@ -34,7 +37,7 @@ def create_task(db: Session, task: TaskCreate) -> TaskModel:
 
 def get_due_tasks(db: Session) -> Sequence[TaskModel]:
     """Get all tasks that are due within the next 24 hours."""
-    now = datetime.now()
+    now = datetime.now(timezone.utc)
     tomorrow = now + timedelta(days=1)
 
     return (
@@ -45,6 +48,7 @@ def get_due_tasks(db: Session) -> Sequence[TaskModel]:
             <= tomorrow.strftime("%Y-%m-%d %H:%M:%S"),  # Due before tomorrow
             TaskModel.due_date >= now.strftime("%Y-%m-%d %H:%M:%S"),  # Due after now
             TaskModel.state != TaskState.done,  # Not already completed
+            TaskModel.state != TaskState.archived,  # Not archived
         )
         .all()
     )
@@ -104,7 +108,14 @@ def get_random_task(db: Session) -> Optional[TaskModel]:
     Only considers non-completed tasks.
     """
     # Get all non-completed tasks
-    tasks = db.query(TaskModel).filter(TaskModel.state != TaskState.done).all()
+    tasks = (
+        db.query(TaskModel)
+        .filter(
+            TaskModel.state != TaskState.done,
+            TaskModel.state != TaskState.archived,
+        )
+        .all()
+    )
 
     return weighted_random_choice(tasks)
 
@@ -195,7 +206,14 @@ def read_random_task(db: Session) -> Optional[TaskModel]:
 
     Uses weighted random selection where tasks due sooner have higher weights.
     """
-    tasks = db.query(TaskModel).filter(TaskModel.state != TaskState.done).all()
+    tasks = (
+        db.query(TaskModel)
+        .filter(
+            TaskModel.state != TaskState.done,
+            TaskModel.state != TaskState.archived,
+        )
+        .all()
+    )
 
     if not tasks:
         return None

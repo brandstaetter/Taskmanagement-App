@@ -2,9 +2,13 @@
 
 import asyncio
 import logging
-from typing import Optional, Union
+from typing import Optional
 
-from apscheduler.events import EVENT_JOB_ERROR, EVENT_JOB_EXECUTED, JobEvent  # type: ignore
+from apscheduler.events import (  # type: ignore
+    EVENT_JOB_ERROR,
+    EVENT_JOB_EXECUTED,
+    JobEvent,
+)
 from apscheduler.schedulers.asyncio import AsyncIOScheduler  # type: ignore
 from apscheduler.triggers.cron import CronTrigger  # type: ignore
 
@@ -15,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 def job_listener(event: JobEvent) -> None:
     """Handle job execution events.
-    
+
     Args:
         event: APScheduler job event
     """
