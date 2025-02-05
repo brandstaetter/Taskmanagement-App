@@ -22,9 +22,17 @@ def cleanup_old_tasks(db: Session) -> None:
 
         for task in tasks:
             if task.state == "done" and task.completed_at:
-                completed_at = datetime.fromisoformat(
-                    task.completed_at.replace("Z", "+00:00")
-                )
+                try:
+                    completed_at = datetime.fromisoformat(
+                        task.completed_at.replace("Z", "+00:00")
+                    )
+                except (ValueError, TypeError) as e:
+                    logger.warning(f"Invalid completed_at format for task {task.id}: {task.completed_at}. Removing completed_at.")
+                    task.completed_at = None
+                    db.add(task)
+                    db.commit()
+                    continue
+
                 logger.debug(
                     f"Checking task {task.id} - "
                     f"completed at: {completed_at.isoformat()}"
@@ -60,9 +68,17 @@ async def process_due_tasks(db: Session) -> None:
         for task in tasks:
             try:
                 if task.state == TaskState.todo and task.due_date:
-                    due_date = datetime.fromisoformat(
-                        task.due_date.replace("Z", "+00:00")
-                    )
+                    try:
+                        due_date = datetime.fromisoformat(
+                            task.due_date.replace("Z", "+00:00")
+                        )
+                    except (ValueError, TypeError) as e:
+                        logger.warning(f"Invalid due_date format for task {task.id}: {task.due_date}. Removing due_date.")
+                        task.due_date = None
+                        db.add(task)
+                        db.commit()
+                        continue
+
                     logger.debug(
                         f"Checking task {task.id} - "
                         f"due date: {due_date.isoformat()}, "

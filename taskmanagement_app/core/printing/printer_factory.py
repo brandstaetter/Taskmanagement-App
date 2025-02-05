@@ -49,6 +49,7 @@ class PrinterFactory:
                 "name": "PDF Printer",
                 "description": "Creates and downloads PDF files",
                 "class": "PDFPrinter",
+                "output_dir": "output/pdf"
             }
             config["usb"] = {
                 "type": "usb",

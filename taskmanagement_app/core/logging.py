@@ -31,6 +31,8 @@ def setup_logging() -> logging.Logger:
 
     # Set levels for specific loggers
     logging.getLogger("apscheduler").setLevel(logging.INFO)
-    logging.getLogger("app.jobs").setLevel(logging.INFO)
+    logging.getLogger("taskmanagement_app.api.v1").setLevel(logging.INFO)
+    logging.getLogger("taskmanagement_app.core.printing").setLevel(logging.INFO)
+    logging.getLogger("taskmanagement_app.jobs").setLevel(logging.INFO)
 
     return root_logger
