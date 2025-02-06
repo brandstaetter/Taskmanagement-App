@@ -1,4 +1,5 @@
 import logging
+import shutil
 import tempfile
 from datetime import datetime
 from pathlib import Path
@@ -25,12 +26,20 @@ class PDFPrinter(BasePrinter):
 
         Args:
             config: Dictionary containing configuration values
+
+        Raises:
+            PrinterError: If output directory is not specified or cannot be created
         """
         super().__init__(config)
         self.logger = logging.getLogger(__name__)
-        self.output_dir = Path(config.get("output_dir", "output"))
+
+        if "output_dir" not in config:
+            self.logger.error("Missing required configuration: output_dir")
+            raise PrinterError("Missing required configuration: output_dir")
+
+        self.output_dir = Path(config["output_dir"])
         try:
-            self.output_dir.mkdir(exist_ok=True)
+            self.output_dir.mkdir(exist_ok=True, parents=True)
             self.logger.info(
                 "PDF printer initialized. Output directory: %s", self.output_dir
             )
@@ -77,7 +86,7 @@ class PDFPrinter(BasePrinter):
             ]
         )
 
-    def print_task(self, task: Task) -> Response:
+    def print_task(self, task: Task) -> Path:
         """Print a task to a PDF file.
 
         Args:
@@ -156,12 +165,12 @@ class PDFPrinter(BasePrinter):
                 self.logger.debug("Building final PDF document")
                 doc.build(elements)
                 self.logger.info("Successfully generated PDF at: %s", tmp_file.name)
-
-                return FileResponse(
-                    path=tmp_file.name,
-                    filename=filename,
-                    media_type="application/pdf",
+                shutil.copy2(tmp_file.name, self.output_dir.joinpath(filename))
+                self.logger.info(
+                    "Successfully copied PDF to: %s", self.output_dir.joinpath(filename)
                 )
+
+                return self.output_dir.joinpath(filename)
 
         except Exception as e:
             error_msg = f"Failed to generate PDF for task {task.id}"
@@ -182,4 +191,10 @@ class PDFPrinter(BasePrinter):
         Raises:
             PrinterError: If PDF generation fails
         """
-        return self.print_task(task)
+        filepath = self.print_task(task)
+
+        return FileResponse(
+            path=filepath.absolute().as_posix(),
+            filename=filepath.name,
+            media_type="application/pdf",
+        )

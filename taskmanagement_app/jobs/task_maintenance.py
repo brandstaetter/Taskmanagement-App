@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from taskmanagement_app.core.printing.base_printer import BasePrinter
 from taskmanagement_app.core.printing.printer_factory import PrinterFactory
 from taskmanagement_app.crud.task import (
-    delete_task,
+    archive_task,
     get_due_tasks,
     get_tasks,
     update_task,
@@ -19,13 +19,16 @@ logger = logging.getLogger(__name__)
 def cleanup_old_tasks(db: Session) -> None:
     """Delete tasks that were completed more than 24 hours ago."""
     try:
-        tasks = get_tasks(db)
+        tasks = get_tasks(db, include_archived=False)
         now = datetime.now(timezone.utc)
         cutoff = now - timedelta(hours=24)
 
         logger.info(f"Starting cleanup of old tasks. Current time: {now.isoformat()}")
 
         for task in tasks:
+            # Refresh task from database to ensure it's attached to the session
+            db.refresh(task)
+
             if task.state == TaskState.done and task.completed_at:
                 try:
                     completed_at = datetime.fromisoformat(
@@ -48,9 +51,9 @@ def cleanup_old_tasks(db: Session) -> None:
 
                 if completed_at < cutoff:
                     logger.debug(
-                        f"Deleting old completed task: {task.id} - {task.title}"
+                        f"Archiving old completed task: {task.id} - {task.title}"
                     )
-                    delete_task(db, task.id)
+                    archive_task(db, task.id)
 
     except Exception as e:
         logger.error(f"Error cleaning up old tasks: {str(e)}", exc_info=True)
@@ -69,6 +72,9 @@ async def process_single_task(
         soon: Datetime threshold for "due soon"
     """
     try:
+        # Refresh task from database to ensure it's attached to the session
+        db.refresh(task)
+
         # Parse due date
         try:
             due_date = datetime.fromisoformat(
@@ -76,12 +82,8 @@ async def process_single_task(
             )
         except (ValueError, TypeError):
             logger.warning(
-                f"Invalid due_date format for task {task.id}: "
-                f"{task.due_date}. Removing due_date."
+                f"Invalid due_date format for task {task.id}: " f"{task.due_date}."
             )
-            task.due_date = None
-            db.add(task)
-            db.commit()
             return
 
         # Check if task is due within 6 hours or overdue
@@ -113,39 +115,50 @@ async def process_single_task(
         logger.error(f"Error processing task {task.id}: {str(e)}", exc_info=True)
 
 
-async def process_completed_tasks(db: Session) -> None:
+def process_completed_tasks(db: Session) -> None:
     """Process tasks that are marked as completed."""
     logger.info("Processing completed tasks")
-    tasks = get_tasks(db)
+    try:
+        tasks = get_tasks(db, include_archived=False)  # Only get non-archived tasks
+        now = datetime.now(timezone.utc)
+        cutoff = now - timedelta(days=7)
 
-    for task in tasks:
-        if task.completed_at:
-            try:
-                completed_at = datetime.fromisoformat(
-                    task.completed_at.replace("Z", "+00:00")
-                )
-            except (ValueError, TypeError):
-                logger.warning(
-                    f"Invalid completed_at format for task {task.id}: "
-                    f"{task.completed_at}. Removing completed_at."
-                )
-                task.completed_at = None
-                db.add(task)
-                db.commit()
-                continue
+        logger.info(
+            f"Starting completed task processing. Current time: {now.isoformat()}"
+        )
 
-            # Archive tasks completed more than 7 days ago
-            if completed_at < datetime.now(timezone.utc) - timedelta(days=7):
-                logger.debug(f"Archiving completed task: {task.id}")
-                task_update = {"state": TaskState.archived}
-                updated_task = update_task(db, task.id, task_update)
-                if updated_task:
-                    logger.debug(
-                        f"Updated task state: {task.id} - "
-                        f"new state: {updated_task.state}"
+        for task in tasks:
+            # Refresh task from database to ensure it's attached to the session
+            db.refresh(task)
+
+            if task.state == TaskState.done and task.completed_at:
+                try:
+                    completed_at = datetime.fromisoformat(
+                        task.completed_at.replace("Z", "+00:00")
                     )
-                else:
-                    logger.error(f"Failed to update task {task.id}")
+                except (ValueError, TypeError):
+                    logger.warning(
+                        f"Invalid completed_at format for task {task.id}: "
+                        f"{task.completed_at}. Removing completed_at."
+                    )
+                    task.completed_at = None
+                    db.add(task)
+                    db.commit()
+                    continue
+
+                logger.debug(
+                    f"Checking task {task.id} - "
+                    f"completed at: {completed_at.isoformat()}"
+                )
+
+                if completed_at < cutoff:
+                    logger.debug(
+                        f"Archiving old completed task: {task.id} - {task.title}"
+                    )
+                    archive_task(db, task.id)
+
+    except Exception as e:
+        logger.error(f"Error processing completed tasks: {str(e)}", exc_info=True)
 
 
 async def process_due_tasks(db: Session) -> None:
@@ -171,6 +184,8 @@ async def process_due_tasks(db: Session) -> None:
     # Process each task
     for task in tasks:
         if task.due_date:
+            # Refresh task from database to ensure it's attached to the session
+            db.refresh(task)
             await process_single_task(db, task, printer, now, soon)
         else:
             logger.debug(f"Skipping task {task.id} - no due date")
@@ -184,7 +199,7 @@ async def run_maintenance() -> None:
         db = SessionLocal()
         try:
             cleanup_old_tasks(db)
-            await process_completed_tasks(db)
+            process_completed_tasks(db)
             await process_due_tasks(db)
         finally:
             db.close()

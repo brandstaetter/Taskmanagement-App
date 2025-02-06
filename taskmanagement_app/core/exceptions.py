@@ -18,3 +18,10 @@ class PrinterError(TaskManagementError):
     """
 
     pass
+
+
+class TaskStatusError(TaskManagementError):
+    """Exception raised when an invalid task status
+    transition is encountered."""
+
+    pass

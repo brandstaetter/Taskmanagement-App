@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Any, Dict
 
 from escpos.printer import Usb
-from fastapi import HTTPException, Response
+from fastapi import Response
 from fastapi.responses import JSONResponse
 
 from taskmanagement_app.core.exceptions import PrinterError
@@ -74,6 +74,9 @@ class USBPrinter(BasePrinter):
             PrinterError: If printer cannot be found or accessed
         """
         try:
+            if self.device is not None:
+                self.logger.info("USB printer already connected")
+                return
             self.logger.debug("Searching for USB device...")
             self.device = Usb(self.vendor_id, self.product_id, timeout=0)
 
@@ -240,7 +243,4 @@ class USBPrinter(BasePrinter):
         except Exception as e:
             error_msg = f"Failed to print task {task.id}: {str(e)}"
             self.logger.error(error_msg, exc_info=True)
-            raise HTTPException(
-                status_code=500,
-                detail=error_msg,
-            )
+            raise PrinterError(error_msg)

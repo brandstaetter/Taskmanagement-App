@@ -1,22 +1,26 @@
+import logging
 from datetime import datetime, timezone
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy.orm import Session
 
+from taskmanagement_app.core.exceptions import TaskStatusError
 from taskmanagement_app.core.printing.printer_factory import PrinterFactory
+from taskmanagement_app.crud.task import archive_task
 from taskmanagement_app.crud.task import complete_task as complete_task_crud
 from taskmanagement_app.crud.task import (
     create_task,
-    delete_task,
     get_task,
     get_tasks,
     read_random_task,
 )
 from taskmanagement_app.crud.task import start_task as start_task_crud
-from taskmanagement_app.db.models.task import TaskState
+from taskmanagement_app.db.models.task import TaskModel, TaskState
 from taskmanagement_app.db.session import get_db
 from taskmanagement_app.schemas.task import Task, TaskCreate
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -25,12 +29,27 @@ router = APIRouter()
 def read_tasks(
     skip: int = 0,
     limit: int = 100,
+    include_archived: bool = False,
+    state: Optional[str] = Query(None, description="Filter tasks by state"),
     db: Session = Depends(get_db),
 ) -> List[Task]:
     """
     Retrieve tasks.
+
+    Args:
+        skip: Number of records to skip
+        limit: Maximum number of records to return
+        include_archived: Whether to include archived tasks in the result
+        state: Optional state to filter tasks by (todo, in_progress, done, archived)
+        db: Database session
     """
-    db_tasks = get_tasks(db, skip=skip, limit=limit)
+    db_tasks = get_tasks(
+        db,
+        skip=skip,
+        limit=limit,
+        include_archived=include_archived,
+        state=state,
+    )
     return [Task.model_validate(task) for task in db_tasks]
 
 
@@ -52,7 +71,7 @@ def read_due_tasks(db: Session = Depends(get_db)) -> List[Task]:
     Retrieve all tasks that are due within the next 24 hours.
     """
     now = datetime.now(timezone.utc)
-    db_tasks = get_tasks(db)
+    db_tasks = get_tasks(db, include_archived=False)  # Exclude archived tasks
     due_tasks = []
     for task in db_tasks:
         if task.due_date:
@@ -71,11 +90,49 @@ def get_random_task(
     1. Not completed
     2. Due sooner
     3. Not yet started
+
+    Note: Archived tasks are excluded.
     """
-    db_task = read_random_task(db)
+    db_task = read_random_task(db)  # read_random_task already excludes archived tasks
     if not db_task:
         raise HTTPException(status_code=404, detail="No tasks found")
     return Task.model_validate(db_task)
+
+
+@router.get("/search/", response_model=List[Task])
+def search_tasks(
+    q: str = Query(..., description="Search query"),
+    include_archived: bool = False,
+    db: Session = Depends(get_db),
+) -> List[Task]:
+    """
+    Search tasks by title or description.
+
+    Args:
+        q: Search query
+        include_archived: Whether to include archived tasks in the result
+        db: Database session
+    """
+    # Create base query
+    query = db.query(TaskModel)
+
+    # Apply archived filter if needed
+    if not include_archived:
+        query = query.filter(TaskModel.state != TaskState.archived)
+
+    # Apply search filter using SQLite's LIKE operator (case-insensitive by default)
+    search_pattern = f"%{q}%"
+    query = query.filter(
+        TaskModel.title.like(search_pattern)
+        | TaskModel.description.like(search_pattern)
+    )
+
+    # Execute query and log results
+    tasks = query.all()
+    logger.debug("Found %d tasks matching query '%s'", len(tasks), q)
+
+    # Convert to response models
+    return [Task.model_validate(task) for task in tasks]
 
 
 @router.get("/{task_id}", response_model=Task)
@@ -128,19 +185,29 @@ def complete_task(task_id: int, db: Session = Depends(get_db)) -> Task:
             "Task must be in 'in_progress' state.",
         )
 
-    updated_db_task = complete_task_crud(db, db_task)
-    return Task.model_validate(updated_db_task)
+    try:
+        updated_db_task = complete_task_crud(db, db_task)
+        return Task.model_validate(updated_db_task)
+    except TaskStatusError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.delete("/{task_id}", response_model=Task)
 def delete_task_endpoint(task_id: int, db: Session = Depends(get_db)) -> Task:
     """
-    Delete a task by ID.
+    Archive a task by ID.
+
+    Args:
+        task_id: ID of task to archive
+        db: Database session
     """
-    db_task = delete_task(db=db, task_id=task_id)
-    if not db_task:
-        raise HTTPException(status_code=404, detail="Task not found")
-    return Task.model_validate(db_task)
+    try:
+        task = archive_task(db, task_id)
+        if not task:
+            raise HTTPException(status_code=404, detail="Task not found")
+        return Task.model_validate(task)
+    except TaskStatusError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.post("/{task_id}/print")

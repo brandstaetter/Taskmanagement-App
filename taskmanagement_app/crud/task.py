@@ -1,20 +1,45 @@
+import logging
 import random
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Sequence, Union
 
 from sqlalchemy.orm import Session
 
+from taskmanagement_app.core.exceptions import TaskStatusError
 from taskmanagement_app.db.models.task import TaskModel, TaskState
 from taskmanagement_app.schemas.task import TaskCreate, TaskUpdate
 
 
-def get_tasks(db: Session, skip: int = 0, limit: int = 100) -> Sequence[TaskModel]:
+def get_tasks(
+    db: Session,
+    skip: int = 0,
+    limit: int = 100,
+    include_archived: bool = False,
+    state: Optional[str] = None,
+) -> Sequence[TaskModel]:
+    """Get a list of tasks.
+
+    Args:
+        db: Database session
+        skip: Number of records to skip
+        limit: Maximum number of records to return
+        include_archived: Whether to include archived tasks in the result
+        state: Optional state to filter by
+
+    Returns:
+        List of tasks
+    """
+    query = db.query(TaskModel)
+
+    # Apply state filter if provided
+    if state:
+        query = query.filter(TaskModel.state == state)
+    # Otherwise apply archived filter
+    elif not include_archived:
+        query = query.filter(TaskModel.state != TaskState.archived)
+
     return (
-        db.query(TaskModel)
-        .filter(
-            TaskModel.state != TaskState.archived,  # Filter out archived tasks
-        )
-        .order_by(TaskModel.due_date.asc().nulls_last())
+        query.order_by(TaskModel.due_date.asc().nulls_last())
         .offset(skip)
         .limit(limit)
         .all()
@@ -40,6 +65,31 @@ def get_due_tasks(db: Session) -> Sequence[TaskModel]:
     now = datetime.now(timezone.utc)
     tomorrow = now + timedelta(days=1)
 
+    # First, clean up any invalid due dates
+    tasks_with_invalid_dates = (
+        db.query(TaskModel)
+        .filter(
+            TaskModel.due_date.isnot(None),  # Has a due date
+            ~TaskModel.due_date.regexp_match(
+                r"\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}"
+            ),  # Invalid format
+        )
+        .all()
+    )
+
+    logger = logging.getLogger(__name__)
+    for task in tasks_with_invalid_dates:
+        logger.warning(
+            f"Task {task.id} has invalid due_date "
+            f"format: {task.due_date}. Setting to None."
+        )
+        task.due_date = None
+        db.add(task)
+
+    if tasks_with_invalid_dates:
+        db.commit()
+
+    # Now get tasks due within 24 hours
     return (
         db.query(TaskModel)
         .filter(
@@ -47,9 +97,11 @@ def get_due_tasks(db: Session) -> Sequence[TaskModel]:
             TaskModel.due_date
             <= tomorrow.strftime("%Y-%m-%d %H:%M:%S"),  # Due before tomorrow
             TaskModel.due_date >= now.strftime("%Y-%m-%d %H:%M:%S"),  # Due after now
-            TaskModel.state != TaskState.done,  # Not already completed
-            TaskModel.state != TaskState.archived,  # Not archived
+            TaskModel.state.notin_(
+                [TaskState.done, TaskState.archived]
+            ),  # Not completed or archived
         )
+        .order_by(TaskModel.due_date.asc())
         .all()
     )
 
@@ -107,15 +159,13 @@ def get_random_task(db: Session) -> Optional[TaskModel]:
     Get a random task, prioritizing tasks that are due sooner.
     Only considers non-completed tasks.
     """
-    # Get all non-completed tasks
     tasks = (
         db.query(TaskModel)
-        .filter(
-            TaskModel.state != TaskState.done,
-            TaskModel.state != TaskState.archived,
-        )
+        .filter(TaskModel.state.notin_([TaskState.done, TaskState.archived]))
         .all()
     )
+    if not tasks:
+        return None
 
     return weighted_random_choice(tasks)
 
@@ -163,6 +213,8 @@ def complete_task(db: Session, task: TaskModel) -> TaskModel:
     """
     Mark a task as completed and set the completion timestamp.
     """
+    if task.state != TaskState.in_progress:
+        raise TaskStatusError("Task must be in_progress to be set to done")
     task.state = TaskState.done
     task.completed_at = datetime.now(timezone.utc).isoformat()
     db.commit()
@@ -179,20 +231,30 @@ def start_task(db: Session, task: TaskModel) -> TaskModel:
     return task
 
 
-def delete_task(db: Session, task_id: int) -> Optional[TaskModel]:
+def archive_task(db: Session, task_id: int) -> Optional[TaskModel]:
     """
-    Delete a task by ID.
+    Archive a task by ID.
 
     Args:
         db: Database session
-        task_id: ID of task to delete
+        task_id: ID of task to archive
 
     Returns:
-        Deleted task or None if task not found
+        Archived task or None if task not found
+
+    Raises:
+        TaskStatusError: If task is not in a state that can be archived
     """
     task = get_task(db, task_id)
     if task:
-        db.delete(task)
+        if task.state == TaskState.archived:
+            raise TaskStatusError("Task is already archived")
+        elif task.state != TaskState.done:
+            raise TaskStatusError(
+                f"Cannot archive task in state {task.state}. "
+                "Task must be in 'done' state to be archived."
+            )
+        task.state = TaskState.archived
         db.commit()
     return task
 
