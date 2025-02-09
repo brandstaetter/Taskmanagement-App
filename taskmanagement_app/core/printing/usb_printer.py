@@ -1,17 +1,18 @@
+import logging
 from datetime import datetime
+from typing import Any, Dict
 
 from escpos.printer import Usb
-from fastapi import HTTPException, Response
+from fastapi import Response
 from fastapi.responses import JSONResponse
 
+from taskmanagement_app.core.exceptions import PrinterError
 from taskmanagement_app.core.printing.base_printer import BasePrinter
 from taskmanagement_app.schemas.task import Task
 
 # Constants for USB printer
 VENDOR_ID = 0x0456
 PRODUCT_ID = 0x0808
-IN_EP = 0x81
-OUT_EP = 0x03
 
 # Labels for task fields
 label = {
@@ -28,17 +29,85 @@ label = {
 class USBPrinter(BasePrinter):
     """USB printer implementation."""
 
+    def __init__(self, config: Dict[str, Any]) -> None:
+        """Initialize USB printer with vendor and product IDs.
+
+        Args:
+            config: Dictionary containing USB printer configuration:
+                - vendor_id: USB vendor ID in hex format (e.g., "0x28E9")
+                - product_id: USB product ID in hex format (e.g., "0x0289")
+                - profile: Printer profile name (e.g., "ZJ-5870")
+        """
+        super().__init__(config)
+        self.logger = logging.getLogger(__name__)
+
+        try:
+            # Parse vendor and product IDs from config
+            self.vendor_id = int(config["vendor_id"], 16)
+            self.product_id = int(config["product_id"], 16)
+            self.profile = config.get("profile", "default")
+
+            self.logger.info(
+                "Initializing USB printer with "
+                "vendor_id=0x%04x, product_id=0x%04x, profile=%s",
+                self.vendor_id,
+                self.product_id,
+                self.profile,
+            )
+
+            # Initialize device as None until we connect
+            self.device: Usb | None = None
+
+        except KeyError as e:
+            error_msg = f"Missing required config parameter: {e}"
+            self.logger.error(error_msg)
+            raise PrinterError(error_msg)
+        except ValueError as e:
+            error_msg = f"Invalid vendor or product ID format: {e}"
+            self.logger.error(error_msg)
+            raise PrinterError(error_msg)
+
+    def connect(self) -> None:
+        """Connect to the USB printer device.
+
+        Raises:
+            PrinterError: If printer cannot be found or accessed
+        """
+        try:
+            if self.device is not None:
+                self.logger.info("USB printer already connected")
+                return
+            self.logger.debug("Searching for USB device...")
+            self.device = Usb(self.vendor_id, self.product_id, timeout=0)
+
+            if self.device is None:
+                error_msg = "Printer not found: "
+                f"vendor_id=0x{self.vendor_id:04x}, product_id=0x{self.product_id:04x}"
+                self.logger.error(error_msg)
+                raise PrinterError(error_msg)
+
+            self.logger.info("USB printer found: %s", self.device)
+
+            self.logger.info("Successfully connected to USB printer")
+
+        except Exception as e:
+            error_msg = f"Unexpected error while connecting to printer: {str(e)}"
+            self.logger.error(error_msg, exc_info=True)
+            raise PrinterError(error_msg)
+
     def format_datetime(self, dt_str: str) -> datetime:
         """Convert ISO datetime string to datetime object."""
         return datetime.fromisoformat(dt_str.replace("Z", "+00:00"))
 
-    def styleHeading(self, printer: Usb) -> None:
+    def printHeading(self, printer: Usb) -> None:
         """Apply heading style to printer."""
         printer.set(align="center", bold=True, double_height=True, double_width=True)
+        printer.text("TASK DETAILS\n\n")
 
-    def styleLabel(self, printer: Usb) -> None:
+    def printLabel(self, printer: Usb, label: str) -> None:
         """Apply label style to printer."""
         printer.set(align="left", bold=True, double_height=False, double_width=False)
+        printer.text(label)
 
     def wrap_text(self, text: str, max_length: int = 32) -> list[str]:
         """
@@ -87,6 +156,19 @@ class USBPrinter(BasePrinter):
         for line in lines:
             printer.text(line + "\n")
 
+    def printQRCode(self, printer: Usb, task_id: int) -> None:
+        """Print QR code for task."""
+        printer.set(align="center")
+        printer.qr(
+            f"{self.config.get('frontend_url', 'http://localhost:4200')}"
+            f"/tasks/{task_id}/details",
+            size=5,
+        )
+
+    def cut(self, printer: Usb) -> None:
+        """Cut paper."""
+        printer.cut()
+
     async def print(self, task: Task) -> Response:
         """
         Print a task to the USB printer.
@@ -98,75 +180,67 @@ class USBPrinter(BasePrinter):
             Response indicating success or failure
         """
         try:
+            self.logger.info("Starting to print task %d", task.id)
+
             # Initialize USB printer
-            printer = Usb(
-                VENDOR_ID,
-                PRODUCT_ID,
-                timeout=0,
-                in_ep=IN_EP,
-                out_ep=OUT_EP,
-            )
+            self.connect()
 
             # Print header
-            self.styleHeading(printer)
-            printer.text("TASK DETAILS\n\n")
+            self.printHeading(self.device)
 
             # Print Title
-            self.styleLabel(printer)
-            printer.text(label["title"])
-            self.printValue(printer, task.title, wide=True)
-            printer.text("\n")
+            self.printLabel(self.device, label["title"])
+            self.printValue(self.device, task.title, wide=True)
 
             # Print Description
             if task.description:
-                self.styleLabel(printer)
-                printer.text(label["description"])
-                self.printValue(printer, task.description)
-                printer.text("\n")
+                self.printLabel(self.device, label["description"])
+                self.printValue(self.device, task.description)
 
             # Print State
-            self.styleLabel(printer)
-            printer.text(label["state"])
-            self.printValue(printer, task.state)
-            printer.text("\n")
+            self.printLabel(self.device, label["state"])
+            self.printValue(self.device, task.state)
 
             # Print Due Date
             if task.due_date:
-                self.styleLabel(printer)
-                printer.text(label["due_date"])
+                self.printLabel(self.device, label["due_date"])
                 due_date = self.format_datetime(task.due_date)
-                self.printValue(printer, f'{due_date.strftime("%Y-%m-%d %H:%M")}\n\n')
+                self.printValue(self.device, f'{due_date.strftime("%Y-%m-%d %H:%M")}\n')
 
             # Print Created At
             if task.created_at:
                 created_at = self.format_datetime(task.created_at)
-                self.styleLabel(printer)
-                printer.text(label["created_at"])
-                self.printValue(printer, f'{created_at.strftime("%Y-%m-%d %H:%M")}\n\n')
+                self.printLabel(self.device, label["created_at"])
+                self.printValue(
+                    self.device, f'{created_at.strftime("%Y-%m-%d %H:%M")}\n'
+                )
 
             # Print Started At
             if task.started_at:
                 started_at = self.format_datetime(task.started_at)
-                self.styleLabel(printer)
-                printer.text(label["started_at"])
-                self.printValue(printer, f'{started_at.strftime("%Y-%m-%d %H:%M")}\n\n')
+                self.printLabel(self.device, label["started_at"])
+                self.printValue(
+                    self.device, f'{started_at.strftime("%Y-%m-%d %H:%M")}\n'
+                )
 
             # Print Completed At
             if task.completed_at:
                 completed_at = self.format_datetime(task.completed_at)
-                self.styleLabel(printer)
-                printer.text(label["completed_at"])
+                self.printLabel(self.device, label["completed_at"])
                 self.printValue(
-                    printer, f'{completed_at.strftime("%Y-%m-%d %H:%M")}\n\n'
+                    self.device, f'{completed_at.strftime("%Y-%m-%d %H:%M")}\n'
                 )
 
-            # Cut paper
-            printer.cut()
+            # Print QR code
+            self.printQRCode(self.device, task.id)
 
+            # Cut paper
+            self.cut(self.device)
+
+            self.logger.info("Successfully printed task %d", task.id)
             return JSONResponse(content={"message": "Task printed successfully"})
 
         except Exception as e:
-            raise HTTPException(
-                status_code=500,
-                detail=f"Error printing task: {str(e)}",
-            )
+            error_msg = f"Failed to print task {task.id}: {str(e)}"
+            self.logger.error(error_msg, exc_info=True)
+            raise PrinterError(error_msg)

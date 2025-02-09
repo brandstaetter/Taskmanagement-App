@@ -1,5 +1,9 @@
+import logging
+import shutil
 import tempfile
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 from fastapi import Response
 from fastapi.responses import FileResponse
@@ -8,6 +12,7 @@ from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.platypus import Flowable, Paragraph, SimpleDocTemplate, Table, TableStyle
 
+from taskmanagement_app.core.exceptions import PrinterError
 from taskmanagement_app.schemas.task import Task
 
 from .base_printer import BasePrinter
@@ -16,91 +21,180 @@ from .base_printer import BasePrinter
 class PDFPrinter(BasePrinter):
     """PDF printer implementation that creates and returns a PDF file."""
 
-    def format_datetime(self, dt_str: str) -> datetime:
-        """Convert ISO datetime string to datetime object."""
-        return datetime.fromisoformat(dt_str.replace("Z", "+00:00"))
+    def __init__(self, config: Dict[str, Any]) -> None:
+        """Initialize the PDF printer with output directory and logger.
 
-    async def print(self, task: Task) -> Response:
+        Args:
+            config: Dictionary containing configuration values
+
+        Raises:
+            PrinterError: If output directory is not specified or cannot be created
         """
-        Create a PDF from the task and return it as a downloadable response.
+        super().__init__(config)
+        self.logger = logging.getLogger(__name__)
+
+        if "output_dir" not in config:
+            self.logger.error("Missing required configuration: output_dir")
+            raise PrinterError("Missing required configuration: output_dir")
+
+        self.output_dir = Path(config["output_dir"])
+        try:
+            self.output_dir.mkdir(exist_ok=True, parents=True)
+            self.logger.info(
+                "PDF printer initialized. Output directory: %s", self.output_dir
+            )
+        except Exception as e:
+            self.logger.error(
+                "Failed to create output directory: %s", str(e), exc_info=True
+            )
+            raise PrinterError(f"Failed to initialize PDF printer: {str(e)}")
+
+    def format_datetime(self, dt_str: str) -> Optional[datetime]:
+        """Convert ISO datetime string to datetime object.
+
+        Args:
+            dt_str: ISO format datetime string
+
+        Returns:
+            datetime object or None if parsing fails
+        """
+        try:
+            return datetime.fromisoformat(dt_str.replace("Z", "+00:00"))
+        except (ValueError, TypeError) as e:
+            self.logger.warning("Failed to parse datetime %s: %s", dt_str, str(e))
+            return None
+
+    def create_table_style(self) -> TableStyle:
+        """Create the table style for the PDF document.
+
+        Returns:
+            TableStyle object with formatting rules
+        """
+        return TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), colors.grey),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
+                ("ALIGN", (0, 0), (-1, -1), "LEFT"),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("FONTSIZE", (0, 0), (-1, 0), 14),
+                ("BOTTOMPADDING", (0, 0), (-1, 0), 12),
+                ("BACKGROUND", (0, 1), (-1, -1), colors.beige),
+                ("TEXTCOLOR", (0, 1), (-1, -1), colors.black),
+                ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
+                ("FONTSIZE", (0, 1), (-1, -1), 12),
+                ("GRID", (0, 0), (-1, -1), 1, colors.black),
+            ]
+        )
+
+    def print_task(self, task: Task) -> Path:
+        """Print a task to a PDF file.
 
         Args:
             task: Task model instance to print
+
+        Returns:
+            FileResponse containing the generated PDF
+
+        Raises:
+            PrinterError: If PDF generation fails
         """
-        # Create a temporary file for the PDF
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
-            # Create the PDF document
-            doc = SimpleDocTemplate(
-                tmp_file.name,
-                pagesize=letter,
-                rightMargin=72,
-                leftMargin=72,
-                topMargin=72,
-                bottomMargin=72,
-            )
+        try:
+            self.logger.info("Starting PDF generation for task %d", task.id)
+            filename = f"task_{task.id}_{task.title.lower().replace(' ', '_')}.pdf"
 
-            # Container for the 'Flowable' objects
-            elements: list[Flowable] = []
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
+                self.logger.debug("Creating temporary file: %s", tmp_file.name)
 
-            # Add title
-            styles = getSampleStyleSheet()
-            title = Paragraph(f"Task Details - {task.title}", styles["Heading1"])
-            elements.append(title)
-
-            # Convert task to table data
-            task_dict = {
-                "ID": str(task.id),
-                "Title": task.title,
-                "Description": task.description or "",
-            }
-
-            # Add dates if they exist
-            if task.due_date:
-                due_date = self.format_datetime(task.due_date)
-                if due_date:
-                    task_dict["Due Date"] = due_date.strftime("%Y-%m-%d %H:%M")
-
-            if task.created_at:
-                created_at = self.format_datetime(task.created_at)
-                task_dict["Created at"] = created_at.strftime("%Y-%m-%d %H:%M")
-
-            if task.started_at:
-                started_at = self.format_datetime(task.started_at)
-                if started_at:
-                    task_dict["Started at"] = started_at.strftime("%Y-%m-%d %H:%M")
-
-            # Create table data
-            table_data = [["Field", "Value"]]  # Headers
-            for field, value in task_dict.items():
-                table_data.append([field, value])
-
-            # Create table
-            table = Table(table_data)
-            table.setStyle(
-                TableStyle(
-                    [
-                        ("BACKGROUND", (0, 0), (-1, 0), colors.grey),
-                        ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
-                        ("ALIGN", (0, 0), (-1, -1), "LEFT"),
-                        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                        ("FONTSIZE", (0, 0), (-1, 0), 14),
-                        ("BOTTOMPADDING", (0, 0), (-1, 0), 12),
-                        ("BACKGROUND", (0, 1), (-1, -1), colors.beige),
-                        ("TEXTCOLOR", (0, 1), (-1, -1), colors.black),
-                        ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
-                        ("FONTSIZE", (0, 1), (-1, -1), 12),
-                        ("GRID", (0, 0), (-1, -1), 1, colors.black),
-                    ]
+                # Create the PDF document
+                doc = SimpleDocTemplate(
+                    tmp_file.name,
+                    pagesize=letter,
+                    rightMargin=72,
+                    leftMargin=72,
+                    topMargin=72,
+                    bottomMargin=72,
                 )
-            )
-            elements.append(table)
 
-            # Build PDF
-            doc.build(elements)
+                # Container for the 'Flowable' objects
+                elements: List[Flowable] = []
 
-            # Return the PDF file as a response
-            return FileResponse(
-                path=tmp_file.name,
-                filename=f"task_{task.id}_{task.title.lower().replace(' ', '_')}.pdf",
-                media_type="application/pdf",
-            )
+                # Add title
+                self.logger.debug("Adding title to PDF")
+                styles = getSampleStyleSheet()
+                title = Paragraph(f"Task Details - {task.title}", styles["Heading1"])
+                elements.append(title)
+
+                # Convert task to table data
+                self.logger.debug("Converting task data to table format")
+                task_dict: dict[str, str] = {
+                    "ID": str(task.id),
+                    "Title": task.title,
+                    "Description": task.description or "",
+                    "Status": task.state,
+                    "Reward": task.reward or "None",
+                }
+
+                # Add dates if they exist
+                for date_field in [
+                    "due_date",
+                    "created_at",
+                    "started_at",
+                    "completed_at",
+                ]:
+                    date_str = getattr(task, date_field, None)
+                    if date_str:
+                        date_obj = self.format_datetime(date_str)
+                        if date_obj:
+                            formatted_name = date_field.replace("_", " ").title()
+                            task_dict[formatted_name] = date_obj.strftime(
+                                "%Y-%m-%d %H:%M"
+                            )
+
+                # Create table data
+                table_data = [["Field", "Value"]]  # Headers
+                for field, value in task_dict.items():
+                    table_data.append([field, value])
+
+                # Create and style table
+                self.logger.debug("Creating table with %d rows", len(table_data))
+                table = Table(table_data)
+                table.setStyle(self.create_table_style())
+                elements.append(table)
+
+                # Build PDF
+                self.logger.debug("Building final PDF document")
+                doc.build(elements)
+                self.logger.info("Successfully generated PDF at: %s", tmp_file.name)
+                shutil.copy2(tmp_file.name, self.output_dir.joinpath(filename))
+                self.logger.info(
+                    "Successfully copied PDF to: %s", self.output_dir.joinpath(filename)
+                )
+
+                return self.output_dir.joinpath(filename)
+
+        except Exception as e:
+            error_msg = f"Failed to generate PDF for task {task.id}"
+            self.logger.error("%s: %s", error_msg, str(e), exc_info=True)
+            raise PrinterError(f"{error_msg}: {str(e)}")
+
+    async def print(self, task: Task) -> Response:
+        """Print the task and return a FastAPI Response object.
+
+        This is the implementation of the abstract method from BasePrinter.
+
+        Args:
+            task: Task model instance to print
+
+        Returns:
+            FileResponse containing the generated PDF
+
+        Raises:
+            PrinterError: If PDF generation fails
+        """
+        filepath = self.print_task(task)
+
+        return FileResponse(
+            path=filepath.absolute().as_posix(),
+            filename=filepath.name,
+            media_type="application/pdf",
+        )

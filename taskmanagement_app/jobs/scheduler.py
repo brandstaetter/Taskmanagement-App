@@ -1,8 +1,14 @@
+"""Task scheduler module for running periodic maintenance tasks."""
+
 import asyncio
 import logging
-from typing import Optional, Union
+from typing import Optional
 
-from apscheduler.events import EVENT_JOB_ERROR, EVENT_JOB_EXECUTED  # type: ignore
+from apscheduler.events import (  # type: ignore
+    EVENT_JOB_ERROR,
+    EVENT_JOB_EXECUTED,
+    JobEvent,
+)
 from apscheduler.schedulers.asyncio import AsyncIOScheduler  # type: ignore
 from apscheduler.triggers.cron import CronTrigger  # type: ignore
 
@@ -11,12 +17,16 @@ from taskmanagement_app.jobs.task_maintenance import run_maintenance
 logger = logging.getLogger(__name__)
 
 
-def job_listener(event: Union[EVENT_JOB_ERROR, EVENT_JOB_EXECUTED]) -> None:
-    """Log job execution status."""
-    if isinstance(event, EVENT_JOB_ERROR):
-        logger.error(f"Job {event.job_id} failed: {event.exception}")
-    else:
-        logger.info(f"Job {event.job_id} completed successfully")
+def job_listener(event: JobEvent) -> None:
+    """Handle job execution events.
+
+    Args:
+        event: APScheduler job event
+    """
+    if event.code == EVENT_JOB_ERROR:
+        logger.error("Job failed: %s", str(event.exception))
+    elif event.code == EVENT_JOB_EXECUTED:
+        logger.info("Job completed successfully: %s", event.job_id)
 
 
 def get_scheduler() -> Optional[AsyncIOScheduler]:
@@ -34,7 +44,7 @@ def get_scheduler() -> Optional[AsyncIOScheduler]:
 def setup_scheduler(scheduler: AsyncIOScheduler) -> None:
     """Setup the scheduler with all jobs."""
     try:
-        # Add job execution listener
+        # Add event listener for job execution
         scheduler.add_listener(job_listener, EVENT_JOB_ERROR | EVENT_JOB_EXECUTED)
 
         # Schedule maintenance job
@@ -42,7 +52,7 @@ def setup_scheduler(scheduler: AsyncIOScheduler) -> None:
         scheduler.add_job(
             run_maintenance,
             trigger=trigger,
-            id="maintenance",
+            id="maintenance_job",
             name="Task Maintenance",
             replace_existing=True,
         )

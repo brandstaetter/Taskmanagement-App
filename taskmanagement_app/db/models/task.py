@@ -12,6 +12,7 @@ class TaskState(str, enum.Enum):
     todo = "todo"
     in_progress = "in_progress"
     done = "done"
+    archived = "archived"
 
 
 class TaskModel(Base):

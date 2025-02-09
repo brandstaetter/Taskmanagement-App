@@ -1,8 +1,9 @@
 import configparser
 import logging
 from pathlib import Path
-from typing import Dict, Optional, Type
+from typing import Any, Dict, Optional, Type, Union
 
+from taskmanagement_app.core.exceptions import PrinterError
 from taskmanagement_app.core.printing.base_printer import BasePrinter
 from taskmanagement_app.core.printing.pdf_printer import PDFPrinter
 from taskmanagement_app.core.printing.usb_printer import USBPrinter
@@ -19,12 +20,15 @@ class PrinterFactory:
     }
 
     @classmethod
-    def create_printer(cls, printer_type: Optional[str] = None) -> BasePrinter:
+    def create_printer(
+        cls, printer_type: Optional[Union[str, Dict[str, Any]]] = None
+    ) -> BasePrinter:
         """
         Create a printer instance based on the configuration.
 
         Args:
-            printer_type: Optional printer type to override the default from config
+            printer_type: Optional printer type (str) or printer config (dict) to
+            override the default
 
         Returns:
             An instance of the configured printer
@@ -49,6 +53,7 @@ class PrinterFactory:
                 "name": "PDF Printer",
                 "description": "Creates and downloads PDF files",
                 "class": "PDFPrinter",
+                "output_dir": "output/pdf",
             }
             config["usb"] = {
                 "type": "usb",
@@ -66,20 +71,27 @@ class PrinterFactory:
         config.read(config_path)
         logger.debug(f"Loaded printer config sections: {config.sections()}")
 
+        # Handle dictionary input for printer_type
+        printer_config = {}
+        if isinstance(printer_type, dict):
+            printer_config = printer_type.copy()
+            printer_type = printer_config.pop("type", None)
+
         # Get printer type from config if not specified
-        if not printer_type:
+        if not printer_type and not isinstance(printer_type, str):
             printer_type = config.get("DEFAULT", "default_printer", fallback="pdf")
             logger.debug(f"Using printer type from config: {printer_type}")
 
         # Get printer class
         if printer_type not in cls._printer_classes:
             logger.error(f"Unsupported printer type: {printer_type}")
-            raise ValueError(f"Unsupported printer type: {printer_type}")
+            raise PrinterError(f"Unsupported printer type: {printer_type}")
 
-        # Get printer configuration
-        printer_config = dict(config[printer_type]) if printer_type in config else {}
+        # Get printer configuration from ini file if not provided in dict
+        if not printer_config and printer_type in config:
+            printer_config = dict(config[str(printer_type)])
         logger.debug(f"Printer config for {printer_type}: {printer_config}")
 
         # Create and return printer instance
         logger.debug(f"Creating printer instance for type: {printer_type}")
-        return cls._printer_classes[printer_type](printer_config)
+        return cls._printer_classes[str(printer_type)](printer_config)
