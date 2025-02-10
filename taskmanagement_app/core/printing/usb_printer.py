@@ -18,6 +18,7 @@ PRODUCT_ID = 0x0808
 label = {
     "title": "Title: ",
     "description": "Description: ",
+    "reward": "Reward: ",
     "due_date": "Due Date: ",
     "state": "State: ",
     "created_at": "Created: ",
@@ -99,15 +100,21 @@ class USBPrinter(BasePrinter):
         """Convert ISO datetime string to datetime object."""
         return datetime.fromisoformat(dt_str.replace("Z", "+00:00"))
 
-    def printHeading(self, printer: Usb) -> None:
+    def printHeading(self, printer: Usb, title: str) -> None:
         """Apply heading style to printer."""
         printer.set(align="center", bold=True, double_height=True, double_width=True)
-        printer.text("TASK DETAILS\n\n")
+        printer.text("\n")
+        self.wrap_text(text=title, max_length=16)
 
     def printLabel(self, printer: Usb, label: str) -> None:
         """Apply label style to printer."""
         printer.set(align="left", bold=True, double_height=False, double_width=False)
         printer.text(label)
+
+    def printSpacer(self, printer: Usb) -> None:
+        """Print a spacer line."""
+        printer.set(align="left", bold=False, double_height=True, double_width=False)
+        printer.text("\n")
 
     def wrap_text(self, text: str, max_length: int = 32) -> list[str]:
         """
@@ -186,11 +193,7 @@ class USBPrinter(BasePrinter):
             self.connect()
 
             # Print header
-            self.printHeading(self.device)
-
-            # Print Title
-            self.printLabel(self.device, label["title"])
-            self.printValue(self.device, task.title, wide=True)
+            self.printHeading(self.device, task.title)
 
             # Print Description
             if task.description:
@@ -206,6 +209,12 @@ class USBPrinter(BasePrinter):
                 self.printLabel(self.device, label["due_date"])
                 due_date = self.format_datetime(task.due_date)
                 self.printValue(self.device, f'{due_date.strftime("%Y-%m-%d %H:%M")}\n')
+
+            if task.reward:
+                self.printLabel(self.device, label["reward"])
+                self.printValue(self.device, f"{task.reward}\n")
+
+            self.printSpacer(self.device)
 
             # Print Created At
             if task.created_at:
