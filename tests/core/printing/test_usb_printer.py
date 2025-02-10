@@ -1,4 +1,5 @@
 import logging
+
 import pytest
 
 logging.basicConfig(level=logging.DEBUG)
@@ -42,8 +43,12 @@ class TestTextWrapping:
         """Test that label_length properly reduces first line length."""
         text = "This is a text with a label that should affect first line"
         label_length = 10
-        logger.debug(f"Testing label length reduction: text={text}, label_length={label_length}")
-        result = mock_usb_printer.wrap_text(text, label_length=label_length, max_length=32)
+        logger.debug(
+            f"Testing label length reduction: text={text}, label_length={label_length}"
+        )
+        result = mock_usb_printer.wrap_text(
+            text, label_length=label_length, max_length=32
+        )
         logger.debug(f"Result: {result}")
         assert len(result[0]) <= 32 - label_length
 
@@ -87,21 +92,29 @@ class TestTextWrapping:
     ):
         """Test various combinations of constraints on line length."""
         text = "This is a sample text that will be wrapped according to various constraints"
-        logger.debug(f"Testing line length constraints: text={text}, max_length={max_length}, label_length={label_length}, wide={wide}")
+        logger.debug(
+            f"Testing line length constraints: text={text}, max_length={max_length}, label_length={label_length}, wide={wide}"
+        )
         result = mock_usb_printer.wrap_text(
             text, label_length=label_length, max_length=max_length, wide=wide
         )
         logger.debug(f"Result: {result}")
-        
+
         # Check first line considering label_length
-        expected_first_line_max = ((max_length - label_length) / 2) if wide else max_length - label_length
+        expected_first_line_max = (
+            ((max_length - label_length) / 2) if wide else max_length - label_length
+        )
         actual_first_line_length = len(result[0])
-        logger.debug(f"First line check: expected_max={expected_first_line_max}, actual_length={actual_first_line_length}")
+        logger.debug(
+            f"First line check: expected_max={expected_first_line_max}, actual_length={actual_first_line_length}"
+        )
         assert actual_first_line_length <= expected_first_line_max
-        
+
         # Check remaining lines
         if len(result) > 1:
             expected_other_lines_max = (max_length / 2) if wide else max_length
             other_line_lengths = [len(line) for line in result[1:]]
-            logger.debug(f"Other lines check: expected_max={expected_other_lines_max}, actual_lengths={other_line_lengths}")
+            logger.debug(
+                f"Other lines check: expected_max={expected_other_lines_max}, actual_lengths={other_line_lengths}"
+            )
             assert all(len(line) <= expected_other_lines_max for line in result[1:])

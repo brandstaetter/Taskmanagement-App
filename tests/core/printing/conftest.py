@@ -1,7 +1,8 @@
-import pytest
 from unittest.mock import MagicMock
 
+import pytest
 from escpos.printer import Usb
+
 from taskmanagement_app.core.printing.usb_printer import USBPrinter
 
 
@@ -27,11 +28,13 @@ def mock_usb_printer():
     printer.device = mock_device
     return printer
 
+
 @pytest.fixture(autouse=True)
 async def cleanup_printer():
     yield
     # Clean up any remaining printer connections
     import asyncio
+
     tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
     for task in tasks:
         task.cancel()
