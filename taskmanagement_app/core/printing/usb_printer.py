@@ -212,7 +212,7 @@ class USBPrinter(BasePrinter):
 
             if task.reward:
                 self.printLabel(self.device, label["reward"])
-                self.printValue(self.device, f'{task.reward}\n')
+                self.printValue(self.device, f"{task.reward}\n")
 
             # Print Created At
             if task.created_at:
