@@ -15,7 +15,7 @@ VENDOR_ID = 0x0456
 PRODUCT_ID = 0x0808
 
 # Labels for task fields
-label = {
+label_dict = {
     "title": "Title: ",
     "description": "Description: ",
     "reward": "Reward: ",
@@ -104,25 +104,33 @@ class USBPrinter(BasePrinter):
         """Apply heading style to printer."""
         printer.set(align="center", bold=True, double_height=True, double_width=True)
         printer.text("\n")
-        self.wrap_text(text=title, max_length=16)
+        printer.text(text=title, max_length=16)
 
-    def printLabel(self, printer: Usb, label: str) -> None:
+    def printLabel(self, printer: Usb, label_key: str) -> int:
         """Apply label style to printer."""
         printer.set(align="left", bold=True, double_height=False, double_width=False)
+        label = label_dict[label_key]
+        max_label_length = max(len(lbl) for lbl in label_dict.values())
+        label = " " * (max_label_length - len(label)) + label
         printer.text(label)
+        return max_label_length
 
     def printSpacer(self, printer: Usb) -> None:
         """Print a spacer line."""
         printer.set(align="left", bold=False, double_height=True, double_width=False)
         printer.text("\n")
 
-    def wrap_text(self, text: str, max_length: int = 32) -> list[str]:
+    def wrap_text(
+        self, text: str, label_length: int = 0, max_length: int = 32, wide: bool = False
+    ) -> list[str]:
         """
         Wrap text to fit printer width.
 
         Args:
             text: Text to wrap
+            label_length: Length of label
             max_length: Maximum line length
+            wide: Whether to use wide characters
 
         Returns:
             List of wrapped lines
@@ -136,11 +144,13 @@ class USBPrinter(BasePrinter):
 
         lines = []
         current_line: list[str] = []
-        current_length = 0
+        current_length = label_length
+
+        line_length = max_length / 2 if not wide else max_length
 
         for word in words:
             word_length = len(word)
-            if current_length + word_length + 1 <= max_length:
+            if current_length + word_length + 1 <= line_length:
                 current_line.append(word)
                 current_length += word_length + 1
             else:
@@ -154,12 +164,14 @@ class USBPrinter(BasePrinter):
 
         return lines
 
-    def printValue(self, printer: Usb, text: str, wide: bool = False) -> None:
+    def printValue(
+        self, printer: Usb, text: str, label_length: int, wide: bool = False
+    ) -> None:
         """Print text value with proper wrapping and formatting."""
         printer.set(align="left", bold=False, double_height=False, double_width=wide)
 
         # Wrap text to printer width
-        lines = self.wrap_text(text)
+        lines = self.wrap_text(text, label_length, wide)
         for line in lines:
             printer.text(line + "\n")
 
@@ -197,47 +209,48 @@ class USBPrinter(BasePrinter):
 
             # Print Description
             if task.description:
-                self.printLabel(self.device, label["description"])
-                self.printValue(self.device, task.description)
-
-            # Print State
-            self.printLabel(self.device, label["state"])
-            self.printValue(self.device, task.state)
+                indent = self.printLabel(self.device, "description")
+                self.printValue(self.device, task.description, indent)
 
             # Print Due Date
             if task.due_date:
-                self.printLabel(self.device, label["due_date"])
+                indent = self.printLabel(self.device, "due_date")
                 due_date = self.format_datetime(task.due_date)
-                self.printValue(self.device, f'{due_date.strftime("%Y-%m-%d %H:%M")}\n')
+                self.printValue(
+                    self.device,
+                    f'{due_date.strftime("%Y-%m-%d %H:%M")}\n',
+                    indent,
+                    wide=True,
+                )
 
             if task.reward:
-                self.printLabel(self.device, label["reward"])
-                self.printValue(self.device, f"{task.reward}\n")
+                indent = self.printLabel(self.device, "reward")
+                self.printValue(self.device, f"{task.reward}\n", indent)
 
             self.printSpacer(self.device)
 
             # Print Created At
             if task.created_at:
                 created_at = self.format_datetime(task.created_at)
-                self.printLabel(self.device, label["created_at"])
+                indent = self.printLabel(self.device, "created_at")
                 self.printValue(
-                    self.device, f'{created_at.strftime("%Y-%m-%d %H:%M")}\n'
+                    self.device, f'{created_at.strftime("%Y-%m-%d %H:%M")}\n', indent
                 )
 
             # Print Started At
             if task.started_at:
                 started_at = self.format_datetime(task.started_at)
-                self.printLabel(self.device, label["started_at"])
+                indent = self.printLabel(self.device, "started_at")
                 self.printValue(
-                    self.device, f'{started_at.strftime("%Y-%m-%d %H:%M")}\n'
+                    self.device, f'{started_at.strftime("%Y-%m-%d %H:%M")}\n', indent
                 )
 
             # Print Completed At
             if task.completed_at:
                 completed_at = self.format_datetime(task.completed_at)
-                self.printLabel(self.device, label["completed_at"])
+                indent = self.printLabel(self.device, "completed_at")
                 self.printValue(
-                    self.device, f'{completed_at.strftime("%Y-%m-%d %H:%M")}\n'
+                    self.device, f'{completed_at.strftime("%Y-%m-%d %H:%M")}\n', indent
                 )
 
             # Print QR code
