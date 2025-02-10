@@ -104,7 +104,9 @@ class USBPrinter(BasePrinter):
         """Apply heading style to printer."""
         printer.set(align="center", bold=True, double_height=True, double_width=True)
         printer.text("\n")
-        self.wrap_text(text=title, max_length=16)
+        lines = self.wrap_text(title, max_length=16)
+        for line in lines:
+            printer.text(line + "\n")
 
     def printLabel(self, printer: Usb, label: str) -> None:
         """Apply label style to printer."""
