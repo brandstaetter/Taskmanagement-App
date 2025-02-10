@@ -9,4 +9,4 @@
 9. We are in windows, so use powershell commands in terminal
 10. generated code must pass black, isort, flake8, mypy, pytest
 11. always run tests lke this "poetry run pytest -vv --tb=short"
-12. do not hallucinate, is
+12. do not hallucinate
