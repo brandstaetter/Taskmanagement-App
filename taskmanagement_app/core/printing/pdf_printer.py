@@ -1,24 +1,19 @@
+import io
 import logging
+import os
 import shutil
 import tempfile
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
-import os
-import io
 
+import qrcode
 from fastapi import Response
 from fastapi.responses import FileResponse
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
-from reportlab.platypus import (
-    Flowable,
-    Paragraph,
-    SimpleDocTemplate,
-    Spacer,
-)
-import qrcode
+from reportlab.platypus import Flowable, Paragraph, SimpleDocTemplate, Spacer
 
 from taskmanagement_app.core.exceptions import PrinterError
 from taskmanagement_app.schemas.task import Task
