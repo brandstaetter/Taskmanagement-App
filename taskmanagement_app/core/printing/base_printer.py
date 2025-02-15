@@ -13,6 +13,6 @@ class BasePrinter(ABC):
         self.config = config
 
     @abstractmethod
-    async def print(self, task: Task) -> Response:
+    def print(self, task: Task) -> Response:
         """Print the task and return a FastAPI Response object."""
         pass

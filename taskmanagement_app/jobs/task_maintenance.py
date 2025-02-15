@@ -59,7 +59,7 @@ def cleanup_old_tasks(db: Session) -> None:
         logger.error(f"Error cleaning up old tasks: {str(e)}", exc_info=True)
 
 
-async def process_single_task(
+def process_single_task(
     db: Session, task: TaskModel, printer: BasePrinter, now: datetime, soon: datetime
 ) -> None:
     """Process a single task that might be due.
@@ -91,7 +91,7 @@ async def process_single_task(
             logger.debug(f"Processing due task: {task.id} - {task.title}")
 
             # Print task
-            await printer.print(task)
+            printer.print(task)
             logger.debug(f"Printed task: {task.id}")
 
             # Update task state
@@ -161,7 +161,7 @@ def process_completed_tasks(db: Session) -> None:
         logger.error(f"Error processing completed tasks: {str(e)}", exc_info=True)
 
 
-async def process_due_tasks(db: Session) -> None:
+def process_due_tasks(db: Session) -> None:
     """Process tasks that are due or overdue."""
     logger.info("Processing due tasks")
 
@@ -186,12 +186,12 @@ async def process_due_tasks(db: Session) -> None:
         if task.due_date:
             # Refresh task from database to ensure it's attached to the session
             db.refresh(task)
-            await process_single_task(db, task, printer, now, soon)
+            process_single_task(db, task, printer, now, soon)
         else:
             logger.debug(f"Skipping task {task.id} - no due date")
 
 
-async def run_maintenance() -> None:
+def run_maintenance() -> None:
     """Run all maintenance tasks."""
     try:
         from taskmanagement_app.db.session import SessionLocal
@@ -200,7 +200,7 @@ async def run_maintenance() -> None:
         try:
             cleanup_old_tasks(db)
             process_completed_tasks(db)
-            await process_due_tasks(db)
+            process_due_tasks(db)
         finally:
             db.close()
     except Exception as e:

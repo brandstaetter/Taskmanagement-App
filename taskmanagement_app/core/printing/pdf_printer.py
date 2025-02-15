@@ -177,7 +177,7 @@ class PDFPrinter(BasePrinter):
             self.logger.error("%s: %s", error_msg, str(e), exc_info=True)
             raise PrinterError(f"{error_msg}: {str(e)}")
 
-    async def print(self, task: Task) -> Response:
+    def print(self, task: Task) -> Response:
         """Print the task and return a FastAPI Response object.
 
         This is the implementation of the abstract method from BasePrinter.
