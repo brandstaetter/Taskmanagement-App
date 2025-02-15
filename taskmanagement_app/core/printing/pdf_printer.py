@@ -5,6 +5,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 import os
+import io
 
 from fastapi import Response
 from fastapi.responses import FileResponse
@@ -33,8 +34,8 @@ class QRCodeFlowable(Flowable):
         self.qr_code_data = qr_code_data
         self.temp_file: str | None = None
         # Set width to match the document's available width
-        self.width = 70*mm  # 80mm - 2*5mm margins
-        self.height = 30*mm
+        self.width = 70 * mm  # 80mm - 2*5mm margins
+        self.height = 30 * mm
 
     def draw(self) -> None:
         """Draw the QR code on the canvas."""
@@ -51,23 +52,22 @@ class QRCodeFlowable(Flowable):
 
             # Create QR code image
             img = qr.make_image(fill_color="black", back_color="white")
-            
+
             # Create a temporary file for the QR code
-            with tempfile.NamedTemporaryFile(delete=False, suffix='.png') as tmp_file:
-                img.save(tmp_file.name, format='PNG')
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp_file:
+                # Save QR code to bytes buffer first
+                img_buffer = io.BytesIO()
+                img.save(img_buffer)
+                # Write bytes to temporary file
+                tmp_file.write(img_buffer.getvalue())
                 self.temp_file = tmp_file.name
-            
+
             # Draw on the canvas
-            qr_size = 25*mm  # QR code size in millimeters
+            qr_size = 25 * mm  # QR code size in millimeters
             # Center the QR code within the flowable's width
             x_pos = (self.width - qr_size) / 2
             self.canv.drawImage(
-                self.temp_file, 
-                x_pos, 
-                0,
-                width=qr_size,
-                height=qr_size,
-                mask='auto'
+                self.temp_file, x_pos, 0, width=qr_size, height=qr_size, mask="auto"
             )
         finally:
             # Clean up temporary file
@@ -120,6 +120,111 @@ class PDFPrinter(BasePrinter):
             self.logger.warning("Failed to parse datetime %s: %s", dt_str, str(e))
             return None
 
+    def _create_document_styles(self) -> Dict[str, ParagraphStyle]:
+        """Create and return the document styles."""
+        styles = getSampleStyleSheet()
+
+        title_style = ParagraphStyle(
+            "Title",
+            parent=styles["Normal"],
+            fontName="Courier-Bold",
+            fontSize=16,
+            alignment=1,  # Center alignment
+            spaceAfter=4 * mm,
+            leftIndent=0,
+            rightIndent=0,
+            leading=18,
+        )
+
+        label_style = ParagraphStyle(
+            "Label",
+            parent=styles["Normal"],
+            fontName="Courier-Bold",
+            fontSize=10,
+            alignment=0,  # Left alignment
+            leading=12,
+            leftIndent=0,
+            rightIndent=0,
+        )
+
+        value_style = ParagraphStyle(
+            "Value",
+            parent=styles["Normal"],
+            fontName="Courier",
+            fontSize=10,
+            alignment=0,  # Left alignment
+            leading=12,
+            leftIndent=4 * mm,  # Slight indent for values
+            rightIndent=0,
+            spaceBefore=1 * mm,
+        )
+
+        return {
+            "title": title_style,
+            "label": label_style,
+            "value": value_style,
+        }
+
+    def _add_task_header(
+        self,
+        elements: List[Flowable],
+        task: Task,
+        styles: Dict[str, ParagraphStyle],
+        doc_width: float,
+    ) -> None:
+        """Add task header elements."""
+        elements.append(Paragraph(task.title, styles["title"]))
+        elements.append(DottedLine(doc_width))
+        elements.append(Spacer(1, 2 * mm))
+
+    def _add_task_details(
+        self, elements: List[Flowable], task: Task, styles: Dict[str, ParagraphStyle]
+    ) -> None:
+        """Add task details like description and reward."""
+        if task.description:
+            elements.append(Paragraph("Description:", styles["label"]))
+            elements.append(Paragraph(task.description, styles["value"]))
+            elements.append(Spacer(1, 2 * mm))
+
+        if task.due_date:
+            due_date = self.format_datetime(task.due_date)
+            if due_date is not None:
+                elements.append(Paragraph("Due date:", styles["label"]))
+                elements.append(
+                    Paragraph(due_date.strftime("%Y-%m-%d %H:%M"), styles["value"])
+                )
+                elements.append(Spacer(1, 2 * mm))
+
+        if task.reward:
+            elements.append(Paragraph("Reward:", styles["label"]))
+            elements.append(Paragraph(task.reward, styles["value"]))
+            elements.append(Spacer(1, 2 * mm))
+
+    def _add_task_dates(
+        self, elements: List[Flowable], task: Task, styles: Dict[str, ParagraphStyle]
+    ) -> None:
+        """Add task dates (created, started, completed)."""
+        elements.append(Spacer(1, 4 * mm))
+
+        date_fields = [
+            ("created_at", "Created:"),
+            ("started_at", "Started:"),
+            ("completed_at", "Completed:"),
+        ]
+
+        for field, label in date_fields:
+            date_value = getattr(task, field)
+            if date_value is not None:
+                formatted_date = self.format_datetime(date_value)
+                if formatted_date is not None:
+                    elements.append(Paragraph(label, styles["label"]))
+                    elements.append(
+                        Paragraph(
+                            formatted_date.strftime("%Y-%m-%d %H:%M"), styles["value"]
+                        )
+                    )
+                    elements.append(Spacer(1, 2 * mm))
+
     def print_task(self, task: Task) -> Path:
         """Print a task to a receipt-like PDF file."""
         try:
@@ -130,7 +235,7 @@ class PDFPrinter(BasePrinter):
                 self.logger.debug("Creating temporary file: %s", tmp_file.name)
 
                 # Create custom page size (80mm wide receipt)
-                page_width = 80*mm
+                page_width = 80 * mm
                 page_height = A4[1]  # Use A4 height
                 custom_pagesize = (page_width, page_height)
 
@@ -138,134 +243,29 @@ class PDFPrinter(BasePrinter):
                 doc = SimpleDocTemplate(
                     tmp_file.name,
                     pagesize=custom_pagesize,
-                    rightMargin=6*mm,  # Slightly larger right margin
-                    leftMargin=4*mm,   # Slightly smaller left margin
-                    topMargin=5*mm,
-                    bottomMargin=5*mm,
+                    rightMargin=6 * mm,  # Slightly larger right margin
+                    leftMargin=4 * mm,  # Slightly smaller left margin
+                    topMargin=5 * mm,
+                    bottomMargin=5 * mm,
                 )
 
-                # Create styles
-                styles = getSampleStyleSheet()
-                
-                # Title style (centered, bold, larger)
-                title_style = ParagraphStyle(
-                    'Title',
-                    parent=styles['Normal'],
-                    fontName='Courier-Bold',
-                    fontSize=16,
-                    alignment=1,  # Center alignment
-                    spaceAfter=4*mm,
-                    leftIndent=0,
-                    rightIndent=0,
-                    leading=18
-                )
-                
-                # Label style (monospace)
-                label_style = ParagraphStyle(
-                    'Label',
-                    parent=styles['Normal'],
-                    fontName='Courier-Bold',
-                    fontSize=10,
-                    alignment=0,  # Left alignment
-                    leading=12,
-                    leftIndent=0,
-                    rightIndent=0
-                )
-                
-                # Value style (monospace)
-                value_style = ParagraphStyle(
-                    'Value',
-                    parent=styles['Normal'],
-                    fontName='Courier',
-                    fontSize=10,
-                    alignment=0,  # Left alignment
-                    leading=12,
-                    leftIndent=4*mm,  # Slight indent for values
-                    rightIndent=0,
-                    spaceBefore=1*mm
-                )
+                # Get document styles
+                styles = self._create_document_styles()
 
                 # Container for the 'Flowable' objects
                 elements: List[Flowable] = []
 
-                # Add title (task title)
-                elements.append(Paragraph(task.title, title_style))
-                elements.append(DottedLine(doc.width))
-                elements.append(Spacer(1, 2*mm))
-
-                # Add description if present
-                if task.description:
-                    elements.append(Paragraph("Description:", label_style))
-                    elements.append(Paragraph(task.description, value_style))
-                    elements.append(Spacer(1, 2*mm))
-
-                # Add due date if present
-                if task.due_date:
-                    due_date = self.format_datetime(task.due_date)
-                    if due_date:
-                        elements.append(Paragraph("Due date:", label_style))
-                        elements.append(
-                            Paragraph(
-                                due_date.strftime("%Y-%m-%d %H:%M"),
-                                value_style
-                            )
-                        )
-                        elements.append(Spacer(1, 2*mm))
-
-                # Add reward if present
-                if task.reward:
-                    elements.append(Paragraph("Reward:", label_style))
-                    elements.append(Paragraph(task.reward, value_style))
-                    elements.append(Spacer(1, 2*mm))
-
-                # Add empty line
-                elements.append(Spacer(1, 4*mm))
-                
-                # Add dates
-                # Created date (always present)
-                created_date = self.format_datetime(task.created_at)
-                if created_date:
-                    elements.append(Paragraph("Created:", label_style))
-                    elements.append(
-                        Paragraph(
-                            created_date.strftime("%Y-%m-%d %H:%M"),
-                            value_style
-                        )
-                    )
-                    elements.append(Spacer(1, 2*mm))
-
-                # Started date if present
-                if task.started_at:
-                    started_date = self.format_datetime(task.started_at)
-                    if started_date:
-                        elements.append(Paragraph("Started:", label_style))
-                        elements.append(
-                            Paragraph(
-                                started_date.strftime("%Y-%m-%d %H:%M"),
-                                value_style
-                            )
-                        )
-                        elements.append(Spacer(1, 2*mm))
-
-                # Completed date if present
-                if task.completed_at:
-                    completed_date = self.format_datetime(task.completed_at)
-                    if completed_date:
-                        elements.append(Paragraph("Completed:", label_style))
-                        elements.append(
-                            Paragraph(
-                                completed_date.strftime("%Y-%m-%d %H:%M"),
-                                value_style
-                            )
-                        )
-                        elements.append(Spacer(1, 2*mm))
+                # Build the document content
+                self._add_task_header(elements, task, styles, doc.width)
+                self._add_task_details(elements, task, styles)
+                self._add_task_dates(elements, task, styles)
 
                 # Add QR code (centered)
-                elements.append(Spacer(1, 4*mm))
+                elements.append(Spacer(1, 4 * mm))
                 elements.append(DottedLine(doc.width))
-                elements.append(Spacer(1, 8*mm))
+                elements.append(Spacer(1, 8 * mm))
                 elements.append(QRCodeFlowable(f"task_{task.id}"))
-                elements.append(Spacer(1, 8*mm))
+                elements.append(Spacer(1, 8 * mm))
                 elements.append(DottedLine(doc.width))
 
                 # Build PDF
@@ -284,7 +284,7 @@ class PDFPrinter(BasePrinter):
             self.logger.error("%s: %s", error_msg, str(e), exc_info=True)
             raise PrinterError(f"{error_msg}: {str(e)}")
 
-    async def print(self, task: Task) -> Response:
+    def print(self, task: Task) -> Response:
         """Print the task and return a FastAPI Response object."""
         filepath = self.print_task(task)
 

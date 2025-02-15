@@ -50,6 +50,7 @@ types-passlib = "*"
 types-python-dateutil = "*"
 types-requests = "*"
 types-setuptools = "*"
+types-qrcode = "*"
 httpx = ">=0.25.0,<0.29.0"
 
 [tool.black]
