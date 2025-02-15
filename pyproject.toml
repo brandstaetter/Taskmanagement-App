@@ -30,7 +30,8 @@ dependencies = [
     "httpx==0.25.0",
     "reportlab==4.0.4",
     "python-escpos==3.0a8",
-    "APScheduler==3.11.0"
+    "APScheduler==3.11.0",
+    "qrcode[pil]==7.4.2"
 ]
 
 [tool.poetry]
