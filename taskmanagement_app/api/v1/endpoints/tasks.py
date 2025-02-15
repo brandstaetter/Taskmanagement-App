@@ -225,7 +225,7 @@ async def print_task(
 
     try:
         printer = PrinterFactory.create_printer(printer_type)
-        response = await printer.print(task)
+        response = printer.print(task)
         return response
     except Exception as e:
         raise HTTPException(
@@ -243,7 +243,7 @@ async def trigger_maintenance(db: Session = Depends(get_db)) -> dict:
     from taskmanagement_app.jobs.task_maintenance import run_maintenance
 
     try:
-        await run_maintenance()
+        run_maintenance()
         return {"message": "Maintenance job completed successfully"}
     except Exception as e:
         raise HTTPException(
