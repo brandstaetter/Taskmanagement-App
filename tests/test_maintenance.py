@@ -2,7 +2,6 @@ from datetime import datetime, timedelta, timezone
 from typing import Literal
 from unittest.mock import Mock, patch
 
-import pytest
 from sqlalchemy.orm import Session
 
 from taskmanagement_app.core.printing.base_printer import BasePrinter
