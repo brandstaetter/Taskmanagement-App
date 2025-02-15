@@ -43,8 +43,7 @@ def create_test_task(db: Session) -> TaskModel:
     return task
 
 
-@pytest.mark.asyncio
-async def test_pdf_printer(db_session: Session, temp_output_dir: str) -> None:
+def test_pdf_printer(db_session: Session, temp_output_dir: str) -> None:
     """Test PDF printer functionality."""
 
     # Create printer with test config
@@ -53,7 +52,7 @@ async def test_pdf_printer(db_session: Session, temp_output_dir: str) -> None:
 
     # Create and print a task
     task = create_test_task(db_session)
-    response = await printer.print(task)
+    response = printer.print(task)
 
     # Verify response
     assert isinstance(response, FileResponse)
@@ -78,8 +77,7 @@ async def test_pdf_printer_invalid_config() -> None:
     assert "output_dir" in str(exc_info.value)
 
 
-@pytest.mark.asyncio
-async def test_usb_printer(db_session: Session) -> None:
+def test_usb_printer(db_session: Session) -> None:
     """Test USB printer functionality."""
     # Mock USB device
     mock_device = MagicMock(spec=Usb)
@@ -101,7 +99,7 @@ async def test_usb_printer(db_session: Session) -> None:
 
     # Create and print a task
     task = create_test_task(db_session)
-    response = await printer.print(task)
+    response = printer.print(task)
 
     # Verify response
     assert isinstance(response, JSONResponse)

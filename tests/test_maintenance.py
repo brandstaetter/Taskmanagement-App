@@ -1,13 +1,13 @@
 from datetime import datetime, timedelta, timezone
 from typing import Literal
-from unittest.mock import AsyncMock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 from sqlalchemy.orm import Session
 
 from taskmanagement_app.core.printing.base_printer import BasePrinter
 from taskmanagement_app.crud.task import create_task, get_task
-from taskmanagement_app.db.models.task import TaskModel
+from taskmanagement_app.db.models.task import TaskModel, TaskState
 from taskmanagement_app.jobs.task_maintenance import (
     cleanup_old_tasks,
     process_completed_tasks,
@@ -100,7 +100,7 @@ class MockPrinter(BasePrinter):
     def __init__(self, config: dict = {}) -> None:
         """Initialize with config."""
         super().__init__(config=config)
-        self._print = AsyncMock()
+        self._print = Mock()
 
     @property
     def print(self):
@@ -111,8 +111,7 @@ class MockPrinter(BasePrinter):
         self._print = value
 
 
-@pytest.mark.asyncio
-async def test_process_due_tasks(db_session: Session) -> None:
+def test_process_due_tasks(db_session: Session) -> None:
     """Test that due tasks are processed correctly."""
     # Create a task due soon (within 6 hours)
     due_soon_task = create_test_task(
@@ -158,19 +157,19 @@ async def test_process_due_tasks(db_session: Session) -> None:
 
     # Mock the printer
     mock_printer = MockPrinter()
-    mock_printer.print = AsyncMock()
+    mock_printer.print = Mock()
 
     with patch(
         "taskmanagement_app.jobs.task_maintenance.PrinterFactory.create_printer",
         return_value=mock_printer,
     ):
         # Run task processing
-        await process_due_tasks(db_session)
+        process_due_tasks(db_session)
 
         # Verify due soon task was processed
         updated_due_soon = get_task(db_session, due_soon_task.id)
         assert updated_due_soon is not None
-        assert updated_due_soon.state == "in_progress"
+        assert updated_due_soon.state == TaskState.in_progress
         assert updated_due_soon.started_at is not None
         mock_printer.print.assert_called()
 
@@ -183,7 +182,7 @@ async def test_process_due_tasks(db_session: Session) -> None:
         # Verify in progress task wasn't processed again
         in_progress = get_task(db_session, in_progress_task.id)
         assert in_progress is not None
-        assert in_progress.state == "in_progress"
+        assert in_progress.state == TaskState.in_progress
 
         # Verify archived task wasn't processed
         archived = get_task(db_session, archived_task.id)
@@ -192,8 +191,7 @@ async def test_process_due_tasks(db_session: Session) -> None:
         assert archived.started_at is None
 
 
-@pytest.mark.asyncio
-async def test_process_due_tasks_printer_error(db_session: Session) -> None:
+def test_process_due_tasks_printer_error(db_session: Session) -> None:
     """Test that task processing handles printer errors gracefully."""
     # Create a task due soon (within 6 hours)
     due_soon_task = create_test_task(
@@ -219,14 +217,14 @@ async def test_process_due_tasks_printer_error(db_session: Session) -> None:
 
     # Mock the printer to raise an error
     mock_printer = MockPrinter()
-    mock_printer.print = AsyncMock(side_effect=Exception("Printer error"))
+    mock_printer.print = Mock(side_effect=Exception("Printer error"))
 
     with patch(
         "taskmanagement_app.jobs.task_maintenance.PrinterFactory.create_printer",
         return_value=mock_printer,
     ):
         # Run task processing
-        await process_due_tasks(db_session)
+        process_due_tasks(db_session)
 
         # Verify task state wasn't changed despite printer error
         task = get_task(db_session, due_soon_task.id)
@@ -297,7 +295,7 @@ def test_process_completed_tasks(db_session: Session) -> None:
     # Verify in-progress task was not affected
     active_task = get_task(db_session, in_progress_id)
     assert active_task is not None
-    assert active_task.state == "in_progress"
+    assert active_task.state == TaskState.in_progress
 
     # Verify already archived task remains archived
     archived_task = get_task(db_session, already_archived_id)
@@ -305,8 +303,7 @@ def test_process_completed_tasks(db_session: Session) -> None:
     assert archived_task.state == "archived"
 
 
-@pytest.mark.asyncio
-async def test_process_due_tasks_invalid_date(db_session: Session) -> None:
+def test_process_due_tasks_invalid_date(db_session: Session) -> None:
     """Test that tasks with invalid due dates are handled gracefully."""
     # Create a task with an invalid due date
     invalid_task = create_test_task(
@@ -328,14 +325,14 @@ async def test_process_due_tasks_invalid_date(db_session: Session) -> None:
 
     # Mock the printer
     mock_printer = MockPrinter()
-    mock_printer.print = AsyncMock()
+    mock_printer.print = Mock()
 
     with patch(
         "taskmanagement_app.jobs.task_maintenance.PrinterFactory.create_printer",
         return_value=mock_printer,
     ):
         # Run task processing
-        await process_due_tasks(db_session)
+        process_due_tasks(db_session)
 
         # Verify invalid task wasn't processed
         task = get_task(db_session, invalid_task.id)
@@ -352,8 +349,7 @@ async def test_process_due_tasks_invalid_date(db_session: Session) -> None:
         assert archived.due_date is None
 
 
-@pytest.mark.asyncio
-async def test_process_due_tasks_printer_initialization_error(
+def test_process_due_tasks_printer_initialization_error(
     db_session: Session,
 ) -> None:
     """Test that task processing handles printer initialization errors gracefully."""
@@ -385,7 +381,7 @@ async def test_process_due_tasks_printer_initialization_error(
         side_effect=Exception("Printer initialization error"),
     ):
         # Run task processing
-        await process_due_tasks(db_session)
+        process_due_tasks(db_session)
 
         # Verify task wasn't processed due to printer error
         task = get_task(db_session, due_soon_task.id)
@@ -400,9 +396,13 @@ async def test_process_due_tasks_printer_initialization_error(
         assert archived.started_at is None
 
 
-@pytest.mark.asyncio
-async def test_run_maintenance(db_session: Session) -> None:
-    """Test the complete maintenance workflow."""
+def test_run_maintenance(db_session: Session) -> None:
+    """Test the complete maintenance workflow.
+
+    This test creates an old completed task and a task that is due soon, and
+    verifies that the old completed task is archived and the due task is
+    processed and printed.
+    """
     # Create various tasks
     old_completed = create_test_task(
         db_session,
@@ -425,7 +425,7 @@ async def test_run_maintenance(db_session: Session) -> None:
 
     # Mock the printer
     mock_printer = MockPrinter()
-    mock_printer.print = AsyncMock()
+    mock_printer.print = Mock()
 
     class TestSessionLocal:
         def __init__(self, session: Session):
@@ -445,7 +445,7 @@ async def test_run_maintenance(db_session: Session) -> None:
         ),
     ):
         # Run maintenance
-        await run_maintenance()
+        run_maintenance()
 
         # Verify old completed task was archived
         old_task = get_task(db_session, old_completed_id)
@@ -455,6 +455,6 @@ async def test_run_maintenance(db_session: Session) -> None:
         # Verify due task was processed
         due_task = get_task(db_session, due_soon_id)
         assert due_task is not None
-        assert due_task.state == "in_progress"
+        assert due_task.state == TaskState.in_progress
         assert due_task.started_at is not None
         mock_printer.print.assert_called()
