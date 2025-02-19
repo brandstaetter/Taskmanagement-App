@@ -18,7 +18,8 @@ def create_test_task(client: TestClient, title: str = "Test Task") -> Dict[str, 
     }
     response = client.post("/api/v1/tasks", json=task_data)
     assert response.status_code == 200
-    return response.json()
+    task_response: Dict[str, Any] = response.json()
+    return task_response
 
 
 def verify_task_state(task: Dict[str, Any], expected_state: str) -> None:
