@@ -1,11 +1,11 @@
 import logging
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import Any, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy.orm import Session
 
-from taskmanagement_app.core.exceptions import TaskStatusError
+from taskmanagement_app.core.exceptions import TaskNotFoundError, TaskStatusError
 from taskmanagement_app.core.printing.printer_factory import PrinterFactory
 from taskmanagement_app.crud.task import archive_task
 from taskmanagement_app.crud.task import complete_task as complete_task_crud
@@ -14,6 +14,7 @@ from taskmanagement_app.crud.task import (
     get_task,
     get_tasks,
     read_random_task,
+    reset_task_to_todo,
 )
 from taskmanagement_app.crud.task import start_task as start_task_crud
 from taskmanagement_app.db.models.task import TaskModel, TaskState
@@ -249,4 +250,21 @@ async def trigger_maintenance(db: Session = Depends(get_db)) -> dict:
         raise HTTPException(
             status_code=500,
             detail=f"Error running maintenance job: {str(e)}",
+        )
+
+
+@router.patch("/{task_id}/reset-to-todo", response_model=Task)
+def reset_task_to_todo_endpoint(task_id: int, db: Session = Depends(get_db)) -> Any:
+    """Reset a task to todo state and clear its progress timestamps."""
+    try:
+        return reset_task_to_todo(db=db, task_id=task_id)
+    except TaskNotFoundError:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Task with id {task_id} not found",
+        )
+    except TaskStatusError as e:
+        raise HTTPException(
+            status_code=400,
+            detail=str(e),
         )

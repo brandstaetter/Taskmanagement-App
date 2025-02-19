@@ -25,3 +25,16 @@ class TaskStatusError(TaskManagementError):
     transition is encountered."""
 
     pass
+
+
+class TaskNotFoundError(TaskManagementError):
+    """Exception raised when a requested task cannot be found.
+
+    This exception is used when:
+    - Task ID does not exist in the database
+    - Task was deleted or is otherwise inaccessible
+    """
+
+    def __init__(self, task_id: int):
+        self.task_id = task_id
+        super().__init__(f"Task with id {task_id} not found")
