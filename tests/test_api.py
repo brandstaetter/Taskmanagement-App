@@ -280,15 +280,20 @@ def test_invalid_task_archive(client: TestClient) -> None:
     assert response.status_code == 200
     task = response.json()
 
-    # Try to archive a task that isn't completed
+    # Archive a task in todo state (should work now)
     response = client.delete(f"/api/v1/tasks/{task['id']}")
-    assert response.status_code == 400
+    assert response.status_code == 200
+
+    # Create another task for testing in_progress state
+    response = client.post("/api/v1/tasks", json=task_data)
+    assert response.status_code == 200
+    task = response.json()
 
     # Start the task
     response = client.post(f"/api/v1/tasks/{task['id']}/start")
     assert response.status_code == 200
 
-    # Try to archive an in-progress task
+    # Try to archive an in-progress task (should fail)
     response = client.delete(f"/api/v1/tasks/{task['id']}")
     assert response.status_code == 400
 
@@ -296,11 +301,11 @@ def test_invalid_task_archive(client: TestClient) -> None:
     response = client.post(f"/api/v1/tasks/{task['id']}/complete")
     assert response.status_code == 200
 
-    # Archive the task
+    # Archive the completed task (should work)
     response = client.delete(f"/api/v1/tasks/{task['id']}")
     assert response.status_code == 200
 
-    # Try to archive an already archived task
+    # Try to archive an already archived task (should fail)
     response = client.delete(f"/api/v1/tasks/{task['id']}")
     assert response.status_code == 400
 
@@ -549,3 +554,116 @@ def test_read_due_tasks(client: TestClient) -> None:
     assert not any(
         t["id"] == task3["id"] for t in due_tasks
     ), "Archived due task should be excluded"
+
+
+def test_reset_task_to_todo(client: TestClient) -> None:
+    """Test resetting tasks to todo state from various states."""
+    # Create a task
+    task_data: Dict[str, Any] = {
+        "title": "Reset Task Test",
+        "description": "Testing reset functionality",
+        "due_date": (datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
+        "state": "todo",
+    }
+    
+    # Test resetting from in_progress
+    response = client.post("/api/v1/tasks", json=task_data)
+    assert response.status_code == 200
+    task = response.json()
+    
+    # Start the task
+    response = client.post(f"/api/v1/tasks/{task['id']}/start")
+    assert response.status_code == 200
+    assert response.json()["state"] == "in_progress"
+    assert response.json()["started_at"] is not None
+    
+    # Reset to todo
+    response = client.patch(f"/api/v1/tasks/{task['id']}/reset-to-todo")
+    assert response.status_code == 200
+    reset_task = response.json()
+    assert reset_task["state"] == "todo"
+    assert reset_task["started_at"] is None
+    assert reset_task["completed_at"] is None
+    
+    # Test resetting from done
+    response = client.post("/api/v1/tasks", json=task_data)
+    assert response.status_code == 200
+    task = response.json()
+    
+    # Complete the task (start -> complete)
+    response = client.post(f"/api/v1/tasks/{task['id']}/start")
+    assert response.status_code == 200
+    response = client.post(f"/api/v1/tasks/{task['id']}/complete")
+    assert response.status_code == 200
+    assert response.json()["state"] == "done"
+    assert response.json()["completed_at"] is not None
+    
+    # Reset to todo
+    response = client.patch(f"/api/v1/tasks/{task['id']}/reset-to-todo")
+    assert response.status_code == 200
+    reset_task = response.json()
+    assert reset_task["state"] == "todo"
+    assert reset_task["started_at"] is None
+    assert reset_task["completed_at"] is None
+    
+    # Test resetting from archived
+    response = client.post("/api/v1/tasks", json=task_data)
+    assert response.status_code == 200
+    task = response.json()
+    
+    # Archive the task (it's in todo state, which is allowed)
+    response = client.delete(f"/api/v1/tasks/{task['id']}")
+    assert response.status_code == 200
+    assert response.json()["state"] == "archived"
+    
+    # Reset to todo
+    response = client.patch(f"/api/v1/tasks/{task['id']}/reset-to-todo")
+    assert response.status_code == 200
+    reset_task = response.json()
+    assert reset_task["state"] == "todo"
+    assert reset_task["started_at"] is None
+    assert reset_task["completed_at"] is None
+    
+    # Test resetting a non-existent task
+    response = client.patch("/api/v1/tasks/99999/reset-to-todo")
+    assert response.status_code == 404
+
+
+def test_task_state_transitions_edge_cases(client: TestClient) -> None:
+    """Test edge cases in task state transitions."""
+    # Create a task
+    task_data: Dict[str, Any] = {
+        "title": "Edge Case Task",
+        "description": "Testing edge cases",
+        "due_date": (datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
+        "state": "todo",
+    }
+    response = client.post("/api/v1/tasks", json=task_data)
+    assert response.status_code == 200
+    task = response.json()
+    
+    # Try to complete a task without starting it first
+    response = client.post(f"/api/v1/tasks/{task['id']}/complete")
+    assert response.status_code == 400
+    
+    # Try to start an already started task
+    response = client.post(f"/api/v1/tasks/{task['id']}/start")
+    assert response.status_code == 200
+    response = client.post(f"/api/v1/tasks/{task['id']}/start")
+    assert response.status_code == 400
+    
+    # Try to complete an already completed task
+    response = client.post(f"/api/v1/tasks/{task['id']}/complete")
+    assert response.status_code == 200
+    response = client.post(f"/api/v1/tasks/{task['id']}/complete")
+    assert response.status_code == 400
+    
+    # Try to start a completed task
+    response = client.post(f"/api/v1/tasks/{task['id']}/start")
+    assert response.status_code == 400
+    
+    # Try operations on a non-existent task
+    response = client.post("/api/v1/tasks/99999/start")
+    assert response.status_code == 404
+    response = client.post("/api/v1/tasks/99999/complete")
+    assert response.status_code == 404
