@@ -8,6 +8,43 @@ from taskmanagement_app.core.config import get_settings
 settings = get_settings()
 
 
+def create_test_task(client: TestClient, title: str = "Test Task") -> Dict[str, Any]:
+    """Create a test task with given title."""
+    task_data: Dict[str, Any] = {
+        "title": title,
+        "description": "Test Description",
+        "due_date": (datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
+        "state": "todo",
+    }
+    response = client.post("/api/v1/tasks", json=task_data)
+    assert response.status_code == 200
+    return response.json()
+
+
+def verify_task_state(task: Dict[str, Any], expected_state: str) -> None:
+    """Verify task is in expected state with correct timestamp handling."""
+    assert task["state"] == expected_state
+    if expected_state == "todo":
+        assert task["started_at"] is None
+        assert task["completed_at"] is None
+    elif expected_state == "in_progress":
+        assert task["started_at"] is not None
+        assert task["completed_at"] is None
+    elif expected_state == "done":
+        assert task["started_at"] is not None
+        assert task["completed_at"] is not None
+    elif expected_state == "archived":
+        pass  # No specific timestamp requirements for archived state
+
+
+def verify_reset_to_todo(client: TestClient, task_id: int) -> None:
+    """Verify that a task can be reset to todo state."""
+    response = client.patch(f"/api/v1/tasks/{task_id}/reset-to-todo")
+    assert response.status_code == 200
+    reset_task = response.json()
+    verify_task_state(reset_task, "todo")
+
+
 def test_create_task(client: TestClient) -> None:
     """Test creating a new task."""
     task_data: Dict[str, Any] = {
@@ -558,72 +595,41 @@ def test_read_due_tasks(client: TestClient) -> None:
 
 def test_reset_task_to_todo(client: TestClient) -> None:
     """Test resetting tasks to todo state from various states."""
-    # Create a task
-    task_data: Dict[str, Any] = {
-        "title": "Reset Task Test",
-        "description": "Testing reset functionality",
-        "due_date": (datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
-        "state": "todo",
-    }
-
     # Test resetting from in_progress
-    response = client.post("/api/v1/tasks", json=task_data)
-    assert response.status_code == 200
-    task = response.json()
-
+    task = create_test_task(client, "Reset from In Progress")
+    
     # Start the task
     response = client.post(f"/api/v1/tasks/{task['id']}/start")
     assert response.status_code == 200
-    assert response.json()["state"] == "in_progress"
-    assert response.json()["started_at"] is not None
-
+    verify_task_state(response.json(), "in_progress")
+    
     # Reset to todo
-    response = client.patch(f"/api/v1/tasks/{task['id']}/reset-to-todo")
-    assert response.status_code == 200
-    reset_task = response.json()
-    assert reset_task["state"] == "todo"
-    assert reset_task["started_at"] is None
-    assert reset_task["completed_at"] is None
-
+    verify_reset_to_todo(client, task["id"])
+    
     # Test resetting from done
-    response = client.post("/api/v1/tasks", json=task_data)
-    assert response.status_code == 200
-    task = response.json()
-
+    task = create_test_task(client, "Reset from Done")
+    
     # Complete the task (start -> complete)
     response = client.post(f"/api/v1/tasks/{task['id']}/start")
     assert response.status_code == 200
     response = client.post(f"/api/v1/tasks/{task['id']}/complete")
     assert response.status_code == 200
-    assert response.json()["state"] == "done"
-    assert response.json()["completed_at"] is not None
-
+    verify_task_state(response.json(), "done")
+    
     # Reset to todo
-    response = client.patch(f"/api/v1/tasks/{task['id']}/reset-to-todo")
-    assert response.status_code == 200
-    reset_task = response.json()
-    assert reset_task["state"] == "todo"
-    assert reset_task["started_at"] is None
-    assert reset_task["completed_at"] is None
-
+    verify_reset_to_todo(client, task["id"])
+    
     # Test resetting from archived
-    response = client.post("/api/v1/tasks", json=task_data)
-    assert response.status_code == 200
-    task = response.json()
-
+    task = create_test_task(client, "Reset from Archived")
+    
     # Archive the task (it's in todo state, which is allowed)
     response = client.delete(f"/api/v1/tasks/{task['id']}")
     assert response.status_code == 200
-    assert response.json()["state"] == "archived"
-
+    verify_task_state(response.json(), "archived")
+    
     # Reset to todo
-    response = client.patch(f"/api/v1/tasks/{task['id']}/reset-to-todo")
-    assert response.status_code == 200
-    reset_task = response.json()
-    assert reset_task["state"] == "todo"
-    assert reset_task["started_at"] is None
-    assert reset_task["completed_at"] is None
-
+    verify_reset_to_todo(client, task["id"])
+    
     # Test resetting a non-existent task
     response = client.patch("/api/v1/tasks/99999/reset-to-todo")
     assert response.status_code == 404
@@ -631,37 +637,30 @@ def test_reset_task_to_todo(client: TestClient) -> None:
 
 def test_task_state_transitions_edge_cases(client: TestClient) -> None:
     """Test edge cases in task state transitions."""
-    # Create a task
-    task_data: Dict[str, Any] = {
-        "title": "Edge Case Task",
-        "description": "Testing edge cases",
-        "due_date": (datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
-        "state": "todo",
-    }
-    response = client.post("/api/v1/tasks", json=task_data)
-    assert response.status_code == 200
-    task = response.json()
-
+    task = create_test_task(client, "Edge Case Task")
+    
     # Try to complete a task without starting it first
     response = client.post(f"/api/v1/tasks/{task['id']}/complete")
     assert response.status_code == 400
-
+    
     # Try to start an already started task
     response = client.post(f"/api/v1/tasks/{task['id']}/start")
     assert response.status_code == 200
+    verify_task_state(response.json(), "in_progress")
     response = client.post(f"/api/v1/tasks/{task['id']}/start")
     assert response.status_code == 400
-
+    
     # Try to complete an already completed task
     response = client.post(f"/api/v1/tasks/{task['id']}/complete")
     assert response.status_code == 200
+    verify_task_state(response.json(), "done")
     response = client.post(f"/api/v1/tasks/{task['id']}/complete")
     assert response.status_code == 400
-
+    
     # Try to start a completed task
     response = client.post(f"/api/v1/tasks/{task['id']}/start")
     assert response.status_code == 400
-
+    
     # Try operations on a non-existent task
     response = client.post("/api/v1/tasks/99999/start")
     assert response.status_code == 404
