@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Optional, Sequence, Union
 
 from sqlalchemy.orm import Session
 
-from taskmanagement_app.core.exceptions import TaskStatusError
+from taskmanagement_app.core.exceptions import TaskStatusError, TaskNotFoundError
 from taskmanagement_app.db.models.task import TaskModel, TaskState
 from taskmanagement_app.schemas.task import TaskCreate, TaskUpdate
 
@@ -249,10 +249,10 @@ def archive_task(db: Session, task_id: int) -> Optional[TaskModel]:
     if task:
         if task.state == TaskState.archived:
             raise TaskStatusError("Task is already archived")
-        elif task.state != TaskState.done:
+        elif task.state not in [TaskState.done, TaskState.todo]:
             raise TaskStatusError(
                 f"Cannot archive task in state {task.state}. "
-                "Task must be in 'done' state to be archived."
+                "Task must be in 'done' or 'todo' state to be archived."
             )
         task.state = TaskState.archived
         db.commit()
@@ -317,3 +317,29 @@ def read_random_task(db: Session) -> Optional[TaskModel]:
 
     # Use random.choices which allows weights
     return random.choices(tasks, weights=weights, k=1)[0]
+
+
+def reset_task_to_todo(db: Session, task_id: int) -> TaskModel:
+    """Reset a task to todo state and clear its progress timestamps.
+
+    Args:
+        db: Database session
+        task_id: ID of the task to reset
+
+    Returns:
+        Updated task
+
+    Raises:
+        TaskNotFoundError: If task doesn't exist
+    """
+    task = get_task(db, task_id)
+    if not task:
+        raise TaskNotFoundError(task_id)
+
+    task.state = TaskState.todo
+    task.started_at = None
+    task.completed_at = None
+
+    db.commit()
+    db.refresh(task)
+    return task
