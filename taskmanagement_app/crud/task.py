@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Optional, Sequence, Union
 
 from sqlalchemy.orm import Session
 
-from taskmanagement_app.core.exceptions import TaskStatusError, TaskNotFoundError
+from taskmanagement_app.core.exceptions import TaskNotFoundError, TaskStatusError
 from taskmanagement_app.db.models.task import TaskModel, TaskState
 from taskmanagement_app.schemas.task import TaskCreate, TaskUpdate
 
