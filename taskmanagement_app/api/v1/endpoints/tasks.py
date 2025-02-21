@@ -15,11 +15,12 @@ from taskmanagement_app.crud.task import (
     get_tasks,
     read_random_task,
     reset_task_to_todo,
+    update_task,
 )
 from taskmanagement_app.crud.task import start_task as start_task_crud
 from taskmanagement_app.db.models.task import TaskModel, TaskState
 from taskmanagement_app.db.session import get_db
-from taskmanagement_app.schemas.task import Task, TaskCreate
+from taskmanagement_app.schemas.task import Task, TaskCreate, TaskUpdate
 
 logger = logging.getLogger(__name__)
 
@@ -268,3 +269,31 @@ def reset_task_to_todo_endpoint(task_id: int, db: Session = Depends(get_db)) -> 
             status_code=400,
             detail=str(e),
         )
+
+
+@router.patch("/{task_id}", response_model=Task)
+def update_task_endpoint(
+    task_id: int,
+    task: TaskUpdate,
+    db: Session = Depends(get_db),
+) -> Task:
+    """
+    Update an existing task.
+
+    Args:
+        task_id: ID of task to update
+        task: Updated task data
+        db: Database session
+
+    Returns:
+        Updated task
+
+    Raises:
+        HTTPException: If task not found
+    """
+    db_task = get_task(db, task_id)
+    if not db_task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    updated_task = update_task(db, task_id, task)
+    return Task.model_validate(updated_task)
