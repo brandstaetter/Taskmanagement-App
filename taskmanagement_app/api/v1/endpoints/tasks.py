@@ -14,7 +14,7 @@ from taskmanagement_app.crud.task import (
     get_task,
     get_tasks,
     read_random_task,
-    reset_task_to_todo
+    reset_task_to_todo,
 )
 from taskmanagement_app.crud.task import start_task as start_task_crud
 from taskmanagement_app.crud.task import update_task
