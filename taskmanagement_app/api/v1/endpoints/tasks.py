@@ -7,7 +7,9 @@ from sqlalchemy.orm import Session
 
 from taskmanagement_app.core.exceptions import TaskNotFoundError, TaskStatusError
 from taskmanagement_app.core.printing.printer_factory import PrinterFactory
-from taskmanagement_app.crud.task import archive_task
+from taskmanagement_app.crud.task import (
+    archive_task,
+)
 from taskmanagement_app.crud.task import complete_task as complete_task_crud
 from taskmanagement_app.crud.task import (
     create_task,
@@ -17,7 +19,9 @@ from taskmanagement_app.crud.task import (
     reset_task_to_todo,
 )
 from taskmanagement_app.crud.task import start_task as start_task_crud
-from taskmanagement_app.crud.task import update_task
+from taskmanagement_app.crud.task import (
+    update_task,
+)
 from taskmanagement_app.db.models.task import TaskModel, TaskState
 from taskmanagement_app.db.session import get_db
 from taskmanagement_app.schemas.task import Task, TaskCreate, TaskUpdate
