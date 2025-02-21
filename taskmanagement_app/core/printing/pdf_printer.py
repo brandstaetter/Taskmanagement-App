@@ -259,7 +259,12 @@ class PDFPrinter(BasePrinter):
                 elements.append(Spacer(1, 4 * mm))
                 elements.append(DottedLine(doc.width))
                 elements.append(Spacer(1, 8 * mm))
-                elements.append(QRCodeFlowable(f"task_{task.id}"))
+                elements.append(
+                    QRCodeFlowable(
+                        f"{self.config.get('frontend_url', 'http://localhost:4200')}"
+                        f"/tasks/{task.id}/details"
+                    )
+                )
                 elements.append(Spacer(1, 8 * mm))
                 elements.append(DottedLine(doc.width))
 
