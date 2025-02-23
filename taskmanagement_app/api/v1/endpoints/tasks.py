@@ -150,19 +150,22 @@ def start_task(task_id: int, db: Session = Depends(get_db)) -> Task:
     """
     Mark a task as in progress and set the started_at timestamp.
     """
-    db_task = get_task(db, task_id=task_id)
-    if not db_task:
-        raise HTTPException(status_code=404, detail="Task not found")
+    try:
+        db_task = get_task(db, task_id=task_id)
+        if not db_task:
+            raise HTTPException(status_code=404, detail="Task not found")
 
-    if db_task.state != TaskState.todo:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Cannot start task in state {db_task.state}. "
-            "Task must be in 'todo' state.",
-        )
+        if db_task.state != TaskState.todo:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot start task in state {db_task.state}. "
+                "Task must be in 'todo' state.",
+            )
 
-    updated_db_task = start_task_crud(db, db_task)
-    return Task.model_validate(updated_db_task)
+        updated_db_task = start_task_crud(db, db_task)
+        return Task.model_validate(updated_db_task)
+    except TaskNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
 
 
 @router.post("/{task_id}/complete", response_model=Task)
@@ -170,22 +173,25 @@ def complete_task(task_id: int, db: Session = Depends(get_db)) -> Task:
     """
     Mark a task as completed and set the completed_at timestamp.
     """
-    db_task = get_task(db, task_id=task_id)
-    if not db_task:
-        raise HTTPException(status_code=404, detail="Task not found")
-
-    if db_task.state != TaskState.in_progress:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Cannot complete task in state {db_task.state}. "
-            "Task must be in 'in_progress' state.",
-        )
-
     try:
-        updated_db_task = complete_task_crud(db, db_task)
-        return Task.model_validate(updated_db_task)
-    except TaskStatusError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        db_task = get_task(db, task_id=task_id)
+        if not db_task:
+            raise HTTPException(status_code=404, detail="Task not found")
+
+        if db_task.state != TaskState.in_progress:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot complete task in state {db_task.state}. "
+                "Task must be in 'in_progress' state.",
+            )
+
+        try:
+            updated_db_task = complete_task_crud(db, db_task)
+            return Task.model_validate(updated_db_task)
+        except TaskStatusError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+    except TaskNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
 
 
 @router.delete("/{task_id}", response_model=Task)
