@@ -11,6 +11,7 @@ from taskmanagement_app.crud.task import archive_task
 from taskmanagement_app.crud.task import complete_task as complete_task_crud
 from taskmanagement_app.crud.task import (
     create_task,
+    get_due_tasks,
     get_task,
     get_tasks,
     read_random_task,
@@ -72,13 +73,8 @@ def read_due_tasks(db: Session = Depends(get_db)) -> List[Task]:
     """
     Retrieve all tasks that are due within the next 24 hours.
     """
-    now = datetime.now(timezone.utc)
-    db_tasks = get_tasks(db, include_archived=False)  # Exclude archived tasks
-    due_tasks = []
-    for task in db_tasks:
-        if task.due_date and task.due_date <= now + timedelta(hours=24):
-            due_tasks.append(Task.model_validate(task))
-    return due_tasks
+    db_tasks = get_due_tasks(db)
+    return [Task.model_validate(task) for task in db_tasks]
 
 
 @router.get("/random/", response_model=Task)
