@@ -157,11 +157,21 @@ def start_task(db: Session, task: TaskModel) -> TaskModel:
 
 
 def archive_task(db: Session, task_id: int) -> TaskModel:
-    """Archive a task by ID."""
+    """Archive a task by ID.
+    
+    Only tasks in 'todo' or 'done' state can be archived.
+    Tasks in 'in_progress' state must be completed first.
+    """
     task = get_task(db, task_id)
 
     if task.state == TaskState.archived:
         raise TaskStatusError(f"Task {task_id} is already archived")
+    
+    if task.state == TaskState.in_progress:
+        raise TaskStatusError(
+            f"Cannot archive task {task_id} in state '{task.state}'. "
+            "Task must be completed first."
+        )
 
     task.state = TaskState.archived
     db.commit()
