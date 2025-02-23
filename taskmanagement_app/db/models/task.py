@@ -8,6 +8,7 @@ from sqlalchemy import DateTime, Enum, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
+from taskmanagement_app.core.datetime_utils import utc_now
 from taskmanagement_app.db.base import Base
 
 
@@ -18,11 +19,6 @@ class TaskState(str, enum.Enum):
     in_progress = "in_progress"
     done = "done"
     archived = "archived"
-
-
-def utc_now() -> datetime:
-    """Get current UTC datetime."""
-    return datetime.now(timezone.utc)
 
 
 class TaskModel(Base):
@@ -48,8 +44,5 @@ class TaskModel(Base):
         DateTime(timezone=True), nullable=True
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        server_default=func.now(),
-        onupdate=func.now(),
-        nullable=False,
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
     )
