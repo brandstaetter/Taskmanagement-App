@@ -291,9 +291,8 @@ def update_task_endpoint(
     Raises:
         HTTPException: If task not found
     """
-    db_task = get_task(db, task_id)
-    if not db_task:
-        raise HTTPException(status_code=404, detail="Task not found")
-
-    updated_task = update_task(db, task_id, task)
-    return Task.model_validate(updated_task)
+    try:
+        updated_task = update_task(db, task_id=task_id, task=task)
+        return Task.model_validate(updated_task)
+    except TaskNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Task {task_id} not found")

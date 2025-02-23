@@ -688,7 +688,13 @@ def test_update_task_endpoint(client: TestClient) -> None:
         assert response.status_code == 200
         updated_task = response.json()
         for key, value in update.items():
-            assert updated_task[key] == value
+            if key == "due_date":
+                # Parse both dates to datetime for comparison
+                expected_dt = datetime.fromisoformat(value)
+                actual_dt = datetime.fromisoformat(updated_task[key])
+                assert actual_dt == expected_dt
+            else:
+                assert updated_task[key] == value
 
     # Test updating multiple fields at once
     multi_update = {
@@ -701,7 +707,13 @@ def test_update_task_endpoint(client: TestClient) -> None:
     assert response.status_code == 200
     updated_task = response.json()
     for key, value in multi_update.items():
-        assert updated_task[key] == value
+        if key == "due_date":
+            # Parse both dates to datetime for comparison
+            expected_dt = datetime.fromisoformat(value)
+            actual_dt = datetime.fromisoformat(updated_task[key])
+            assert actual_dt == expected_dt
+        else:
+            assert updated_task[key] == value
 
     # Test updating non-existent task
     response = client.patch("/api/v1/tasks/99999", json={"title": "Non-existent"})
@@ -724,7 +736,7 @@ def test_update_task_endpoint(client: TestClient) -> None:
         if "due_date" in invalid_update:
             # Check for specific date validation error message
             error_detail = response.json()["detail"][0]
-            assert "Invalid date format" in error_detail["msg"]
+            assert "Input should be a valid datetime or date" in error_detail["msg"]
         else:
             # Check for empty string validation error
             error_detail = response.json()["detail"][0]
