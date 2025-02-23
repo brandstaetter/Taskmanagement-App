@@ -1,5 +1,4 @@
 import logging
-from datetime import datetime
 from typing import Any, Dict
 
 from escpos.printer import Usb
@@ -95,10 +94,6 @@ class USBPrinter(BasePrinter):
             error_msg = f"Unexpected error while connecting to printer: {str(e)}"
             self.logger.error(error_msg, exc_info=True)
             raise PrinterError(error_msg)
-
-    def format_datetime(self, dt_str: str) -> datetime:
-        """Convert ISO datetime string to datetime object."""
-        return datetime.fromisoformat(dt_str.replace("Z", "+00:00"))
 
     def printHeading(self, printer: Usb, title: str) -> None:
         """Apply heading style to printer."""
@@ -240,10 +235,9 @@ class USBPrinter(BasePrinter):
             # Print Due Date
             if task.due_date:
                 indent = self.printLabel(self.device, "due_date")
-                due_date = self.format_datetime(task.due_date)
                 self.printValue(
                     self.device,
-                    f'{due_date.strftime("%Y-%m-%d %H:%M")}\n',
+                    f'{task.due_date.strftime("%Y-%m-%d %H:%M")}\n',
                     indent,
                     wide=True,
                 )
@@ -256,26 +250,29 @@ class USBPrinter(BasePrinter):
 
             # Print Created At
             if task.created_at:
-                created_at = self.format_datetime(task.created_at)
                 indent = self.printLabel(self.device, "created_at")
                 self.printValue(
-                    self.device, f'{created_at.strftime("%Y-%m-%d %H:%M")}\n', indent
+                    self.device,
+                    f'{task.created_at.strftime("%Y-%m-%d %H:%M")}\n',
+                    indent,
                 )
 
             # Print Started At
             if task.started_at:
-                started_at = self.format_datetime(task.started_at)
                 indent = self.printLabel(self.device, "started_at")
                 self.printValue(
-                    self.device, f'{started_at.strftime("%Y-%m-%d %H:%M")}\n', indent
+                    self.device,
+                    f'{task.started_at.strftime("%Y-%m-%d %H:%M")}\n',
+                    indent,
                 )
 
             # Print Completed At
             if task.completed_at:
-                completed_at = self.format_datetime(task.completed_at)
                 indent = self.printLabel(self.device, "completed_at")
                 self.printValue(
-                    self.device, f'{completed_at.strftime("%Y-%m-%d %H:%M")}\n', indent
+                    self.device,
+                    f'{task.completed_at.strftime("%Y-%m-%d %H:%M")}\n',
+                    indent,
                 )
 
             # Print QR code

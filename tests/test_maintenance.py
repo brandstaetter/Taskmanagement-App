@@ -21,12 +21,12 @@ def create_test_task(
     *,
     title: str,
     state: Literal["todo", "in_progress", "done", "archived"],
-    completed_at: str | None = None,
+    completed_at: datetime | None = None,
 ) -> TaskModel:
     task_in = TaskCreate(
         title=title,
         description="Test Description",
-        due_date=(datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
+        due_date=(datetime.now(timezone.utc) + timedelta(days=1)),
         state=state,
     )
     task = create_task(db=db, task=task_in)
@@ -43,7 +43,7 @@ def test_cleanup_old_tasks(db_session: Session) -> None:
         db_session,
         title="Old Task",
         state="done",
-        completed_at=(datetime.now(timezone.utc) - timedelta(hours=25)).isoformat(),
+        completed_at=(datetime.now(timezone.utc) - timedelta(hours=25)),
     )
 
     # Create a task completed less than 24 hours ago
@@ -51,7 +51,7 @@ def test_cleanup_old_tasks(db_session: Session) -> None:
         db_session,
         title="Recent Task",
         state="done",
-        completed_at=(datetime.now(timezone.utc) - timedelta(hours=23)).isoformat(),
+        completed_at=(datetime.now(timezone.utc) - timedelta(hours=23)),
     )
 
     # Create an incomplete task
@@ -66,7 +66,7 @@ def test_cleanup_old_tasks(db_session: Session) -> None:
         db_session,
         title="Already Archived Task",
         state="archived",
-        completed_at=(datetime.now(timezone.utc) - timedelta(hours=30)).isoformat(),
+        completed_at=(datetime.now(timezone.utc) - timedelta(hours=30)),
     )
 
     # Run cleanup
@@ -118,9 +118,7 @@ def test_process_due_tasks(db_session: Session) -> None:
         title="Due Soon Task",
         state="todo",
     )
-    due_soon_task.due_date = (
-        datetime.now(timezone.utc) + timedelta(hours=3)
-    ).isoformat()
+    due_soon_task.due_date = datetime.now(timezone.utc) + timedelta(hours=3)
     db_session.commit()
 
     # Create a task not due soon
@@ -129,7 +127,7 @@ def test_process_due_tasks(db_session: Session) -> None:
         title="Not Due Task",
         state="todo",
     )
-    not_due_task.due_date = (datetime.now(timezone.utc) + timedelta(days=2)).isoformat()
+    not_due_task.due_date = datetime.now(timezone.utc) + timedelta(days=2)
     db_session.commit()
 
     # Create a task that's already in progress
@@ -138,9 +136,7 @@ def test_process_due_tasks(db_session: Session) -> None:
         title="In Progress Task",
         state="in_progress",
     )
-    in_progress_task.due_date = (
-        datetime.now(timezone.utc) + timedelta(hours=1)
-    ).isoformat()
+    in_progress_task.due_date = datetime.now(timezone.utc) + timedelta(hours=1)
     db_session.commit()
 
     # Create an archived task that's due soon
@@ -149,9 +145,7 @@ def test_process_due_tasks(db_session: Session) -> None:
         title="Archived Task",
         state="archived",
     )
-    archived_task.due_date = (
-        datetime.now(timezone.utc) + timedelta(hours=2)
-    ).isoformat()
+    archived_task.due_date = datetime.now(timezone.utc) + timedelta(hours=2)
     db_session.commit()
 
     # Mock the printer
@@ -198,9 +192,7 @@ def test_process_due_tasks_printer_error(db_session: Session) -> None:
         title="Due Soon Task",
         state="todo",
     )
-    due_soon_task.due_date = (
-        datetime.now(timezone.utc) + timedelta(hours=3)
-    ).isoformat()
+    due_soon_task.due_date = datetime.now(timezone.utc) + timedelta(hours=3)
     db_session.commit()
 
     # Create an archived task that's due soon
@@ -209,9 +201,7 @@ def test_process_due_tasks_printer_error(db_session: Session) -> None:
         title="Archived Task",
         state="archived",
     )
-    archived_task.due_date = (
-        datetime.now(timezone.utc) + timedelta(hours=2)
-    ).isoformat()
+    archived_task.due_date = datetime.now(timezone.utc) + timedelta(hours=2)
     db_session.commit()
 
     # Mock the printer to raise an error
@@ -246,7 +236,7 @@ def test_process_completed_tasks(db_session: Session) -> None:
         db_session,
         title="Old Completed Task",
         state="done",
-        completed_at=(datetime.now(timezone.utc) - timedelta(days=8)).isoformat(),
+        completed_at=(datetime.now(timezone.utc) - timedelta(days=8)),
     )
 
     # Create a task completed less than 7 days ago
@@ -254,7 +244,7 @@ def test_process_completed_tasks(db_session: Session) -> None:
         db_session,
         title="Recent Completed Task",
         state="done",
-        completed_at=(datetime.now(timezone.utc) - timedelta(days=3)).isoformat(),
+        completed_at=(datetime.now(timezone.utc) - timedelta(days=3)),
     )
 
     # Create an in-progress task
@@ -269,7 +259,7 @@ def test_process_completed_tasks(db_session: Session) -> None:
         db_session,
         title="Already Archived Task",
         state="archived",
-        completed_at=(datetime.now(timezone.utc) - timedelta(days=10)).isoformat(),
+        completed_at=(datetime.now(timezone.utc) - timedelta(days=10)),
     )
 
     # Store task IDs for later verification
@@ -299,53 +289,7 @@ def test_process_completed_tasks(db_session: Session) -> None:
     # Verify already archived task remains archived
     archived_task = get_task(db_session, already_archived_id)
     assert archived_task is not None
-    assert archived_task.state == "archived"
-
-
-def test_process_due_tasks_invalid_date(db_session: Session) -> None:
-    """Test that tasks with invalid due dates are handled gracefully."""
-    # Create a task with an invalid due date
-    invalid_task = create_test_task(
-        db_session,
-        title="Invalid Date Task",
-        state="todo",
-    )
-    invalid_task.due_date = "invalid-date"
-    db_session.commit()
-
-    # Create an archived task with an invalid due date
-    archived_task = create_test_task(
-        db_session,
-        title="Archived Invalid Date Task",
-        state="archived",
-    )
-    archived_task.due_date = "invalid-date"
-    db_session.commit()
-
-    # Mock the printer
-    mock_printer = MockPrinter()
-    mock_printer.print = Mock()
-
-    with patch(
-        "taskmanagement_app.jobs.task_maintenance.PrinterFactory.create_printer",
-        return_value=mock_printer,
-    ):
-        # Run task processing
-        process_due_tasks(db_session)
-
-        # Verify invalid task wasn't processed
-        task = get_task(db_session, invalid_task.id)
-        assert task is not None
-        assert task.state == "todo"
-        assert task.started_at is None
-        assert task.due_date is None
-
-        # Verify archived task wasn't processed
-        archived = get_task(db_session, archived_task.id)
-        assert archived is not None
-        assert archived.state == "archived"
-        assert archived.started_at is None
-        assert archived.due_date is None
+    assert archived_task.state == TaskState.archived
 
 
 def test_process_due_tasks_printer_initialization_error(
@@ -358,9 +302,7 @@ def test_process_due_tasks_printer_initialization_error(
         title="Due Soon Task",
         state="todo",
     )
-    due_soon_task.due_date = (
-        datetime.now(timezone.utc) + timedelta(hours=3)
-    ).isoformat()
+    due_soon_task.due_date = datetime.now(timezone.utc) + timedelta(hours=3)
     db_session.commit()
 
     # Create an archived task that's due soon
@@ -369,9 +311,7 @@ def test_process_due_tasks_printer_initialization_error(
         title="Archived Task",
         state="archived",
     )
-    archived_task.due_date = (
-        datetime.now(timezone.utc) + timedelta(hours=2)
-    ).isoformat()
+    archived_task.due_date = datetime.now(timezone.utc) + timedelta(hours=2)
     db_session.commit()
 
     # Mock printer factory to raise an error
@@ -407,7 +347,7 @@ def test_run_maintenance(db_session: Session) -> None:
         db_session,
         title="Old Completed Task",
         state="done",
-        completed_at=(datetime.now(timezone.utc) - timedelta(days=8)).isoformat(),
+        completed_at=(datetime.now(timezone.utc) - timedelta(days=8)),
     )
 
     due_soon = create_test_task(
@@ -415,7 +355,7 @@ def test_run_maintenance(db_session: Session) -> None:
         title="Due Soon Task",
         state="todo",
     )
-    due_soon.due_date = (datetime.now(timezone.utc) + timedelta(hours=3)).isoformat()
+    due_soon.due_date = datetime.now(timezone.utc) + timedelta(hours=3)
     db_session.commit()
 
     # Store task IDs for later verification

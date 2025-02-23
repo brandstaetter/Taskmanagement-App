@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import Engine, create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from taskmanagement_app.core.config import get_settings
+from taskmanagement_app.core.config import Settings
 from taskmanagement_app.db.base import Base
 from taskmanagement_app.db.session import get_db
 from taskmanagement_app.main import app
@@ -23,17 +23,17 @@ parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
-settings = get_settings()
-
-# Test database URL
-SQLALCHEMY_TEST_DATABASE_URL = settings.DATABASE_URL
+# Test settings with test-specific values
+settings = Settings(
+    DATABASE_URL="sqlite:///./test.db",
+)
 
 
 @pytest.fixture(scope="session")
 def db_engine() -> Generator[Engine, None, None]:
     """Create a test database engine."""
     engine = create_engine(
-        SQLALCHEMY_TEST_DATABASE_URL, connect_args={"check_same_thread": False}
+        settings.DATABASE_URL, connect_args={"check_same_thread": False}
     )
     Base.metadata.create_all(bind=engine)
     yield engine
@@ -50,16 +50,15 @@ def db_engine() -> Generator[Engine, None, None]:
 
 @pytest.fixture(scope="function")
 def db_session(db_engine: Engine) -> Generator[Session, None, None]:
-    """Create a test database session."""
+    """Create a new database session for a test."""
     TestingSessionLocal = sessionmaker(
         autocommit=False, autoflush=False, bind=db_engine
     )
-    db = TestingSessionLocal()
+    session = TestingSessionLocal()
     try:
-        yield db
+        yield session
     finally:
-        db.rollback()
-        db.close()
+        session.close()
 
 
 @pytest.fixture(scope="function")
@@ -70,7 +69,7 @@ def client(db_session: Session) -> Generator[TestClient, None, None]:
         try:
             yield db_session
         finally:
-            pass  # Session cleanup is handled by the db_session fixture
+            pass
 
     app.dependency_overrides[get_db] = override_get_db
     with TestClient(app) as test_client:
@@ -82,7 +81,7 @@ def client(db_session: Session) -> Generator[TestClient, None, None]:
 def test_user() -> Dict[str, Any]:
     """Create a test user."""
     return {
-        "username": "testuser",
         "email": "test@example.com",
-        "password": "testpassword123",
+        "password": "test_password",
+        "is_admin": False,
     }

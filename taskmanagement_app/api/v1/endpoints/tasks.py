@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
@@ -7,9 +7,7 @@ from sqlalchemy.orm import Session
 
 from taskmanagement_app.core.exceptions import TaskNotFoundError, TaskStatusError
 from taskmanagement_app.core.printing.printer_factory import PrinterFactory
-from taskmanagement_app.crud.task import (
-    archive_task,
-)
+from taskmanagement_app.crud.task import archive_task
 from taskmanagement_app.crud.task import complete_task as complete_task_crud
 from taskmanagement_app.crud.task import (
     create_task,
@@ -19,9 +17,7 @@ from taskmanagement_app.crud.task import (
     reset_task_to_todo,
 )
 from taskmanagement_app.crud.task import start_task as start_task_crud
-from taskmanagement_app.crud.task import (
-    update_task,
-)
+from taskmanagement_app.crud.task import update_task
 from taskmanagement_app.db.models.task import TaskModel, TaskState
 from taskmanagement_app.db.session import get_db
 from taskmanagement_app.schemas.task import Task, TaskCreate, TaskUpdate
@@ -80,10 +76,8 @@ def read_due_tasks(db: Session = Depends(get_db)) -> List[Task]:
     db_tasks = get_tasks(db, include_archived=False)  # Exclude archived tasks
     due_tasks = []
     for task in db_tasks:
-        if task.due_date:
-            due_date = datetime.fromisoformat(task.due_date.replace("Z", "+00:00"))
-            if (due_date - now).total_seconds() <= 24 * 3600:  # 24 hours in seconds
-                due_tasks.append(Task.model_validate(task))
+        if task.due_date and task.due_date <= now + timedelta(hours=24):
+            due_tasks.append(Task.model_validate(task))
     return due_tasks
 
 

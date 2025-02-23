@@ -7,7 +7,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-import qrcode
+import qrcode  # type: ignore
 from fastapi import Response
 from fastapi.responses import FileResponse
 from reportlab.lib.pagesizes import A4
@@ -182,13 +182,11 @@ class PDFPrinter(BasePrinter):
             elements.append(Spacer(1, 2 * mm))
 
         if task.due_date:
-            due_date = self.format_datetime(task.due_date)
-            if due_date is not None:
-                elements.append(Paragraph("Due date:", styles["label"]))
-                elements.append(
-                    Paragraph(due_date.strftime("%Y-%m-%d %H:%M"), styles["value"])
-                )
-                elements.append(Spacer(1, 2 * mm))
+            elements.append(Paragraph("Due date:", styles["label"]))
+            elements.append(
+                Paragraph(task.due_date.strftime("%Y-%m-%d %H:%M"), styles["value"])
+            )
+            elements.append(Spacer(1, 2 * mm))
 
         if task.reward:
             elements.append(Paragraph("Reward:", styles["label"]))

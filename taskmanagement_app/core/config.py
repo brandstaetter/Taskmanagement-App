@@ -1,10 +1,16 @@
+"""Application configuration."""
+
 from functools import lru_cache
 from typing import List
 
+from pydantic import Field
 from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
+    """Application settings."""
+
+    # Application
     PROJECT_NAME: str = "Task Management API"
     VERSION: str = "1.0.0"
     API_V1_STR: str = "/api/v1"
@@ -13,20 +19,29 @@ class Settings(BaseSettings):
     BACKEND_CORS_ORIGINS: List[str] = ["http://localhost:4200"]  # Angular default port
 
     # Database
-    DATABASE_URL: str = "sqlite:///./task_management.db"
+    DATABASE_URL: str = Field(
+        default="sqlite:///./task_management.db", alias="DATABASE_URL"
+    )
 
     # Frontend
     FRONTEND_URL: str = "http://localhost:4200"
 
-    # JWT
-    SECRET_KEY: str = "your-secret-key-here"  # Change in production
+    # Security
+    SECRET_KEY: str = Field(
+        default="your-secret-key-here", alias="SECRET_KEY"
+    )  # Change in production
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
-    # Admin Authentication
-    ADMIN_API_KEY: str = "your-admin-key-here"  # Change in production
+    # Admin credentials
+    ADMIN_API_KEY: str = Field(
+        default="your-admin-key-here", alias="ADMIN_API_KEY"
+    )  # Change in production
     ADMIN_USERNAME: str = "admin"
-    ADMIN_PASSWORD: str = "admin"  # Change in production
+    ADMIN_PASSWORD: str = Field(
+        default="admin", alias="ADMIN_PASSWORD"
+    )  # Change in production
+    ADMIN_EMAIL: str = Field(default="", alias="ADMIN_EMAIL")
 
     class Config:
         case_sensitive = True

@@ -1,3 +1,5 @@
+"""Test CRUD operations."""
+
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
@@ -9,6 +11,7 @@ from taskmanagement_app.crud.task import (
     get_due_tasks,
     get_task,
     get_tasks,
+    read_random_task,
     start_task,
     update_task,
 )
@@ -19,7 +22,7 @@ def test_create_task(db_session: Session) -> None:
     task_in = TaskCreate(
         title="Test Task",
         description="Test Description",
-        due_date=(datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
+        due_date=(datetime.now(timezone.utc) + timedelta(days=1)),
         state="todo",
     )
     task = create_task(db=db_session, task=task_in)
@@ -32,7 +35,7 @@ def test_get_task(db_session: Session) -> None:
     task_in = TaskCreate(
         title="Test Task",
         description="Test Description",
-        due_date=(datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
+        due_date=(datetime.now(timezone.utc) + timedelta(days=1)),
         state="todo",
     )
     task = create_task(db=db_session, task=task_in)
@@ -47,13 +50,13 @@ def test_get_tasks(db_session: Session) -> None:
     task_in1 = TaskCreate(
         title="Test Task 1",
         description="Test Description 1",
-        due_date=(datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
+        due_date=(datetime.now(timezone.utc) + timedelta(days=1)),
         state="todo",
     )
     task_in2 = TaskCreate(
         title="Test Task 2",
         description="Test Description 2",
-        due_date=(datetime.now(timezone.utc) + timedelta(days=2)).isoformat(),
+        due_date=(datetime.now(timezone.utc) + timedelta(days=2)),
         state="todo",
     )
     task1 = create_task(db=db_session, task=task_in1)
@@ -68,7 +71,7 @@ def test_update_task(db_session: Session) -> None:
     task_in = TaskCreate(
         title="Test Task",
         description="Test Description",
-        due_date=(datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
+        due_date=(datetime.now(timezone.utc) + timedelta(days=1)),
         state="todo",
     )
     task = create_task(db=db_session, task=task_in)
@@ -87,7 +90,7 @@ def test_archive_task(db_session: Session) -> None:
     task_in = TaskCreate(
         title="Test Task",
         description="Test Description",
-        due_date=(datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
+        due_date=(datetime.now(timezone.utc) + timedelta(days=1)),
         state="done",
     )
     task = create_task(db=db_session, task=task_in)
@@ -104,7 +107,7 @@ def test_task_state_transitions(db_session: Session) -> None:
     task_in = TaskCreate(
         title="Test Task",
         description="Test Description",
-        due_date=(datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
+        due_date=(datetime.now(timezone.utc) + timedelta(days=1)),
         state="todo",
     )
     task = create_task(db=db_session, task=task_in)
@@ -126,7 +129,7 @@ def test_task_state_archived(db_session: Session) -> None:
     task_in = TaskCreate(
         title="Test Task",
         description="Test Description",
-        due_date=(datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
+        due_date=(datetime.now(timezone.utc) + timedelta(days=1)),
         state="todo",
     )
     task = create_task(db=db_session, task=task_in)
@@ -159,32 +162,59 @@ def test_task_state_archived(db_session: Session) -> None:
     assert not any(t.id == archived_task.id for t in due_tasks)
 
 
-def test_get_tasks_with_invalid_dates(db_session: Session) -> None:
-    """Test that tasks with invalid dates are handled correctly."""
-    # Create a task with invalid due date
+def test_task_due_date_handling(db_session: Session) -> None:
+    """Test that task due dates are handled correctly with timezone-aware datetimes."""
+    # Create a task with a due date
+    now = datetime.now(timezone.utc)
+    tomorrow = now + timedelta(days=1)
     task_in = TaskCreate(
-        title="Invalid Date Task",
+        title="Due Date Task",
         description="Test Description",
         state="todo",
+        due_date=tomorrow,
     )
     task = create_task(db=db_session, task=task_in)
-    task.due_date = "invalid-date"
-    db_session.commit()
 
-    # Test get_tasks still works
-    tasks = get_tasks(db=db_session)
-    assert any(t.id == task.id for t in tasks)
+    # Verify the due date was stored correctly with timezone info
+    assert task.due_date is not None
+    assert task.due_date.tzinfo is not None  # Check it has timezone info
+    assert task.due_date.tzinfo == timezone.utc  # Check it's UTC
+    assert (
+        abs((task.due_date - tomorrow).total_seconds()) < 1
+    )  # Allow for small precision differences
 
-    # Test get_due_tasks handles invalid date
-    from taskmanagement_app.crud.task import get_due_tasks
-
+    # Test that the task appears in due tasks
     due_tasks = get_due_tasks(db=db_session)
-    assert not any(t.id == task.id for t in due_tasks)
+    assert any(t.id == task.id for t in due_tasks)
+
+    # Create a task without a due date
+    task_no_due = create_task(
+        db=db_session,
+        task=TaskCreate(title="No Due Date", description="Test", state="todo"),
+    )
+
+    # Verify it's not in due tasks
+    due_tasks = get_due_tasks(db=db_session)
+    assert not any(t.id == task_no_due.id for t in due_tasks)
+
+    # Create a task due in 2 days
+    future_task = create_task(
+        db=db_session,
+        task=TaskCreate(
+            title="Future Task",
+            description="Test",
+            state="todo",
+            due_date=now + timedelta(days=2),
+        ),
+    )
+
+    # Verify it's not in due tasks (which only looks 24h ahead)
+    due_tasks = get_due_tasks(db=db_session)
+    assert not any(t.id == future_task.id for t in due_tasks)
 
 
-def test_get_random_task(db_session: Session) -> None:
+def test_read_random_task(db_session: Session) -> None:
     """Test random task selection functionality."""
-    from taskmanagement_app.crud.task import get_random_task
 
     # Create multiple tasks
     tasks = []
@@ -192,7 +222,7 @@ def test_get_random_task(db_session: Session) -> None:
         task_in = TaskCreate(
             title=f"Task {i}",
             description=f"Description {i}",
-            due_date=(datetime.now(timezone.utc) + timedelta(days=i + 1)).isoformat(),
+            due_date=(datetime.now(timezone.utc) + timedelta(days=i + 1)),
             state="todo",
         )
         tasks.append(create_task(db=db_session, task=task_in))
@@ -211,7 +241,7 @@ def test_get_random_task(db_session: Session) -> None:
     # Get random task multiple times
     selected_ids = set()
     for _ in range(20):  # Try multiple times to get different tasks
-        task = get_random_task(db=db_session)
+        task = read_random_task(db=db_session)
         if task:
             selected_ids.add(task.id)
             # Verify we never get completed or archived tasks
@@ -221,9 +251,8 @@ def test_get_random_task(db_session: Session) -> None:
     assert len(selected_ids) >= 2
 
 
-def test_get_random_due_task(db_session: Session) -> None:
+def test_read_random_due_task(db_session: Session) -> None:
     """Test random due task selection functionality."""
-    from taskmanagement_app.crud.task import get_random_task
 
     # Create tasks with different due dates
     tasks = []
@@ -231,7 +260,7 @@ def test_get_random_due_task(db_session: Session) -> None:
         task_in = TaskCreate(
             title=f"Task {i}",
             description=f"Description {i}",
-            due_date=(datetime.now(timezone.utc) + timedelta(hours=i)).isoformat(),
+            due_date=(datetime.now(timezone.utc) + timedelta(hours=i)),
             state="todo",
         )
         tasks.append(create_task(db=db_session, task=task_in))
@@ -240,7 +269,7 @@ def test_get_random_due_task(db_session: Session) -> None:
     future_task_in = TaskCreate(
         title="Future Task",
         description="Due in far future",
-        due_date=(datetime.now(timezone.utc) + timedelta(days=30)).isoformat(),
+        due_date=(datetime.now(timezone.utc) + timedelta(days=30)),
         state="todo",
     )
     future_task = create_task(db=db_session, task=future_task_in)
@@ -248,7 +277,7 @@ def test_get_random_due_task(db_session: Session) -> None:
     # Get random due task multiple times
     selected_ids = set()
     for _ in range(20):  # Try multiple times to get different tasks
-        task = get_random_task(db=db_session)
+        task = read_random_task(db=db_session)
         if task:
             selected_ids.add(task.id)
             # Verify we never get the future task
