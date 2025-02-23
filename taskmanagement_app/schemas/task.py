@@ -1,7 +1,9 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Annotated, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, StringConstraints, field_validator
+
+from taskmanagement_app.core.datetime_utils import ensure_timezone_aware
 
 
 class TaskBase(BaseModel):
@@ -14,7 +16,18 @@ class TaskBase(BaseModel):
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_encoders={
+            datetime: lambda dt: dt.astimezone(timezone.utc).isoformat().replace('Z', '+00:00') if dt else None
+        }
+    )
+
+    @field_validator("due_date", "created_at", "started_at", "completed_at")
+    @classmethod
+    def ensure_timezone(cls, v: Optional[datetime]) -> Optional[datetime]:
+        """Ensure datetime fields have timezone information."""
+        return ensure_timezone_aware(v)if v else None
 
 
 class Task(TaskBase):
@@ -32,17 +45,18 @@ class TaskUpdate(BaseModel):
     due_date: Optional[datetime] = None
     reward: Optional[str] = None
 
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_encoders={
+            datetime: lambda dt: dt.astimezone(timezone.utc).isoformat().replace('Z', '+00:00') if dt else None
+        }
+    )
+
     @field_validator("due_date")
     @classmethod
     def validate_due_date(cls, v: Optional[datetime]) -> Optional[datetime]:
-        if v is None:
-            return v
-        try:
-            return v
-        except (ValueError, TypeError):
-            raise ValueError("Invalid date format. Must be datetime object")
-
-    model_config = ConfigDict(from_attributes=True)
+        """Validate and ensure timezone information for due_date."""
+        return ensure_timezone_aware(v)
 
 
 class TaskInDB(Task):

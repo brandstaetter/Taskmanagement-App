@@ -688,13 +688,7 @@ def test_update_task_endpoint(client: TestClient) -> None:
         assert response.status_code == 200
         updated_task = response.json()
         for key, value in update.items():
-            if key == "due_date":
-                # Parse both dates to datetime for comparison
-                expected_dt = datetime.fromisoformat(value)
-                actual_dt = datetime.fromisoformat(updated_task[key])
-                assert actual_dt == expected_dt
-            else:
-                assert updated_task[key] == value
+            assert updated_task[key] == value
 
     # Test updating multiple fields at once
     multi_update = {
@@ -707,13 +701,7 @@ def test_update_task_endpoint(client: TestClient) -> None:
     assert response.status_code == 200
     updated_task = response.json()
     for key, value in multi_update.items():
-        if key == "due_date":
-            # Parse both dates to datetime for comparison
-            expected_dt = datetime.fromisoformat(value)
-            actual_dt = datetime.fromisoformat(updated_task[key])
-            assert actual_dt == expected_dt
-        else:
-            assert updated_task[key] == value
+        assert updated_task[key] == value
 
     # Test updating non-existent task
     response = client.patch("/api/v1/tasks/99999", json={"title": "Non-existent"})

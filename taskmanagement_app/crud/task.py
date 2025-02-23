@@ -14,6 +14,21 @@ from taskmanagement_app.schemas.task import TaskCreate, TaskUpdate
 logger = logging.getLogger(__name__)
 
 
+def ensure_timezone_aware(task: TaskModel) -> TaskModel:
+    """Ensure all datetime fields in a task are timezone-aware."""
+    if task.due_date and task.due_date.tzinfo is None:
+        task.due_date = task.due_date.replace(tzinfo=timezone.utc)
+    if task.created_at and task.created_at.tzinfo is None:
+        task.created_at = task.created_at.replace(tzinfo=timezone.utc)
+    if task.started_at and task.started_at.tzinfo is None:
+        task.started_at = task.started_at.replace(tzinfo=timezone.utc)
+    if task.completed_at and task.completed_at.tzinfo is None:
+        task.completed_at = task.completed_at.replace(tzinfo=timezone.utc)
+    if task.updated_at and task.updated_at.tzinfo is None:
+        task.updated_at = task.updated_at.replace(tzinfo=timezone.utc)
+    return task
+
+
 def get_tasks(
     db: Session,
     skip: int = 0,
@@ -30,7 +45,8 @@ def get_tasks(
     if state:
         query = query.filter(TaskModel.state == state)
 
-    return query.offset(skip).limit(limit).all()
+    tasks = query.offset(skip).limit(limit).all()
+    return [ensure_timezone_aware(task) for task in tasks]
 
 
 def create_task(db: Session, task: TaskCreate) -> TaskModel:
@@ -47,7 +63,7 @@ def create_task(db: Session, task: TaskCreate) -> TaskModel:
     db.add(db_task)
     db.commit()
     db.refresh(db_task)
-    return db_task
+    return ensure_timezone_aware(db_task)
 
 
 def get_due_tasks(db: Session) -> List[TaskModel]:
@@ -108,7 +124,7 @@ def get_task(db: Session, task_id: int) -> TaskModel:
     task = db.query(TaskModel).filter(TaskModel.id == task_id).first()
     if task is None:
         raise TaskNotFoundError(task_id)
-    return task
+    return ensure_timezone_aware(task)
 
 
 def update_task(
@@ -135,7 +151,7 @@ def update_task(
 
     db.commit()
     db.refresh(db_task)
-    return db_task
+    return ensure_timezone_aware(db_task)
 
 
 def complete_task(db: Session, task: TaskModel) -> TaskModel:
@@ -144,7 +160,7 @@ def complete_task(db: Session, task: TaskModel) -> TaskModel:
     task.completed_at = utc_now()
     db.commit()
     db.refresh(task)
-    return task
+    return ensure_timezone_aware(task)
 
 
 def start_task(db: Session, task: TaskModel) -> TaskModel:
@@ -153,7 +169,7 @@ def start_task(db: Session, task: TaskModel) -> TaskModel:
     task.started_at = utc_now()
     db.commit()
     db.refresh(task)
-    return task
+    return ensure_timezone_aware(task)
 
 
 def archive_task(db: Session, task_id: int) -> TaskModel:
@@ -176,7 +192,7 @@ def archive_task(db: Session, task_id: int) -> TaskModel:
     task.state = TaskState.archived
     db.commit()
     db.refresh(task)
-    return task
+    return ensure_timezone_aware(task)
 
 
 def read_random_task(db: Session) -> Optional[TaskModel]:
@@ -205,10 +221,11 @@ def read_random_task(db: Session) -> Optional[TaskModel]:
     if due_tasks:
         task = weighted_random_choice(due_tasks)
         if task:
-            return task
+            return ensure_timezone_aware(task)
 
     # If no due tasks or none selected, try all tasks
-    return weighted_random_choice(tasks)
+    task = weighted_random_choice(tasks)
+    return ensure_timezone_aware(task) if task else None
 
 
 def reset_task_to_todo(db: Session, task_id: int) -> TaskModel:
@@ -219,4 +236,4 @@ def reset_task_to_todo(db: Session, task_id: int) -> TaskModel:
     task.completed_at = None
     db.commit()
     db.refresh(task)
-    return task
+    return ensure_timezone_aware(task)
