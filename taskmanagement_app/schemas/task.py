@@ -19,15 +19,19 @@ class TaskBase(BaseModel):
     model_config = ConfigDict(
         from_attributes=True,
         json_encoders={
-            datetime: lambda dt: dt.astimezone(timezone.utc).isoformat().replace('Z', '+00:00') if dt else None
-        }
+            datetime: lambda dt: (
+                dt.astimezone(timezone.utc).isoformat().replace("Z", "+00:00")
+                if dt
+                else None
+            )
+        },
     )
 
     @field_validator("due_date", "created_at", "started_at", "completed_at")
     @classmethod
     def ensure_timezone(cls, v: Optional[datetime]) -> Optional[datetime]:
         """Ensure datetime fields have timezone information."""
-        return ensure_timezone_aware(v)if v else None
+        return ensure_timezone_aware(v) if v else None
 
 
 class Task(TaskBase):
@@ -48,14 +52,20 @@ class TaskUpdate(BaseModel):
     model_config = ConfigDict(
         from_attributes=True,
         json_encoders={
-            datetime: lambda dt: dt.astimezone(timezone.utc).isoformat().replace('Z', '+00:00') if dt else None
-        }
+            datetime: lambda dt: (
+                dt.astimezone(timezone.utc).isoformat().replace("Z", "+00:00")
+                if dt
+                else None
+            )
+        },
     )
 
     @field_validator("due_date")
     @classmethod
     def validate_due_date(cls, v: Optional[datetime]) -> Optional[datetime]:
         """Validate and ensure timezone information for due_date."""
+        if v is None:
+            return None
         return ensure_timezone_aware(v)
 
 

@@ -1,72 +1,54 @@
-from datetime import datetime, timedelta, timezone
-from typing import Literal
+"""Test task maintenance jobs."""
+
+from datetime import timedelta
 from unittest.mock import Mock, patch
 
 from sqlalchemy.orm import Session
 
+from taskmanagement_app.core.datetime_utils import utc_now
 from taskmanagement_app.core.printing.base_printer import BasePrinter
-from taskmanagement_app.crud.task import create_task, get_task
-from taskmanagement_app.db.models.task import TaskModel, TaskState
+from taskmanagement_app.crud.task import get_task
+from taskmanagement_app.db.models.task import TaskState
 from taskmanagement_app.jobs.task_maintenance import (
     cleanup_old_tasks,
     process_completed_tasks,
     process_due_tasks,
     run_maintenance,
 )
-from taskmanagement_app.schemas.task import TaskCreate
-
-
-def create_test_task(
-    db: Session,
-    *,
-    title: str,
-    state: Literal["todo", "in_progress", "done", "archived"],
-    completed_at: datetime | None = None,
-) -> TaskModel:
-    task_in = TaskCreate(
-        title=title,
-        description="Test Description",
-        due_date=(datetime.now(timezone.utc) + timedelta(days=1)),
-        state=state,
-    )
-    task = create_task(db=db, task=task_in)
-    if completed_at:
-        task.completed_at = completed_at
-        db.commit()
-    return task
+from tests.conftest import create_test_task
 
 
 def test_cleanup_old_tasks(db_session: Session) -> None:
     """Test that old completed tasks are archived."""
-    # Create a task completed more than 24 hours ago
+    # Create a task completed more than 7 days ago
     old_task = create_test_task(
         db_session,
         title="Old Task",
-        state="done",
-        completed_at=(datetime.now(timezone.utc) - timedelta(hours=25)),
+        state=TaskState.done,
+        completed_at=(utc_now() - timedelta(days=8)),
     )
 
-    # Create a task completed less than 24 hours ago
+    # Create a task completed less than 7 days ago
     recent_task = create_test_task(
         db_session,
         title="Recent Task",
-        state="done",
-        completed_at=(datetime.now(timezone.utc) - timedelta(hours=23)),
+        state=TaskState.done,
+        completed_at=(utc_now() - timedelta(days=3)),
     )
 
     # Create an incomplete task
     incomplete_task = create_test_task(
         db_session,
         title="Incomplete Task",
-        state="todo",
+        state=TaskState.todo,
     )
 
     # Create an already archived task
     already_archived = create_test_task(
         db_session,
         title="Already Archived Task",
-        state="archived",
-        completed_at=(datetime.now(timezone.utc) - timedelta(hours=30)),
+        state=TaskState.archived,
+        completed_at=(utc_now() - timedelta(days=10)),
     )
 
     # Run cleanup
@@ -75,22 +57,22 @@ def test_cleanup_old_tasks(db_session: Session) -> None:
     # Verify old task was archived
     old_task_check = get_task(db_session, old_task.id)
     assert old_task_check is not None
-    assert old_task_check.state == "archived"
+    assert old_task_check.state == TaskState.archived
 
     # Verify recent task still exists and is not archived
     recent_task_check = get_task(db_session, recent_task.id)
     assert recent_task_check is not None
-    assert recent_task_check.state == "done"
+    assert recent_task_check.state == TaskState.done
 
     # Verify incomplete task still exists and is not archived
     incomplete_task_check = get_task(db_session, incomplete_task.id)
     assert incomplete_task_check is not None
-    assert incomplete_task_check.state == "todo"
+    assert incomplete_task_check.state == TaskState.todo
 
     # Verify already archived task remains archived
     archived_task = get_task(db_session, already_archived.id)
     assert archived_task is not None
-    assert archived_task.state == "archived"
+    assert archived_task.state == TaskState.archived
 
 
 class MockPrinter(BasePrinter):
@@ -116,36 +98,36 @@ def test_process_due_tasks(db_session: Session) -> None:
     due_soon_task = create_test_task(
         db_session,
         title="Due Soon Task",
-        state="todo",
+        state=TaskState.todo,
     )
-    due_soon_task.due_date = datetime.now(timezone.utc) + timedelta(hours=3)
+    due_soon_task.due_date = utc_now() + timedelta(hours=3)
     db_session.commit()
 
     # Create a task not due soon
     not_due_task = create_test_task(
         db_session,
         title="Not Due Task",
-        state="todo",
+        state=TaskState.todo,
     )
-    not_due_task.due_date = datetime.now(timezone.utc) + timedelta(days=2)
+    not_due_task.due_date = utc_now() + timedelta(days=2)
     db_session.commit()
 
     # Create a task that's already in progress
     in_progress_task = create_test_task(
         db_session,
         title="In Progress Task",
-        state="in_progress",
+        state=TaskState.in_progress,
     )
-    in_progress_task.due_date = datetime.now(timezone.utc) + timedelta(hours=1)
+    in_progress_task.due_date = utc_now() + timedelta(hours=1)
     db_session.commit()
 
     # Create an archived task that's due soon
     archived_task = create_test_task(
         db_session,
         title="Archived Task",
-        state="archived",
+        state=TaskState.archived,
     )
-    archived_task.due_date = datetime.now(timezone.utc) + timedelta(hours=2)
+    archived_task.due_date = utc_now() + timedelta(hours=2)
     db_session.commit()
 
     # Mock the printer
@@ -156,20 +138,20 @@ def test_process_due_tasks(db_session: Session) -> None:
         "taskmanagement_app.jobs.task_maintenance.PrinterFactory.create_printer",
         return_value=mock_printer,
     ):
-        # Run task processing
+        # Run maintenance
         process_due_tasks(db_session)
 
         # Verify due soon task was processed
-        updated_due_soon = get_task(db_session, due_soon_task.id)
-        assert updated_due_soon is not None
-        assert updated_due_soon.state == TaskState.in_progress
-        assert updated_due_soon.started_at is not None
+        task = get_task(db_session, due_soon_task.id)
+        assert task is not None
+        assert task.state == TaskState.in_progress
+        assert task.started_at is not None
         mock_printer.print.assert_called()
 
         # Verify not due task wasn't processed
         not_due = get_task(db_session, not_due_task.id)
         assert not_due is not None
-        assert not_due.state == "todo"
+        assert not_due.state == TaskState.todo
         assert not_due.started_at is None
 
         # Verify in progress task wasn't processed again
@@ -180,7 +162,7 @@ def test_process_due_tasks(db_session: Session) -> None:
         # Verify archived task wasn't processed
         archived = get_task(db_session, archived_task.id)
         assert archived is not None
-        assert archived.state == "archived"
+        assert archived.state == TaskState.archived
         assert archived.started_at is None
 
 
@@ -190,26 +172,26 @@ def test_process_due_tasks_printer_error(db_session: Session) -> None:
     due_soon_task = create_test_task(
         db_session,
         title="Due Soon Task",
-        state="todo",
+        state=TaskState.todo,
     )
-    due_soon_task.due_date = datetime.now(timezone.utc) + timedelta(hours=3)
+    due_soon_task.due_date = utc_now() + timedelta(hours=3)
     db_session.commit()
 
     # Create an archived task that's due soon
     archived_task = create_test_task(
         db_session,
         title="Archived Task",
-        state="archived",
+        state=TaskState.archived,
     )
-    archived_task.due_date = datetime.now(timezone.utc) + timedelta(hours=2)
+    archived_task.due_date = utc_now() + timedelta(hours=2)
     db_session.commit()
 
-    # Mock the printer to raise an error
+    # Mock printer to raise an error
     mock_printer = MockPrinter()
     mock_printer.print = Mock(side_effect=Exception("Printer error"))
 
     with patch(
-        "taskmanagement_app.jobs.task_maintenance.PrinterFactory.create_printer",
+        "taskmanagement_app.core.printing.printer_factory.PrinterFactory.create_printer",
         return_value=mock_printer,
     ):
         # Run task processing
@@ -218,14 +200,14 @@ def test_process_due_tasks_printer_error(db_session: Session) -> None:
         # Verify task state wasn't changed despite printer error
         task = get_task(db_session, due_soon_task.id)
         assert task is not None
-        assert task.state == "todo"
+        assert task.state == TaskState.todo
         assert task.started_at is None
         mock_printer.print.assert_called()
 
         # Verify archived task wasn't processed
         archived = get_task(db_session, archived_task.id)
         assert archived is not None
-        assert archived.state == "archived"
+        assert archived.state == TaskState.archived
         assert archived.started_at is None
 
 
@@ -235,31 +217,31 @@ def test_process_completed_tasks(db_session: Session) -> None:
     old_completed = create_test_task(
         db_session,
         title="Old Completed Task",
-        state="done",
-        completed_at=(datetime.now(timezone.utc) - timedelta(days=8)),
+        state=TaskState.done,
+        completed_at=(utc_now() - timedelta(days=8)),
     )
 
     # Create a task completed less than 7 days ago
     recent_completed = create_test_task(
         db_session,
         title="Recent Completed Task",
-        state="done",
-        completed_at=(datetime.now(timezone.utc) - timedelta(days=3)),
+        state=TaskState.done,
+        completed_at=(utc_now() - timedelta(days=3)),
     )
 
     # Create an in-progress task
     in_progress = create_test_task(
         db_session,
         title="In Progress Task",
-        state="in_progress",
+        state=TaskState.in_progress,
     )
 
     # Create an already archived task
     already_archived = create_test_task(
         db_session,
         title="Already Archived Task",
-        state="archived",
-        completed_at=(datetime.now(timezone.utc) - timedelta(days=10)),
+        state=TaskState.archived,
+        completed_at=(utc_now() - timedelta(days=10)),
     )
 
     # Store task IDs for later verification
@@ -274,12 +256,12 @@ def test_process_completed_tasks(db_session: Session) -> None:
     # Verify old completed task was archived
     old_task = get_task(db_session, old_completed_id)
     assert old_task is not None
-    assert old_task.state == "archived"
+    assert old_task.state == TaskState.archived
 
     # Verify recent completed task was not archived
     recent_task = get_task(db_session, recent_completed_id)
     assert recent_task is not None
-    assert recent_task.state == "done"
+    assert recent_task.state == TaskState.done
 
     # Verify in-progress task was not affected
     active_task = get_task(db_session, in_progress_id)
@@ -300,18 +282,18 @@ def test_process_due_tasks_printer_initialization_error(
     due_soon_task = create_test_task(
         db_session,
         title="Due Soon Task",
-        state="todo",
+        state=TaskState.todo,
     )
-    due_soon_task.due_date = datetime.now(timezone.utc) + timedelta(hours=3)
+    due_soon_task.due_date = utc_now() + timedelta(hours=3)
     db_session.commit()
 
     # Create an archived task that's due soon
     archived_task = create_test_task(
         db_session,
         title="Archived Task",
-        state="archived",
+        state=TaskState.archived,
     )
-    archived_task.due_date = datetime.now(timezone.utc) + timedelta(hours=2)
+    archived_task.due_date = utc_now() + timedelta(hours=2)
     db_session.commit()
 
     # Mock printer factory to raise an error
@@ -325,13 +307,13 @@ def test_process_due_tasks_printer_initialization_error(
         # Verify task wasn't processed due to printer error
         task = get_task(db_session, due_soon_task.id)
         assert task is not None
-        assert task.state == "todo"
+        assert task.state == TaskState.todo
         assert task.started_at is None
 
         # Verify archived task wasn't processed
         archived = get_task(db_session, archived_task.id)
         assert archived is not None
-        assert archived.state == "archived"
+        assert archived.state == TaskState.archived
         assert archived.started_at is None
 
 
@@ -346,16 +328,16 @@ def test_run_maintenance(db_session: Session) -> None:
     old_completed = create_test_task(
         db_session,
         title="Old Completed Task",
-        state="done",
-        completed_at=(datetime.now(timezone.utc) - timedelta(days=8)),
+        state=TaskState.done,
+        completed_at=(utc_now() - timedelta(days=8)),
     )
 
     due_soon = create_test_task(
         db_session,
         title="Due Soon Task",
-        state="todo",
+        state=TaskState.todo,
     )
-    due_soon.due_date = datetime.now(timezone.utc) + timedelta(hours=3)
+    due_soon.due_date = utc_now() + timedelta(hours=3)
     db_session.commit()
 
     # Store task IDs for later verification
@@ -389,7 +371,7 @@ def test_run_maintenance(db_session: Session) -> None:
         # Verify old completed task was archived
         old_task = get_task(db_session, old_completed_id)
         assert old_task is not None
-        assert old_task.state == "archived"
+        assert old_task.state == TaskState.archived
 
         # Verify due task was processed
         due_task = get_task(db_session, due_soon_id)

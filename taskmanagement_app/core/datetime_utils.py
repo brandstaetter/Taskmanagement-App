@@ -21,4 +21,4 @@ def format_datetime(dt: Optional[datetime]) -> Optional[str]:
     if dt is None:
         return None
     dt = ensure_timezone_aware(dt)
-    return dt.isoformat().replace('Z', '+00:00')
+    return dt.isoformat().replace("Z", "+00:00")

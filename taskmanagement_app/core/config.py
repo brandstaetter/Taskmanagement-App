@@ -4,7 +4,7 @@ from functools import lru_cache
 from typing import List
 
 from pydantic import Field
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -43,9 +43,7 @@ class Settings(BaseSettings):
     )  # Change in production
     ADMIN_EMAIL: str = Field(default="", alias="ADMIN_EMAIL")
 
-    class Config:
-        case_sensitive = True
-        env_file = ".env"
+    model_config = SettingsConfigDict(case_sensitive=True, env_file=".env")
 
 
 @lru_cache()

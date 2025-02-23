@@ -2,7 +2,7 @@
 
 import logging
 import random
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta, timezone
 from typing import Any, Dict, List, Optional, Sequence, Union
 
 from sqlalchemy.orm import Session
@@ -84,7 +84,9 @@ def get_due_tasks(db: Session) -> List[TaskModel]:
     )
 
 
-def weighted_random_choice(tasks: Sequence[TaskModel]) -> Optional[TaskModel]:
+def weighted_random_choice(  # noqa: C901
+    tasks: Sequence[TaskModel],
+) -> Optional[TaskModel]:
     """Choose a random task, weighted by due date and state."""
     if not tasks:
         return None
@@ -97,19 +99,28 @@ def weighted_random_choice(tasks: Sequence[TaskModel]) -> Optional[TaskModel]:
             weights.append(1)  # Base weight for tasks without due date
             continue
 
-        # Ensure task.due_date is timezone-aware
+        # Ensure task.due_date is timezone-aware and not None
         task = ensure_task_datetime_aware(task)
-        days_until_due = (task.due_date - now).days
-        if days_until_due < 0:
-            weight = 10  # Overdue tasks get high priority
-        elif days_until_due == 0:
-            weight = 8  # Due today
-        elif days_until_due <= 2:
-            weight = 6  # Due in next 2 days
+        assert task.due_date is not None  # for type checker
+        hours_until_due = (task.due_date - now).total_seconds() / 3600
+        days_until_due = hours_until_due / 24
+
+        if hours_until_due < 0:
+            weight = 100  # Overdue tasks
+        elif hours_until_due < 24:
+            weight = 80  # Due within 24 hours
+        elif hours_until_due < 48:
+            weight = 60  # Due within 2 days
+        elif hours_until_due < 72:
+            weight = 40  # Due within 3 days
         elif days_until_due <= 7:
-            weight = 4  # Due this week
+            weight = 20  # Due within a week
+        elif days_until_due <= 14:
+            weight = 10  # Due within 2 weeks
+        elif days_until_due <= 30:
+            weight = 5  # Due within a month
         else:
-            weight = 2  # Due later
+            weight = 1  # Due beyond a month
 
         weights.append(weight)
 
@@ -174,7 +185,7 @@ def start_task(db: Session, task: TaskModel) -> TaskModel:
 
 def archive_task(db: Session, task_id: int) -> TaskModel:
     """Archive a task by ID.
-    
+
     Only tasks in 'todo' or 'done' state can be archived.
     Tasks in 'in_progress' state must be completed first.
     """
@@ -182,7 +193,7 @@ def archive_task(db: Session, task_id: int) -> TaskModel:
 
     if task.state == TaskState.archived:
         raise TaskStatusError(f"Task {task_id} is already archived")
-    
+
     if task.state == TaskState.in_progress:
         raise TaskStatusError(
             f"Cannot archive task {task_id} in state '{task.state}'. "
@@ -202,6 +213,7 @@ def read_random_task(db: Session) -> Optional[TaskModel]:
     3. Not yet started
 
     Uses weighted random selection where tasks due sooner have higher weights.
+    Tasks due far in the future have a very low weight but can still be selected.
     """
     # Get all non-completed, non-archived tasks
     tasks = (
@@ -216,14 +228,7 @@ def read_random_task(db: Session) -> Optional[TaskModel]:
     if not tasks:
         return None
 
-    # First try to get a task that's due soon
-    due_tasks = [t for t in tasks if t.due_date is not None]
-    if due_tasks:
-        task = weighted_random_choice(due_tasks)
-        if task:
-            return ensure_task_datetime_aware(task)
-
-    # If no due tasks or none selected, try all tasks
+    # Use weighted random choice on all tasks
     task = weighted_random_choice(tasks)
     return ensure_task_datetime_aware(task) if task else None
 
