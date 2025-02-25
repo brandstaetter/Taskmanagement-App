@@ -1,11 +1,23 @@
 import subprocess
 import sys
 from pathlib import Path
+import logging
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
 
-from taskmanagement_app.core.auth import verify_admin
+from taskmanagement_app.core.auth import verify_admin, require_admin
 from taskmanagement_app.db.base import Base, engine
+from taskmanagement_app.api.deps import get_db
+from taskmanagement_app.crud.user import (
+    create_user,
+    get_user,
+    get_user_by_email,
+    reset_user_password,
+)
+from taskmanagement_app.schemas.user import User, UserCreate
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -63,4 +75,69 @@ async def run_migrations(authorized: bool = Depends(verify_admin)) -> dict:
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Failed to run migrations: {str(e)}"
+        )
+
+
+@router.post("/users", response_model=User)
+def create_new_user(
+    user: UserCreate,
+    db: Session = Depends(get_db),
+    _: bool = Depends(require_admin),
+) -> User:
+    """
+    Create a new user.
+    Only accessible by admin users.
+    """
+    # Check if user with this email already exists
+    db_user = get_user_by_email(db, email=user.email)
+    if db_user:
+        raise HTTPException(
+            status_code=400,
+            detail="Email already registered",
+        )
+
+    try:
+        user = create_user(db=db, user=user)
+        logger.info("Created new user with email: %s", user.email)
+        return user
+    except Exception as e:
+        logger.error("Error creating user: %s", str(e))
+        raise HTTPException(
+            status_code=500,
+            detail="Error creating user",
+        )
+
+
+@router.post("/users/{user_id}/reset-password", response_model=dict)
+def reset_password(
+    user_id: int,
+    db: Session = Depends(get_db),
+    _: bool = Depends(require_admin),
+) -> dict:
+    """
+    Reset a user's password to a random string.
+    Only accessible by admin users.
+    Returns the new password.
+    """
+    # Check if user exists
+    if not get_user(db, user_id=user_id):
+        raise HTTPException(
+            status_code=404,
+            detail="User not found",
+        )
+
+    try:
+        user, new_password = reset_user_password(db=db, user_id=user_id)
+        if not user or not new_password:
+            raise HTTPException(
+                status_code=404,
+                detail="User not found",
+            )
+        logger.info("Reset password for user: %s", user.email)
+        return {"email": user.email, "new_password": new_password}
+    except Exception as e:
+        logger.error("Error resetting password: %s", str(e))
+        raise HTTPException(
+            status_code=500,
+            detail="Error resetting password",
         )

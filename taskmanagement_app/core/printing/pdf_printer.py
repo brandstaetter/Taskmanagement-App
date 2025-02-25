@@ -7,7 +7,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-import qrcode  # type: ignore
+import qrcode
 from fastapi import Response
 from fastapi.responses import FileResponse
 from reportlab.lib.pagesizes import A4
