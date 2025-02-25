@@ -15,22 +15,30 @@ classifiers = [
 ]
 license = "MIT"
 dependencies = [
+    "alembic==1.14.1",
+    "annotated-types==0.7.0",
+    "anyio==3.7.1",
+    "appdirs==1.4.4",
+    "apscheduler==3.11.0",
+    "argcomplete==3.5.3",
+    "argparse==1.4.0",
+    "bcrypt==4.2.1",
+    "black==25.1.0",
+    "cffi==1.17.1",
     "fastapi==0.104.1",
     "starlette==0.27.0",
     "uvicorn[standard]==0.24.0",
-    "sqlalchemy>=2.0.23,<3.0.0",
+    "sqlalchemy==2.0.23",
     "pydantic==2.10.6",
     "pydantic-core==2.27.2",
-    "pydantic-settings>=2.0.0",
-    "python-dotenv>=1.0.0,<2.0.0",
-    "alembic>=1.12.0,<2.0.0",
-    "python-jose[cryptography]>=3.3.0,<4.0.0",
-    "passlib[bcrypt]>=1.7.4,<2.0.0",
-    "python-multipart>=0.0.6,<0.1.0",
+    "pydantic-settings==2.0.0",
+    "python-dotenv==1.0.0",
+    "python-jose[cryptography]==3.3.0",
+    "passlib[bcrypt]==1.7.4",
+    "python-multipart==0.0.6",
     "httpx==0.25.0",
     "reportlab==4.0.4",
     "python-escpos==3.0a8",
-    "APScheduler==3.11.0",
     "qrcode[pil]==7.4.2"
 ]
 
