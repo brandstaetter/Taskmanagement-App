@@ -25,7 +25,7 @@ dependencies = [
     "bcrypt==4.2.1",
     "black==25.1.0",
     "cffi==1.17.1",
-    "fastapi==0.115.8",
+    "fastapi==0.115.9",
     "starlette==0.40.0",
     "uvicorn[standard]==0.34.0",
     "sqlalchemy==2.0.38",
