@@ -20,6 +20,10 @@ Backend REST API for the Task Management application.
 ```powershell
 (Invoke-WebRequest -Uri https://install.python-poetry.org -UseBasicParsing).Content | py -
 ```
+or
+```bash
+curl -sSL https://install.python-poetry.org | python3 -
+```
 
 2. Install dependencies:
 ```powershell
@@ -81,7 +85,7 @@ poetry run pytest --cov
 
 ### USB Thermal Printer
 - Supports ESC/POS compatible printers
-- Configure vendor_id and product_id in `config/printers.ini`
+- Configure USB vendor_id and product_id in `config/printers.ini`
 - Prints task details with QR code for quick access
 - Default configuration for ZJ-5870 printer included
 
