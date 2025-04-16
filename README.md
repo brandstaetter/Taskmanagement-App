@@ -17,15 +17,19 @@ Backend REST API for the Task Management application.
 ## Setup
 
 1. Install Poetry (if not already installed):
+
 ```powershell
 (Invoke-WebRequest -Uri https://install.python-poetry.org -UseBasicParsing).Content | py -
 ```
+
 or
+
 ```bash
 curl -sSL https://install.python-poetry.org | python3 -
 ```
 
 2. Install dependencies:
+
 ```powershell
 poetry install  # Installs all dependencies including development ones
 # OR
@@ -33,24 +37,27 @@ poetry install --only main  # For production dependencies only
 ```
 
 3. Set up environment variables:
+
 ```powershell
 Copy-Item .env.example .env
 poetry run python -c "import secrets; print(f'SECRET_KEY: {secrets.token_hex(32)}\nADMIN_API_KEY: {secrets.token_hex(32)}')"
 ```
 
 4. Run database migrations:
+
 ```powershell
 poetry run alembic upgrade head
 ```
 
 5. Start the development server:
+
 ```powershell
 poetry run uvicorn taskmanagement_app.main:app --reload
 ```
 
 ## Project Structure
 
-```
+```plaintext
 ├── taskmanagement_app/
 │   ├── api/            # API routes and endpoints
 │   │   └── v1/         # API version 1
@@ -69,6 +76,7 @@ poetry run uvicorn taskmanagement_app.main:app --reload
 ## Development
 
 Run quality checks with individual tools:
+
 ```powershell
 poetry run black .
 poetry run isort .
@@ -80,10 +88,12 @@ poetry run pytest --cov
 ## Printer Setup
 
 ### PDF Printer
+
 - Automatically creates PDF files in the configured output directory
 - Configure output directory in `config/printers.ini`
 
 ### USB Thermal Printer
+
 - Supports ESC/POS compatible printers
 - Configure USB vendor_id and product_id in `config/printers.ini`
 - Prints task details with QR code for quick access
@@ -92,9 +102,10 @@ poetry run pytest --cov
 ## API Documentation
 
 When the server is running:
-- Swagger UI: http://localhost:8000/docs
-- ReDoc: http://localhost:8000/redoc
-- OpenAPI Schema: http://localhost:8000/openapi.json
+
+- Swagger UI: <http://localhost:8000/docs>
+- ReDoc: <http://localhost:8000/redoc>
+- OpenAPI Schema: <http://localhost:8000/openapi.json>
 
 ## Contributing
 
