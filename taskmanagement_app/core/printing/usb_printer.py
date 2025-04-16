@@ -104,7 +104,7 @@ class USBPrinter(BasePrinter):
         """Apply heading style to printer."""
         printer.set(align="center", bold=True, double_height=True, double_width=True)
         printer.text("\n")
-        lines = self.wrap_text(title, max_length=16)
+        lines = self.wrap_text(title, wide=True)
         for line in lines:
             printer.text(line + "\n")
 
@@ -146,25 +146,48 @@ class USBPrinter(BasePrinter):
 
         lines = []
         current_line: list[str] = []
-        current_length = label_length
 
-        line_length = max_length / 2 if not wide else max_length
+        # Calculate effective line length
+        effective_max_length = (max_length / 2) if wide else max_length
+        first_line_length = effective_max_length - label_length
+        current_length = 0
 
         for word in words:
-            word_length = len(word)
-            if current_length + word_length + 1 <= line_length:
-                current_line.append(word)
-                current_length += word_length + 1
+            # Split long words that exceed line length
+            current_word = word
+            while len(current_word) > effective_max_length:
+                if current_line:
+                    lines.append(" ".join(current_line))
+                    current_line = []
+                lines.append(current_word[: int(effective_max_length)])
+                current_word = current_word[int(effective_max_length) :]
+
+            # Check if this is the first line (with label) or subsequent lines
+            current_max_length = (
+                first_line_length if not lines else effective_max_length
+            )
+
+            # Calculate total length including space if needed
+            word_space = 1 if current_line else 0
+            total_length = current_length + len(current_word) + word_space
+
+            if total_length <= current_max_length:
+                if current_line:
+                    current_line.append(current_word)
+                    current_length += len(current_word) + word_space
+                else:
+                    current_line.append(current_word)
+                    current_length = len(current_word)
             else:
                 if current_line:
                     lines.append(" ".join(current_line))
-                current_line = [word]
-                current_length = word_length
+                current_line = [current_word]
+                current_length = len(current_word)
 
         if current_line:
             lines.append(" ".join(current_line))
 
-        return lines
+        return lines if lines else [""]
 
     def printValue(
         self, printer: Usb, text: str, label_length: int, wide: bool = False
@@ -173,7 +196,7 @@ class USBPrinter(BasePrinter):
         printer.set(align="left", bold=False, double_height=False, double_width=wide)
 
         # Wrap text to printer width
-        lines = self.wrap_text(text, label_length, wide)
+        lines = self.wrap_text(text, label_length=label_length, wide=wide)
         for line in lines:
             printer.text(line + "\n")
 
@@ -190,7 +213,7 @@ class USBPrinter(BasePrinter):
         """Cut paper."""
         printer.cut()
 
-    async def print(self, task: Task) -> Response:
+    def print(self, task: Task) -> Response:
         """
         Print a task to the USB printer.
 

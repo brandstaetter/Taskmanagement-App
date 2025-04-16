@@ -49,7 +49,7 @@ async def print_data(request: PrintRequest) -> Response:
             completed_at=None,
         )
 
-        response = await printer.print(task_data)
+        response = printer.print(task_data)
 
         logger.debug("Print completed successfully")
         return response
