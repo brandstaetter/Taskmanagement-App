@@ -52,6 +52,15 @@ jobs:
     - name: Type checking with mypy
       run: poetry run mypy .
 
+    - name: Set environment variables for tests
+      run: |
+        echo "DATABASE_URL=sqlite:///$(pwd)/test.db" >> $GITHUB_ENV
+        echo "ADMIN_EMAIL=admin@example.com" >> $GITHUB_ENV
+        echo "ADMIN_PASSWORD=AdminPassword!123" >> $GITHUB_ENV
+
+    - name: Initialize SQLite DB schema and admin user
+      run: poetry run python taskmanagement_app/db/init_db.py
+
     - name: Run tests with pytest and coverage
       run: |
         poetry run pytest --cov=taskmanagement_app --cov-report=xml --cov-report=term-missing --junitxml=junit.xml -o junit_family=legacy tests/
