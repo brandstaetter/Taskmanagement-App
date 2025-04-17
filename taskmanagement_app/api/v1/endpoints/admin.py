@@ -1,20 +1,20 @@
+import logging
 import subprocess
 import sys
 from pathlib import Path
-import logging
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from taskmanagement_app.core.auth import verify_admin, require_admin
-from taskmanagement_app.db.base import Base, engine
 from taskmanagement_app.api.deps import get_db
+from taskmanagement_app.core.auth import require_admin, verify_admin
 from taskmanagement_app.crud.user import (
     create_user,
     get_user,
     get_user_by_email,
     reset_user_password,
 )
+from taskmanagement_app.db.base import Base, engine
 from taskmanagement_app.schemas.user import User, UserCreate
 
 logger = logging.getLogger(__name__)
@@ -23,7 +23,7 @@ router = APIRouter()
 
 
 @router.post("/db/init")
-async def init_db(authorized: bool = Depends(verify_admin)) -> dict:
+async def init_db(_: bool = Depends(verify_admin)) -> dict:
     """
     Initialize database by creating all tables.
     Requires admin authentication.
@@ -38,7 +38,7 @@ async def init_db(authorized: bool = Depends(verify_admin)) -> dict:
 
 
 @router.post("/db/migrate")
-async def run_migrations(authorized: bool = Depends(verify_admin)) -> dict:
+async def run_migrations(_: bool = Depends(verify_admin)) -> dict:
     """
     Run all pending Alembic migrations.
     Requires admin authentication.

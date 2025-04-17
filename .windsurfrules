@@ -1,12 +1,10 @@
 1. backend is in python, frontend is in angular
-2. for both, use recommended best practices
-3. for both, use recommended development workflows
-4. for both, use recommended testing strategies
-5. for both, use recommended deployment strategies
-6. for both, use recommended security best practices
-7. for both, use recommended logging and monitoring strategies
-8. for both, use recommended continuous integration strategies for github
-9. We are in windows, so use powershell commands in terminal
+2. use recommended best practices
+3. use recommended development workflows
+4. use recommended testing strategies
+5. use recommended deployment strategies
+6. use recommended security best practices
+7. use recommended logging and monitoring strategies
+8. use recommended continuous integration strategies for github
+9. Frontend is in a different repository and is developed separately.
 10. generated code must pass black, isort, flake8, mypy, pytest
-11. always run tests lke this "poetry run pytest -vv --tb=short"
-12. do not hallucinate
