@@ -1,15 +1,18 @@
+"""Task maintenance jobs."""
+
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 
 from sqlalchemy.orm import Session
 
+from taskmanagement_app.core.datetime_utils import ensure_timezone_aware, utc_now
 from taskmanagement_app.core.printing.base_printer import BasePrinter
 from taskmanagement_app.core.printing.printer_factory import PrinterFactory
 from taskmanagement_app.crud.task import (
     archive_task,
     get_due_tasks,
     get_tasks,
-    update_task,
+    start_task,
 )
 from taskmanagement_app.db.models.task import TaskModel, TaskState
 
@@ -17,11 +20,11 @@ logger = logging.getLogger(__name__)
 
 
 def cleanup_old_tasks(db: Session) -> None:
-    """Delete tasks that were completed more than 24 hours ago."""
+    """Archive tasks that were completed more than 7 days ago."""
     try:
         tasks = get_tasks(db, include_archived=False)
-        now = datetime.now(timezone.utc)
-        cutoff = now - timedelta(hours=24)
+        now = utc_now()
+        cutoff = now - timedelta(days=7)
 
         logger.info(f"Starting cleanup of old tasks. Current time: {now.isoformat()}")
 
@@ -30,20 +33,8 @@ def cleanup_old_tasks(db: Session) -> None:
             db.refresh(task)
 
             if task.state == TaskState.done and task.completed_at:
-                try:
-                    completed_at = datetime.fromisoformat(
-                        task.completed_at.replace("Z", "+00:00")
-                    )
-                except (ValueError, TypeError):
-                    logger.warning(
-                        f"Invalid completed_at format for task {task.id}: "
-                        f"{task.completed_at}. Removing completed_at."
-                    )
-                    task.completed_at = None
-                    db.add(task)
-                    db.commit()
-                    continue
-
+                # Ensure completed_at is timezone-aware
+                completed_at = ensure_timezone_aware(task.completed_at)
                 logger.debug(
                     f"Checking task {task.id} - "
                     f"completed at: {completed_at.isoformat()}"
@@ -74,32 +65,23 @@ def process_single_task(
     try:
         # Refresh task from database to ensure it's attached to the session
         db.refresh(task)
-
-        # Parse due date
-        try:
-            due_date = datetime.fromisoformat(
-                task.due_date.replace("Z", "+00:00") if task.due_date else ""
-            )
-        except (ValueError, TypeError):
-            logger.warning(
-                f"Invalid due_date format for task {task.id}: " f"{task.due_date}."
-            )
+        if task.state == TaskState.archived:
+            logger.debug(f"Skipping archived task: {task.id} - {task.title}")
+            return
+        if task.due_date is None or ensure_timezone_aware(task.due_date) > soon:
+            logger.debug(f"Skipping non-due task: {task.id} - {task.title}")
             return
 
         # Check if task is due within 6 hours or overdue
-        if due_date <= soon:
+        if ensure_timezone_aware(task.due_date) <= soon:
             logger.debug(f"Processing due task: {task.id} - {task.title}")
 
             # Print task
             printer.print(task)
             logger.debug(f"Printed task: {task.id}")
 
-            # Update task state
-            task_update = {
-                "state": TaskState.in_progress,
-                "started_at": now.isoformat(),
-            }
-            updated_task = update_task(db, task.id, task_update)
+            # Start the task
+            updated_task = start_task(db, task)
             if updated_task:
                 logger.debug(
                     f"Updated task state: {task.id} - "
@@ -109,18 +91,17 @@ def process_single_task(
                 logger.error(f"Failed to update task {task.id}")
         else:
             logger.debug(
-                f"Task {task.id} not due yet. " f"Due date: {due_date.isoformat()}"
+                f"Task {task.id} not due yet. " f"Due date: {task.due_date.isoformat()}"
             )
     except Exception as e:
-        logger.error(f"Error processing task {task.id}: {str(e)}", exc_info=True)
+        logger.error(f"Error processing due tasks: {str(e)}", exc_info=True)
 
 
 def process_completed_tasks(db: Session) -> None:
-    """Process tasks that are marked as completed."""
-    logger.info("Processing completed tasks")
+    """Process completed tasks that are older than 7 days."""
     try:
         tasks = get_tasks(db, include_archived=False)  # Only get non-archived tasks
-        now = datetime.now(timezone.utc)
+        now = utc_now()
         cutoff = now - timedelta(days=7)
 
         logger.info(
@@ -132,29 +113,16 @@ def process_completed_tasks(db: Session) -> None:
             db.refresh(task)
 
             if task.state == TaskState.done and task.completed_at:
-                try:
-                    completed_at = datetime.fromisoformat(
-                        task.completed_at.replace("Z", "+00:00")
-                    )
-                except (ValueError, TypeError):
-                    logger.warning(
-                        f"Invalid completed_at format for task {task.id}: "
-                        f"{task.completed_at}. Removing completed_at."
-                    )
-                    task.completed_at = None
-                    db.add(task)
-                    db.commit()
-                    continue
-
+                # Ensure completed_at is timezone-aware
+                completed_at = ensure_timezone_aware(task.completed_at)
                 logger.debug(
                     f"Checking task {task.id} - "
                     f"completed at: {completed_at.isoformat()}"
                 )
 
                 if completed_at < cutoff:
-                    logger.debug(
-                        f"Archiving old completed task: {task.id} - {task.title}"
-                    )
+                    logger.info(f"Found old completed task: {task.id} - {task.title}")
+                    # Archive old completed tasks
                     archive_task(db, task.id)
 
     except Exception as e:
@@ -163,36 +131,29 @@ def process_completed_tasks(db: Session) -> None:
 
 def process_due_tasks(db: Session) -> None:
     """Process tasks that are due or overdue."""
-    logger.info("Processing due tasks")
-
-    tasks = get_due_tasks(db)
-    if not tasks:
-        logger.debug("No due tasks found")
-        return
-
-    # Initialize printer
     try:
+        now = utc_now()
+        soon = now + timedelta(hours=6)  # Tasks due within 6 hours
+        logger.info(f"Processing due tasks. Current time: {now.isoformat()}")
+
+        # Get tasks that are due
+        due_tasks = get_due_tasks(db)
+        logger.info(f"Found {len(due_tasks)} due tasks")
+
+        # Create printer instance
         printer = PrinterFactory.create_printer()
-    except Exception as e:
-        logger.error(f"Failed to initialize printer: {str(e)}")
-        return
 
-    # Get current time and soon threshold (6 hours from now)
-    now = datetime.now(timezone.utc)
-    soon = now + timedelta(hours=6)
-
-    # Process each task
-    for task in tasks:
-        if task.due_date:
-            # Refresh task from database to ensure it's attached to the session
-            db.refresh(task)
+        # Process each due task
+        for task in due_tasks:
             process_single_task(db, task, printer, now, soon)
-        else:
-            logger.debug(f"Skipping task {task.id} - no due date")
+
+    except Exception as e:
+        logger.error(f"Error processing due tasks: {str(e)}", exc_info=True)
 
 
 def run_maintenance() -> None:
-    """Run all maintenance tasks."""
+    """Run all maintenance jobs."""
+    logger.info("Starting maintenance jobs")
     try:
         from taskmanagement_app.db.session import SessionLocal
 
@@ -201,7 +162,8 @@ def run_maintenance() -> None:
             cleanup_old_tasks(db)
             process_completed_tasks(db)
             process_due_tasks(db)
+            logger.info("Maintenance jobs completed successfully")
         finally:
             db.close()
     except Exception as e:
-        logger.error(f"Maintenance failed: {str(e)}", exc_info=True)
+        logger.error(f"Error running maintenance jobs: {str(e)}", exc_info=True)

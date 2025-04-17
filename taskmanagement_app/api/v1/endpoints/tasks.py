@@ -1,5 +1,4 @@
 import logging
-from datetime import datetime, timezone
 from typing import Any, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
@@ -13,6 +12,7 @@ from taskmanagement_app.crud.task import (
 from taskmanagement_app.crud.task import complete_task as complete_task_crud
 from taskmanagement_app.crud.task import (
     create_task,
+    get_due_tasks,
     get_task,
     get_tasks,
     read_random_task,
@@ -76,15 +76,8 @@ def read_due_tasks(db: Session = Depends(get_db)) -> List[Task]:
     """
     Retrieve all tasks that are due within the next 24 hours.
     """
-    now = datetime.now(timezone.utc)
-    db_tasks = get_tasks(db, include_archived=False)  # Exclude archived tasks
-    due_tasks = []
-    for task in db_tasks:
-        if task.due_date:
-            due_date = datetime.fromisoformat(task.due_date.replace("Z", "+00:00"))
-            if (due_date - now).total_seconds() <= 24 * 3600:  # 24 hours in seconds
-                due_tasks.append(Task.model_validate(task))
-    return due_tasks
+    db_tasks = get_due_tasks(db)
+    return [Task.model_validate(task) for task in db_tasks]
 
 
 @router.get("/random/", response_model=Task)
@@ -160,19 +153,22 @@ def start_task(task_id: int, db: Session = Depends(get_db)) -> Task:
     """
     Mark a task as in progress and set the started_at timestamp.
     """
-    db_task = get_task(db, task_id=task_id)
-    if not db_task:
-        raise HTTPException(status_code=404, detail="Task not found")
+    try:
+        db_task = get_task(db, task_id=task_id)
+        if not db_task:
+            raise HTTPException(status_code=404, detail="Task not found")
 
-    if db_task.state != TaskState.todo:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Cannot start task in state {db_task.state}. "
-            "Task must be in 'todo' state.",
-        )
+        if db_task.state != TaskState.todo:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot start task in state {db_task.state}. "
+                "Task must be in 'todo' state.",
+            )
 
-    updated_db_task = start_task_crud(db, db_task)
-    return Task.model_validate(updated_db_task)
+        updated_db_task = start_task_crud(db, db_task)
+        return Task.model_validate(updated_db_task)
+    except TaskNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
 
 
 @router.post("/{task_id}/complete", response_model=Task)
@@ -180,22 +176,25 @@ def complete_task(task_id: int, db: Session = Depends(get_db)) -> Task:
     """
     Mark a task as completed and set the completed_at timestamp.
     """
-    db_task = get_task(db, task_id=task_id)
-    if not db_task:
-        raise HTTPException(status_code=404, detail="Task not found")
-
-    if db_task.state != TaskState.in_progress:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Cannot complete task in state {db_task.state}. "
-            "Task must be in 'in_progress' state.",
-        )
-
     try:
-        updated_db_task = complete_task_crud(db, db_task)
-        return Task.model_validate(updated_db_task)
-    except TaskStatusError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        db_task = get_task(db, task_id=task_id)
+        if not db_task:
+            raise HTTPException(status_code=404, detail="Task not found")
+
+        if db_task.state != TaskState.in_progress:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot complete task in state {db_task.state}. "
+                "Task must be in 'in_progress' state.",
+            )
+
+        try:
+            updated_db_task = complete_task_crud(db, db_task)
+            return Task.model_validate(updated_db_task)
+        except TaskStatusError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+    except TaskNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
 
 
 @router.delete("/{task_id}", response_model=Task)
@@ -295,9 +294,8 @@ def update_task_endpoint(
     Raises:
         HTTPException: If task not found
     """
-    db_task = get_task(db, task_id)
-    if not db_task:
-        raise HTTPException(status_code=404, detail="Task not found")
-
-    updated_task = update_task(db, task_id, task)
-    return Task.model_validate(updated_task)
+    try:
+        updated_task = update_task(db, task_id=task_id, task=task)
+        return Task.model_validate(updated_task)
+    except TaskNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Task {task_id} not found")

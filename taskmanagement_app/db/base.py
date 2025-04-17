@@ -1,3 +1,5 @@
+"""Database configuration and base model."""
+
 from typing import Generator
 
 from sqlalchemy import create_engine
@@ -19,6 +21,7 @@ Base = declarative_base()
 
 # Dependency
 def get_db() -> Generator[Session, None, None]:
+    """Get database session."""
     db = SessionLocal()
     try:
         yield db

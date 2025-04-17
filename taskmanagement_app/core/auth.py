@@ -78,4 +78,4 @@ async def verify_admin(
 
 
 # Dependency for admin-only endpoints
-require_admin = Depends(verify_admin)
+require_admin = verify_admin

@@ -724,7 +724,7 @@ def test_update_task_endpoint(client: TestClient) -> None:
         if "due_date" in invalid_update:
             # Check for specific date validation error message
             error_detail = response.json()["detail"][0]
-            assert "Invalid date format" in error_detail["msg"]
+            assert "Input should be a valid datetime or date" in error_detail["msg"]
         else:
             # Check for empty string validation error
             error_detail = response.json()["detail"][0]
