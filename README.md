@@ -77,6 +77,7 @@ Backend REST API for the Task Management application.
 
 Run quality checks with individual tools:
 
+
 ```powershell
 poetry run black .
 poetry run isort .
@@ -89,10 +90,12 @@ poetry run pytest --cov
 
 ### PDF Printer
 
+
 - Automatically creates PDF files in the configured output directory
 - Configure output directory in `config/printers.ini`
 
 ### USB Thermal Printer
+
 
 - Supports ESC/POS compatible printers
 - Configure USB vendor_id and product_id in `config/printers.ini`
@@ -102,6 +105,10 @@ poetry run pytest --cov
 ## API Documentation
 
 When the server is running:
+
+- Swagger UI: <http://localhost:8000/docs>
+- ReDoc: <http://localhost:8000/redoc>
+- OpenAPI Schema: <http://localhost:8000/openapi.json>
 
 - Swagger UI: <http://localhost:8000/docs>
 - ReDoc: <http://localhost:8000/redoc>
