@@ -29,7 +29,7 @@ dependencies = [
     "starlette==0.46.1",
     "uvicorn[standard]==0.34.0",
     "sqlalchemy==2.0.38",
-    "pydantic==2.10.6",
+    "pydantic==2.11.4",
     "pydantic-settings==2.8.1",
     "python-dotenv==1.1.0",
     "python-jose[cryptography]==3.4.0",
