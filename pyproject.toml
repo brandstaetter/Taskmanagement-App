@@ -28,7 +28,7 @@ dependencies = [
     "fastapi==0.115.10",
     "starlette==0.46.1",
     "uvicorn[standard]==0.34.0",
-    "sqlalchemy==2.0.38",
+    "sqlalchemy==2.0.41",
     "pydantic==2.10.6",
     "pydantic-settings==2.8.1",
     "python-dotenv==1.1.0",
