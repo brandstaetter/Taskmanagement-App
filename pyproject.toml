@@ -26,7 +26,7 @@ dependencies = [
     "black==25.1.0",
     "cffi==1.17.1",
     "fastapi==0.115.10",
-    "starlette==0.46.1",
+    "starlette==0.47.2",
     "uvicorn[standard]==0.34.0",
     "sqlalchemy==2.0.38",
     "pydantic==2.10.6",
