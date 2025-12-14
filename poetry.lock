@@ -668,7 +668,7 @@ images = ["pillow"]
 
 [[package]]
 name = "python-dotenv"
-version = "1.1.0"
+version = "1.2.1"
 description = "Read key-value pairs from a .env file and set them as environment variables"
 category = "main"
 optional = false
@@ -1062,7 +1062,7 @@ python-versions = ">=3.9"
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.11,<3.14"
-content-hash = "edf12ff1799d9741a69fe8f7c966d62cf30d4f42168593ccaf1442aaf58c7c51"
+content-hash = "2361f68df570ffb362e52eae0a01ef53c3b0a937147cb746094497ef6e50a913"
 
 [metadata.files]
 alembic = [
@@ -2055,8 +2055,8 @@ python-barcode = [
     {file = "python_barcode-0.16.1.tar.gz", hash = "sha256:665ed09516b0088b5593061c5ac8662caa0b08d56bdad328388b1cab39939ac5"},
 ]
 python-dotenv = [
-    {file = "python_dotenv-1.1.0-py3-none-any.whl", hash = "sha256:d7c01d9e2293916c18baf562d95698754b0dbbb5e74d457c45d4f6561fb9d55d"},
-    {file = "python_dotenv-1.1.0.tar.gz", hash = "sha256:41f90bc6f5f177fb41f53e87666db362025010eb28f60a01c9143bfa33a2b2d5"},
+    {file = "python_dotenv-1.2.1-py3-none-any.whl", hash = "sha256:b81ee9561e9ca4004139c6cbba3a238c32b03e4894671e181b671e8cb8425d61"},
+    {file = "python_dotenv-1.2.1.tar.gz", hash = "sha256:42667e897e16ab0d66954af0e60a9caa94f0fd4ecf3aaf6d2d260eec1aa36ad6"},
 ]
 python-escpos = [
     {file = "python-escpos-3.0a8.tar.gz", hash = "sha256:1f75c336d896d816e7d901e7f636848495a1726503c5585c1eba25a8e12bf4ba"},
