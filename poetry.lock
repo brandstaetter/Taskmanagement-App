@@ -81,7 +81,7 @@ zookeeper = ["kazoo"]
 
 [[package]]
 name = "argcomplete"
-version = "3.5.3"
+version = "3.6.3"
 description = "Bash tab completion for argparse"
 category = "main"
 optional = false
@@ -1045,7 +1045,7 @@ python-versions = ">=3.9"
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.11,<3.14"
-content-hash = "575be3e8a7227ec1e9da1f721c50ee2d7bd50ac9d07614d82c93177825c7761b"
+content-hash = "719e8d35871feb91f3032b9f06338b6826395501bcd8d0a0ed37949fa81a0b19"
 
 [metadata.files]
 alembic = [
@@ -1073,8 +1073,8 @@ apscheduler = [
     {file = "apscheduler-3.11.1.tar.gz", hash = "sha256:0db77af6400c84d1747fe98a04b8b58f0080c77d11d338c4f507a9752880f221"},
 ]
 argcomplete = [
-    {file = "argcomplete-3.5.3-py3-none-any.whl", hash = "sha256:2ab2c4a215c59fd6caaff41a869480a23e8f6a5f910b266c1808037f4e375b61"},
-    {file = "argcomplete-3.5.3.tar.gz", hash = "sha256:c12bf50eded8aebb298c7b7da7a5ff3ee24dffd9f5281867dfe1424b58c55392"},
+    {file = "argcomplete-3.6.3-py3-none-any.whl", hash = "sha256:f5007b3a600ccac5d25bbce33089211dfd49eab4a7718da3f10e3082525a92ce"},
+    {file = "argcomplete-3.6.3.tar.gz", hash = "sha256:62e8ed4fd6a45864acc8235409461b72c9a28ee785a2011cc5eb78318786c89c"},
 ]
 argparse = [
     {file = "argparse-1.4.0-py2.py3-none-any.whl", hash = "sha256:c31647edb69fd3d465a847ea3157d37bed1f95f19760b11a47aa91c04b666314"},
