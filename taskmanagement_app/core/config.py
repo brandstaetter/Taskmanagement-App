@@ -1,10 +1,12 @@
 from functools import lru_cache
 from typing import List
 
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(case_sensitive=True, env_file=".env")
+
     PROJECT_NAME: str = "Task Management API"
     VERSION: str = "1.0.0"
     API_V1_STR: str = "/api/v1"
@@ -27,10 +29,6 @@ class Settings(BaseSettings):
     ADMIN_API_KEY: str = "your-admin-key-here"  # Change in production
     ADMIN_USERNAME: str = "admin"
     ADMIN_PASSWORD: str = "admin"  # Change in production
-
-    class Config:
-        case_sensitive = True
-        env_file = ".env"
 
 
 @lru_cache()

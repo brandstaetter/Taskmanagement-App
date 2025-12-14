@@ -2,47 +2,40 @@
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
 
-[project]
-readme = "README.md"
+[tool.poetry]
 name = "taskmanagement_app"
 version = "0.1.0"
 description = "A task management application"
-requires-python = ">=3.11,<4.0"
-classifiers = [
-    "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent",
-]
+authors = ["Hannes Brandstätter-Müller <hannes.mueller@gmail.com>"]
+readme = "README.md"
 license = "MIT"
-dependencies = [
-    "alembic==1.14.1",
-    "annotated-types==0.7.0",
-    "anyio==3.7.1",
-    "appdirs==1.4.4",
-    "apscheduler==3.11.0",
-    "argcomplete==3.5.3",
-    "argparse==1.4.0",
-    "bcrypt==4.3.0",
-    "black==25.1.0",
-    "cffi==1.17.1",
-    "fastapi==0.115.10",
-    "starlette==0.46.1",
-    "uvicorn[standard]==0.34.0",
-    "sqlalchemy==2.0.38",
-    "pydantic==2.10.6",
-    "pydantic-settings==2.8.1",
-    "python-dotenv==1.1.0",
-    "python-jose[cryptography]==3.4.0",
-    "passlib[bcrypt]==1.7.4",
-    "python-multipart==0.0.20",
-    "httpx==0.28.1",
-    "reportlab==4.3.1",
-    "python-escpos==3.0a8",
-    "qrcode[pil]==8.0"
-]
-
-[tool.poetry]
 packages = [{include = "taskmanagement_app"}]
+
+[tool.poetry.dependencies]
+python = ">=3.11,<4.0"
+alembic = "1.14.1"
+annotated-types = "0.7.0"
+anyio = "3.7.1"
+appdirs = "1.4.4"
+apscheduler = "3.11.0"
+argcomplete = "3.5.3"
+argparse = "1.4.0"
+bcrypt = "4.3.0"
+cffi = "1.17.1"
+fastapi = "0.115.10"
+starlette = "0.46.1"
+uvicorn = {version = "0.34.0", extras = ["standard"]}
+sqlalchemy = "2.0.38"
+pydantic = "2.10.6"
+"pydantic-settings" = "2.8.1"
+"python-dotenv" = "1.1.0"
+"python-jose" = {version = "3.4.0", extras = ["cryptography"]}
+"passlib" = {version = "1.7.4", extras = ["bcrypt"]}
+"python-multipart" = "0.0.20"
+httpx = "0.28.1"
+reportlab = "4.3.1"
+"python-escpos" = "3.0a8"
+"qrcode" = {version = "8.0", extras = ["pil"]}
 
 [tool.poetry.group.dev.dependencies]
 pytest = ">=8.3.4,<8.4.0"

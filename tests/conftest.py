@@ -9,11 +9,6 @@ from fastapi.testclient import TestClient
 from sqlalchemy import Engine, create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from taskmanagement_app.core.config import get_settings
-from taskmanagement_app.db.base import Base
-from taskmanagement_app.db.session import get_db
-from taskmanagement_app.main import app
-
 # Load test environment variables
 test_env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "test.env")
 load_dotenv(test_env_path)
@@ -23,17 +18,27 @@ parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
-settings = get_settings()
-
-# Test database URL
-SQLALCHEMY_TEST_DATABASE_URL = settings.DATABASE_URL
+test_db_path = os.path.abspath(
+    os.path.join(os.path.dirname(os.path.dirname(__file__)), "test.db")
+)
 
 
 @pytest.fixture(scope="session")
 def db_engine() -> Generator[Engine, None, None]:
     """Create a test database engine."""
+    from taskmanagement_app.core.config import get_settings
+    from taskmanagement_app.db.base import Base
+
+    get_settings.cache_clear()
+    settings = get_settings()
+
+    sqlalchemy_test_database_url = settings.DATABASE_URL
+    if sqlalchemy_test_database_url.startswith("sqlite"):  # prefer stable absolute path
+        sqlalchemy_test_database_url = "sqlite:///" + test_db_path.replace("\\", "/")
+
     engine = create_engine(
-        SQLALCHEMY_TEST_DATABASE_URL, connect_args={"check_same_thread": False}
+        sqlalchemy_test_database_url,
+        connect_args={"check_same_thread": False},
     )
     Base.metadata.create_all(bind=engine)
     yield engine
@@ -42,8 +47,8 @@ def db_engine() -> Generator[Engine, None, None]:
     # Add a small delay to ensure file is released
     time.sleep(0.1)
     try:
-        if os.path.exists("./test.db"):
-            os.remove("./test.db")
+        if os.path.exists(test_db_path):
+            os.remove(test_db_path)
     except PermissionError:
         print("Warning: Could not remove test.db file - it may still be in use")
 
@@ -65,6 +70,9 @@ def db_session(db_engine: Engine) -> Generator[Session, None, None]:
 @pytest.fixture(scope="function")
 def client(db_session: Session) -> Generator[TestClient, None, None]:
     """Create a test client with a test database session."""
+
+    from taskmanagement_app.db.session import get_db
+    from taskmanagement_app.main import app
 
     def override_get_db() -> Generator[Session, None, None]:
         try:
