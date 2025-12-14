@@ -3,7 +3,7 @@ from typing import Optional
 
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
-SPECIAL_CHARACTERS = "!@#$%^&*()_+-=[]{}|;:'\",.<>/?"
+SPECIAL_CHARACTERS = set("!@#$%^&*()_+-=[]{}|;:'\",.<>/?")
 
 
 def validate_password_strength(password: str) -> str:
