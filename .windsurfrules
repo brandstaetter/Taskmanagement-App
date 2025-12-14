@@ -39,6 +39,8 @@ When making code changes, ensure the following pass (use Poetry):
 - Types: `poetry run mypy .`
 - Tests: `poetry run pytest -vv --tb=short`
 
+When changing the pyproject.toml file, run `poetry lock` to ensure the lock file is updated.
+
 If you cannot run commands, explicitly say so and explain what to run and why.
 
 ## 5) Repo-specific CI alignment (do not diverge)
