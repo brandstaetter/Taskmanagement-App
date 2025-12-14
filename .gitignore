@@ -48,3 +48,4 @@ htmlcov/
 .DS_Store
 Thumbs.db
 task_management.db
+coverage.xml
