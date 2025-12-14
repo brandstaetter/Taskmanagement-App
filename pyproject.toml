@@ -21,11 +21,10 @@ apscheduler = "3.11.0"
 argcomplete = "3.5.3"
 argparse = "1.4.0"
 bcrypt = "4.3.0"
-black = "25.1.0"
 cffi = "1.17.1"
 fastapi = "0.115.10"
 starlette = "0.46.1"
-uvicorn = {version = "^0.32.0", extras = ["standard"]}
+uvicorn = {version = "0.34.0", extras = ["standard"]}
 sqlalchemy = "2.0.38"
 pydantic = "2.10.6"
 "pydantic-settings" = "2.8.1"

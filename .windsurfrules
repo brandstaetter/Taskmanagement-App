@@ -156,7 +156,7 @@ Use for:
 
 Safety rules:
 
-- Prefer repo evidence first: [openapi.json](cci:7://file:///c:/Users/micro/CascadeProjects/Taskmanagement-App/openapi.json:0:0-0:0), FastAPI routes, and tests are source-of-truth.
+- Prefer repo evidence first: FastAPI routes and tests are the source-of-truth; use the generated [openapi.json](cci:7://file:///c:/Users/micro/CascadeProjects/Taskmanagement-App/openapi.json:0:0-0:0) artifact (produced by CI) as a reference when available.
 - Do not send secrets/tokens or real customer data in requests.
 - Default to local URLs (localhost) for calls; ask before hitting non-local environments.
 - If an API key is required, use environment variables and avoid writing it into repo files.
