@@ -30,6 +30,21 @@ def create_admin_token(expires_delta: Optional[timedelta] = None) -> str:
     return str(encoded_jwt)
 
 
+def create_user_token(subject: str, expires_delta: Optional[timedelta] = None) -> str:
+    to_encode = {"sub": subject, "role": "user"}
+    if expires_delta:
+        expire = datetime.now(tz=timezone.utc) + expires_delta
+    else:
+        expire = datetime.now(tz=timezone.utc) + timedelta(
+            minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
+        )
+    to_encode.update({"exp": expire.strftime("%Y-%m-%dT%H:%M:%SZ")})
+    encoded_jwt = jwt.encode(
+        to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM
+    )
+    return str(encoded_jwt)
+
+
 async def verify_admin(
     token: Optional[str] = Depends(oauth2_scheme),
     api_key: Optional[str] = Security(api_key_header),

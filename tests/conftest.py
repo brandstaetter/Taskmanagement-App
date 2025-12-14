@@ -28,9 +28,13 @@ def db_engine() -> Generator[Engine, None, None]:
     """Create a test database engine."""
     from taskmanagement_app.core.config import get_settings
     from taskmanagement_app.db.base import Base
+    from taskmanagement_app.db.models.task import TaskModel
+    from taskmanagement_app.db.models.user import User
 
     get_settings.cache_clear()
     settings = get_settings()
+
+    _ = (TaskModel, User)
 
     sqlalchemy_test_database_url = settings.DATABASE_URL
     if sqlalchemy_test_database_url.startswith("sqlite"):  # prefer stable absolute path
