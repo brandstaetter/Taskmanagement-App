@@ -34,7 +34,7 @@ class TestPasswordValidation:
     def test_validate_password_strength_all_character_types(self) -> None:
         """Test that password with all character types passes."""
         # Test with different special characters from PASSWORD_SPECIAL_CHARS
-        for special_char in "!@#$%^&*()_+-=[]{}|;:'\",.<>/?":
+        for special_char in PASSWORD_SPECIAL_CHARS:
             password = f"Test{special_char}123"
             assert validate_password_strength(password), (
                 f"Password with special char '{special_char}' should be valid"
