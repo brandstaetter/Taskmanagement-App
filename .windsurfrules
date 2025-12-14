@@ -1,12 +1,162 @@
-1. backend is in python, frontend is in angular
-2. for both, use recommended best practices
-3. for both, use recommended development workflows
-4. for both, use recommended testing strategies
-5. for both, use recommended deployment strategies
-6. for both, use recommended security best practices
-7. for both, use recommended logging and monitoring strategies
-8. for both, use recommended continuous integration strategies for github
-9. We are in windows, so use powershell commands in terminal
-10. generated code must pass black, isort, flake8, mypy, pytest
-11. always run tests lke this "poetry run pytest -vv --tb=short"
-12. do not hallucinate
+# Windsurf Agent Rules (Taskmanagement-App)
+
+Goal: maximize correctness, reduce hallucinations, and keep changes small & verifiable.
+
+## 1) Project reality (do not guess)
+
+- Backend is Python (FastAPI) in [taskmanagement_app/](cci:7://file:///c:/Users/micro/CascadeProjects/Taskmanagement-App/taskmanagement_app:0:0-0:0), managed with Poetry.
+- Frontend (if/when present) is Angular; do not invent frontend files/commands unless they exist in this repo.
+- OS is Windows: when suggesting terminal commands, use PowerShell syntax.
+- Prefer reading existing files and searching the repo over assumptions.
+
+## 2) Work style (how to operate)
+
+- Start by restating the intent and a short plan (2-5 milestones) for non-trivial tasks.
+- Make the smallest change that solves the task.
+- If requirements are ambiguous, ask targeted questions before implementing.
+- Never fabricate:
+  - file paths, module names, functions, endpoints, config keys, or CLI commands.
+  - results of tests, linters, or CI runs.
+
+## 3) Code change discipline (mandatory)
+
+- Before editing:
+  - locate the real source-of-truth in the repo (configs, CI, tests).
+  - identify call sites/consumers that might break.
+- When editing:
+  - keep imports at top of file.
+  - follow existing patterns in this codebase (FastAPI, SQLAlchemy, Pydantic).
+  - add/update tests for behavior changes.
+- Avoid large refactors unless explicitly requested.
+
+## 4) Quality gates (must pass)
+
+When making code changes, ensure the following pass (use Poetry):
+
+- Formatting: `poetry run black .`
+- Imports: `poetry run isort .`
+- Lint: `poetry run flake8 .`
+- Types: `poetry run mypy .`
+- Tests: `poetry run pytest -vv --tb=short`
+
+If you cannot run commands, explicitly say so and explain what to run and why.
+
+## 5) Repo-specific CI alignment (do not diverge)
+
+- CI checks imports with isort, formatting with black, lint with flake8, type-check with mypy, and runs pytest.
+- Keep changes compatible with Python 3.11.
+- Prefer adding tests under [tests/](cci:7://file:///c:/Users/micro/CascadeProjects/Taskmanagement-App/tests:0:0-0:0) consistent with [pytest.ini](cci:7://file:///c:/Users/micro/CascadeProjects/Taskmanagement-App/pytest.ini:0:0-0:0).
+
+## 6) Security & secrets (non-negotiable)
+
+- Never commit real secrets, tokens, or credentials.
+- Do not hardcode API keys or passwords.
+- If touching auth/config, use environment variables and [.env.example](cci:7://file:///c:/Users/micro/CascadeProjects/Taskmanagement-App/.env.example:0:0-0:0) patterns.
+- Highlight security implications (auth, CORS, input validation, file I/O, command execution).
+
+## 7) Logging & monitoring
+
+- Use structured, actionable logging; avoid noisy debug spam.
+- Log at boundaries (API entry, background jobs, external I/O) and include context.
+- Do not log secrets or sensitive payloads.
+
+## 8) Documentation/comments policy
+
+- Do not add/remove comments or documentation unless the user requests it.
+- Prefer self-explanatory code + tests.
+
+## 9) Tooling & patch hygiene
+
+- Use repo search + file reads before conclusions.
+- When editing, change only what is necessary and keep hunks minimal.
+- If a file is large, read relevant sections instead of guessing.
+
+## 10) Definition of done
+
+A task is done only when:
+
+- the change is implemented,
+- relevant tests are added/updated,
+- the quality gates are expected to pass,
+- and you provide a brief summary + exact commands to verify.
+
+## MCP usage (when and how)
+
+This environment provides MCP servers (notably `sequential-thinking` and `memory`).
+Use them deliberately:
+
+### `sequential-thinking` (structured reasoning)
+
+Use when:
+
+- the task is ambiguous, multi-step, or high-risk (debugging, design changes, refactors)
+- you need to form multiple hypotheses and verify them against repo evidence
+- you need a clear milestone plan and validation strategy
+
+Do not use when:
+
+- the task is straightforward (single-file tweak, obvious fix)
+- the next best action is to inspect the repo (prefer search + file reads first)
+
+Rule:
+
+- Prefer evidence-first (search/read files) and use `sequential-thinking` to organize/verify reasoning, not to replace inspection.
+
+### `memory` (persist stable facts/preferences)
+
+Use when saving:
+
+- stable project invariants (e.g., “backend is FastAPI in [taskmanagement_app/](cci:7://file:///c:/Users/micro/CascadeProjects/Taskmanagement-App/taskmanagement_app:0:0-0:0)”, “Poetry commands”, “Windows PowerShell”)
+- user preferences and non-negotiable rules (quality gates, no hallucinated paths, minimal diffs)
+- decisions that should persist across tasks (chosen patterns, conventions)
+
+Do not store:
+
+- secrets or credentials (API keys, passwords, tokens, `.env` contents)
+- transient state (temporary logs, current failing output, branch-specific details) unless explicitly requested and safe
+
+Rule:
+
+- Only store information that will still be true/valuable in future sessions.
+
+### `git` (local repo operations)
+
+Use for:
+
+- read-only repo inspection: status, diff, log, blame, show, branch listing
+- generating accurate summaries of changes and identifying impacted files
+
+Safety rules:
+
+- Prefer read-only operations by default.
+- Any write action (add/commit/branch/checkout/reset) requires explicit user confirmation.
+- Never rewrite history unless explicitly requested (no force-push, no rebase/amend by default).
+- Before proposing a commit, ensure quality gates are expected to pass (black/isort/flake8/mypy/pytest).
+
+### `github-mcp-server` (remote GitHub operations)
+
+Use for:
+
+- reading PRs/issues, release notes, CI status, reviewing diffs on GitHub
+- drafting PR descriptions aligned with repo conventions and CI checks
+
+Safety rules:
+
+- Treat all network/remote actions as potentially sensitive.
+- Do not create/modify issues, PRs, labels, branches, or secrets unless explicitly requested.
+- Never paste tokens into chat, files, logs, or generated examples.
+- Prefer least-privilege: only read what is needed to solve the task.
+
+### `postman-api` (API collections/workspaces)
+
+Use for:
+
+- understanding existing API collections, examples, and test flows
+- cross-checking request/response shapes against actual endpoints
+
+Safety rules:
+
+- Prefer repo evidence first: [openapi.json](cci:7://file:///c:/Users/micro/CascadeProjects/Taskmanagement-App/openapi.json:0:0-0:0), FastAPI routes, and tests are source-of-truth.
+- Do not send secrets/tokens or real customer data in requests.
+- Default to local URLs (localhost) for calls; ask before hitting non-local environments.
+- If an API key is required, use environment variables and avoid writing it into repo files.
