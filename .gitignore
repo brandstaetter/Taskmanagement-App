@@ -49,3 +49,4 @@ htmlcov/
 Thumbs.db
 task_management.db
 coverage.xml
+openapi.json
