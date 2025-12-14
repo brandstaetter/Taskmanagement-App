@@ -59,7 +59,7 @@ jobs:
     - name: Generate OpenAPI spec
       if: ${{ always() }}
       run: |
-        poetry run python -c "import json; from taskmanagement_app.main import app; open('openapi.json','w',encoding='utf-8').write(json.dumps(app.openapi(), indent=2))"
+        poetry run python scripts/generate_openapi_json.py
 
     - name: Upload OpenAPI spec artifact
       if: ${{ always() }}
