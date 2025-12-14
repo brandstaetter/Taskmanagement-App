@@ -4,24 +4,25 @@ from typing import Any, Optional
 from fastapi import Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
+from jose.exceptions import ExpiredSignatureError
 
 from taskmanagement_app.core.config import get_settings
 
 settings = get_settings()
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token")
 
 
 def create_admin_token(expires_delta: Optional[timedelta] = None) -> str:
     """Create a new admin JWT token."""
-    to_encode = {"sub": "admin", "role": "admin"}
+    to_encode: dict[str, Any] = {"sub": "admin", "role": "admin"}
     if expires_delta:
         expire = datetime.now(tz=timezone.utc) + expires_delta
     else:
         expire = datetime.now(tz=timezone.utc) + timedelta(
             minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
         )
-    to_encode.update({"exp": expire.strftime("%Y-%m-%dT%H:%M:%SZ")})
+    to_encode.update({"exp": int(expire.timestamp())})
     encoded_jwt = jwt.encode(
         to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM
     )
@@ -30,14 +31,14 @@ def create_admin_token(expires_delta: Optional[timedelta] = None) -> str:
 
 
 def create_user_token(subject: str, expires_delta: Optional[timedelta] = None) -> str:
-    to_encode = {"sub": subject, "role": "user"}
+    to_encode: dict[str, Any] = {"sub": subject, "role": "user"}
     if expires_delta:
         expire = datetime.now(tz=timezone.utc) + expires_delta
     else:
         expire = datetime.now(tz=timezone.utc) + timedelta(
             minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
         )
-    to_encode.update({"exp": expire.strftime("%Y-%m-%dT%H:%M:%SZ")})
+    to_encode.update({"exp": int(expire.timestamp())})
     encoded_jwt = jwt.encode(
         to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM
     )
@@ -50,7 +51,12 @@ def verify_access_token(token: str = Depends(oauth2_scheme)) -> dict[str, Any]:
             token,
             settings.SECRET_KEY,
             algorithms=[settings.ALGORITHM],
-            options={"verify_exp": False},
+        )
+    except ExpiredSignatureError:
+        raise HTTPException(
+            status_code=401,
+            detail="Token expired",
+            headers={"WWW-Authenticate": "Bearer"},
         )
     except JWTError:
         raise HTTPException(
@@ -59,38 +65,7 @@ def verify_access_token(token: str = Depends(oauth2_scheme)) -> dict[str, Any]:
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    exp = payload.get("exp")
-    if exp is None:
-        raise HTTPException(
-            status_code=401,
-            detail="Could not validate credentials",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    now = datetime.now(tz=timezone.utc)
-    if isinstance(exp, (int, float)):
-        if now.timestamp() > float(exp):
-            raise HTTPException(
-                status_code=401,
-                detail="Token expired",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-    elif isinstance(exp, str):
-        try:
-            expires_at = datetime.fromisoformat(exp.replace("Z", "+00:00"))
-        except ValueError:
-            raise HTTPException(
-                status_code=401,
-                detail="Could not validate credentials",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-        if now > expires_at:
-            raise HTTPException(
-                status_code=401,
-                detail="Token expired",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-    else:
+    if payload.get("exp") is None:
         raise HTTPException(
             status_code=401,
             detail="Could not validate credentials",

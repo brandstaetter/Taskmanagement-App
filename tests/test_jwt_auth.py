@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from taskmanagement_app.core.auth import create_admin_token, create_user_token
+from taskmanagement_app.core.config import get_settings
 from taskmanagement_app.crud.user import create_user
 from taskmanagement_app.main import app
 from taskmanagement_app.schemas.user import UserCreate
@@ -47,6 +48,22 @@ def test_tasks_401_expired_token(raw_client: TestClient) -> None:
     response = raw_client.get(
         "/api/v1/tasks",
         headers={"Authorization": f"Bearer {expired}"},
+    )
+    assert response.status_code == 401
+
+
+def test_tasks_401_token_missing_exp(raw_client: TestClient) -> None:
+    from jose import jwt
+
+    settings = get_settings()
+    token = jwt.encode(
+        {"sub": "admin", "role": "admin"},
+        settings.SECRET_KEY,
+        algorithm=settings.ALGORITHM,
+    )
+    response = raw_client.get(
+        "/api/v1/tasks",
+        headers={"Authorization": f"Bearer {token}"},
     )
     assert response.status_code == 401
 

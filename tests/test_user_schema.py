@@ -45,6 +45,11 @@ def test_user_create_schema() -> None:
     assert user.password == "Str0ng!Pass"
 
 
+def test_user_create_schema_weak_password_rejected() -> None:
+    with pytest.raises(ValidationError):
+        UserCreate(email="weak@example.com", password="weakpass1!")
+
+
 def test_admin_user_create_schema() -> None:
     admin = AdminUserCreate(
         email="admin@example.com", password="Str0ng!Pass", is_admin=True
@@ -64,3 +69,8 @@ def test_user_update_schema() -> None:
     assert update.is_active is False
     assert update.avatar_url == "/a.png"
     assert update.password == "NewP@ssw0rd"
+
+
+def test_user_update_schema_weak_password_rejected() -> None:
+    with pytest.raises(ValidationError):
+        UserUpdate(password="weakpass1!")

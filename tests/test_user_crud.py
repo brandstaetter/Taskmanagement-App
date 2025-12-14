@@ -60,6 +60,22 @@ def test_update_user(db_session: Session) -> None:
     assert updated.avatar_url == "/avatar.png"
 
 
+def test_update_user_password_hashes_password(db_session: Session) -> None:
+    data = UserCreate(email=f"u3pw_{uuid4()}@example.com", password="StrongPass3!")
+    created = user_crud.create_user(db_session, data)
+    old_hash = created.hashed_password
+
+    update = UserUpdate(password="NewP@ssw0rd")
+    updated = user_crud.update_user(db_session, created.id, update)
+    assert updated is not None
+    assert updated.hashed_password != old_hash
+
+
+def test_update_user_nonexistent_returns_none(db_session: Session) -> None:
+    update = UserUpdate(email=f"nope_{uuid4()}@example.com")
+    assert user_crud.update_user(db_session, 999999, update) is None
+
+
 def test_change_user_password(db_session: Session) -> None:
     data = UserCreate(email=f"u4_{uuid4()}@example.com", password="StrongPass4!")
     created = user_crud.create_user(db_session, data)
@@ -89,6 +105,10 @@ def test_update_last_login(db_session: Session) -> None:
     user = user_crud.update_last_login(db_session, created.id)
     assert user is not None
     assert user.last_login is not None
+
+
+def test_update_last_login_nonexistent_returns_none(db_session: Session) -> None:
+    assert user_crud.update_last_login(db_session, 999999) is None
 
 
 def test_get_all_users(db_session: Session) -> None:

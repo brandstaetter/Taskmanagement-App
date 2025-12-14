@@ -54,6 +54,13 @@ async def login_user_for_access_token(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    if not getattr(user, "is_active", True):
+        raise HTTPException(
+            status_code=403,
+            detail="User account is inactive",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     update_last_login(db, user.id)
 
     access_token = create_user_token(
