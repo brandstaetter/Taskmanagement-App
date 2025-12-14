@@ -28,7 +28,7 @@ uvicorn = {version = "0.34.0", extras = ["standard"]}
 sqlalchemy = "2.0.38"
 pydantic = "2.10.6"
 "pydantic-settings" = "2.8.1"
-"python-dotenv" = "1.1.0"
+"python-dotenv" = "1.2.1"
 "python-jose" = {version = "3.4.0", extras = ["cryptography"]}
 "passlib" = {version = "1.7.4", extras = ["bcrypt"]}
 "python-multipart" = "0.0.20"
