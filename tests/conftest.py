@@ -34,7 +34,7 @@ def db_engine() -> Generator[Engine, None, None]:
 
     sqlalchemy_test_database_url = settings.DATABASE_URL
     if sqlalchemy_test_database_url.startswith("sqlite"):  # prefer stable absolute path
-        sqlalchemy_test_database_url = f"sqlite:///{test_db_path.replace('\\\\', '/')}"
+        sqlalchemy_test_database_url = "sqlite:///" + test_db_path.replace("\\", "/")
 
     engine = create_engine(
         sqlalchemy_test_database_url,
