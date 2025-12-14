@@ -1,4 +1,5 @@
 from datetime import timedelta
+from typing import Generator
 from uuid import uuid4
 
 import pytest
@@ -12,10 +13,10 @@ from taskmanagement_app.schemas.user import UserCreate
 
 
 @pytest.fixture()
-def raw_client(db_session: Session) -> TestClient:
+def raw_client(db_session: Session) -> Generator[TestClient, None, None]:
     from taskmanagement_app.db.session import get_db
 
-    def override_get_db():
+    def override_get_db() -> Generator[Session, None, None]:
         try:
             yield db_session
         finally:
