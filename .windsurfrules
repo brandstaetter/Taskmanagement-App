@@ -28,6 +28,7 @@ Goal: maximize correctness, reduce hallucinations, and keep changes small & veri
   - follow existing patterns in this codebase (FastAPI, SQLAlchemy, Pydantic).
   - add/update tests for behavior changes.
 - Avoid large refactors unless explicitly requested.
+- if changes are requested, but files are protected from being changed, state so and ask for a manual change.
 
 ## 4) Quality gates (must pass)
 
@@ -83,6 +84,7 @@ A task is done only when:
 
 - the change is implemented,
 - relevant tests are added/updated,
+- For any added or changed functionality, add or update tests that cover the new/changed behavior (including negative/error paths and auth/permission checks when applicable). If tests cannot be added, explicitly explain why and what manual verification was performed.
 - the quality gates are expected to pass,
 - and you provide a brief summary + exact commands to verify.
 
