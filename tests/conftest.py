@@ -75,6 +75,7 @@ def db_session(db_engine: Engine) -> Generator[Session, None, None]:
 def client(db_session: Session) -> Generator[TestClient, None, None]:
     """Create a test client with a test database session."""
 
+    from taskmanagement_app.core.auth import create_admin_token
     from taskmanagement_app.db.session import get_db
     from taskmanagement_app.main import app
 
@@ -86,6 +87,7 @@ def client(db_session: Session) -> Generator[TestClient, None, None]:
 
     app.dependency_overrides[get_db] = override_get_db
     with TestClient(app) as test_client:
+        test_client.headers.update({"Authorization": f"Bearer {create_admin_token()}"})
         yield test_client
     app.dependency_overrides.clear()
 

@@ -46,7 +46,9 @@ def test_user_create_schema() -> None:
 
 
 def test_admin_user_create_schema() -> None:
-    admin = AdminUserCreate(email="admin@example.com", password="Str0ng!Pass", is_admin=True)
+    admin = AdminUserCreate(
+        email="admin@example.com", password="Str0ng!Pass", is_admin=True
+    )
     assert admin.email == "admin@example.com"
     assert admin.is_admin is True
 

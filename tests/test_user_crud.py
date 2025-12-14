@@ -94,7 +94,9 @@ def test_update_last_login(db_session: Session) -> None:
 def test_get_all_users(db_session: Session) -> None:
     created_ids: list[int] = []
     for i in range(3):
-        data = UserCreate(email=f"bulkuser{i}_{uuid4()}@example.com", password="BulkPass1!")
+        data = UserCreate(
+            email=f"bulkuser{i}_{uuid4()}@example.com", password="BulkPass1!"
+        )
         created = user_crud.create_user(db_session, data)
         created_ids.append(created.id)
 

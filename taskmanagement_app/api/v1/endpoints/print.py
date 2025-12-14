@@ -1,14 +1,15 @@
 import logging
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel
 
+from taskmanagement_app.core.auth import verify_access_token
 from taskmanagement_app.core.printing.printer_factory import PrinterFactory
 from taskmanagement_app.schemas.task import Task
 
 logger = logging.getLogger(__name__)
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(verify_access_token)])
 
 
 class PrintRequest(BaseModel):

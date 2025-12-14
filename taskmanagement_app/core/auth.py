@@ -1,16 +1,15 @@
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import Any, Optional
 
-from fastapi import Depends, HTTPException, Security
-from fastapi.security import APIKeyHeader, OAuth2PasswordBearer
+from fastapi import Depends, HTTPException
+from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 
 from taskmanagement_app.core.config import get_settings
 
 settings = get_settings()
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token", auto_error=False)
-api_key_header = APIKeyHeader(name="X-Admin-Key", auto_error=False)
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
 
 
 def create_admin_token(expires_delta: Optional[timedelta] = None) -> str:
@@ -45,51 +44,75 @@ def create_user_token(subject: str, expires_delta: Optional[timedelta] = None) -
     return str(encoded_jwt)
 
 
-async def verify_admin(
-    token: Optional[str] = Depends(oauth2_scheme),
-    api_key: Optional[str] = Security(api_key_header),
-) -> bool:
-    """
-    Verify that the request is from an admin.
-    Returns True if valid, raises HTTPException if not.
-    """
-    # First try API key authentication
-    if api_key:
-        if api_key == settings.ADMIN_API_KEY:
-            return True
+def verify_access_token(token: str = Depends(oauth2_scheme)) -> dict[str, Any]:
+    try:
+        payload: dict[str, Any] = jwt.decode(
+            token,
+            settings.SECRET_KEY,
+            algorithms=[settings.ALGORITHM],
+            options={"verify_exp": False},
+        )
+    except JWTError:
         raise HTTPException(
-            status_code=403,
-            detail="Invalid API key",
+            status_code=401,
+            detail="Could not validate credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # Then try JWT token authentication
-    if token:
-        try:
-            payload = jwt.decode(
-                token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+    exp = payload.get("exp")
+    if exp is None:
+        raise HTTPException(
+            status_code=401,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    now = datetime.now(tz=timezone.utc)
+    if isinstance(exp, (int, float)):
+        if now.timestamp() > float(exp):
+            raise HTTPException(
+                status_code=401,
+                detail="Token expired",
+                headers={"WWW-Authenticate": "Bearer"},
             )
-            role: Optional[str] = payload.get("role")
-            if role is None or role != "admin":
-                raise HTTPException(
-                    status_code=403,
-                    detail="Not enough permissions",
-                    headers={"WWW-Authenticate": "Bearer"},
-                )
-            return True
-        except JWTError:
+    elif isinstance(exp, str):
+        try:
+            expires_at = datetime.fromisoformat(exp.replace("Z", "+00:00"))
+        except ValueError:
             raise HTTPException(
                 status_code=401,
                 detail="Could not validate credentials",
                 headers={"WWW-Authenticate": "Bearer"},
             )
+        if now > expires_at:
+            raise HTTPException(
+                status_code=401,
+                detail="Token expired",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+    else:
+        raise HTTPException(
+            status_code=401,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
-    # If neither API key nor token is provided
-    raise HTTPException(
-        status_code=401,
-        detail="Authentication required",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
+    return payload
+
+
+async def verify_admin(payload: dict[str, Any] = Depends(verify_access_token)) -> bool:
+    """
+    Verify that the request is from an admin.
+    Returns True if valid, raises HTTPException if not.
+    """
+    role: Optional[str] = payload.get("role")
+    if role is None or role != "admin":
+        raise HTTPException(
+            status_code=403,
+            detail="Not enough permissions",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return True
 
 
 # Dependency for admin-only endpoints

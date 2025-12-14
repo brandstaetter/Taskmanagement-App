@@ -14,8 +14,8 @@ from taskmanagement_app.crud.user import (
 )
 from taskmanagement_app.db.base import Base, engine
 from taskmanagement_app.db.session import get_db
-from taskmanagement_app.schemas.user import User as UserSchema
 from taskmanagement_app.schemas.user import AdminUserCreate
+from taskmanagement_app.schemas.user import User as UserSchema
 
 router = APIRouter()
 
