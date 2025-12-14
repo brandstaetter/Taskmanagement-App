@@ -33,11 +33,15 @@ Goal: maximize correctness, reduce hallucinations, and keep changes small & veri
 
 When making code changes, ensure the following pass (use Poetry):
 
-- Formatting: `poetry run black .`
-- Imports: `poetry run isort .`
-- Lint: `poetry run flake8 .`
-- Types: `poetry run mypy .`
-- Tests: `poetry run pytest -vv --tb=short`
+- Dependencies: `poetry install`
+- Imports (CI-equivalent): `poetry run isort . --check-only --diff`
+- Formatting (CI-equivalent): `poetry run black . --check`
+- Lint (CI-equivalent):
+  - `poetry run flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics`
+  - `poetry run flake8 . --count --exit-zero --max-complexity=10 --max-line-length=88 --statistics`
+- Types (CI-equivalent): `poetry run mypy .`
+- Tests (CI-equivalent):
+  - `poetry run pytest --cov=taskmanagement_app --cov-report=xml --cov-report=term-missing --junitxml=junit.xml -o junit_family=legacy tests/`
 
 When changing the pyproject.toml file, run `poetry lock` to ensure the lock file is updated.
 
