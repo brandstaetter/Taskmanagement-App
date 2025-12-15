@@ -9,6 +9,7 @@ on:
     workflows: ["CI"]
     types:
       - completed
+    branches: [ main ]
 
 concurrency:
   group: deploy-main
@@ -21,6 +22,19 @@ jobs:
     runs-on: [self-hosted, linux, deploy]
 
     steps:
+      - name: Skip if not latest main commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          LATEST_MAIN_SHA="$(git ls-remote https://github.com/brandstaetter/Taskmanagement-App.git refs/heads/main | awk '{print $1}')"
+          RUN_SHA="${{ github.event.workflow_run.head_sha }}"
+          if [ "$LATEST_MAIN_SHA" != "$RUN_SHA" ]; then
+            echo "Skipping deploy: workflow_run SHA is not the latest main SHA"
+            echo "LATEST_MAIN_SHA=$LATEST_MAIN_SHA"
+            echo "RUN_SHA=$RUN_SHA"
+            exit 0
+          fi
+
       - name: Download wheel artifact
         uses: actions/download-artifact@v7
         with:
@@ -33,5 +47,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          WHEEL_PATH="$(ls -1 ./wheel/*.whl | head -n 1)"
+          shopt -s nullglob
+          wheels=(./wheel/*.whl)
+          if [ "${#wheels[@]}" -ne 1 ]; then
+            echo "Expected exactly one wheel artifact, found ${#wheels[@]}"
+            ls -la ./wheel || true
+            exit 1
+          fi
+          WHEEL_PATH="${wheels[0]}"
           sudo /opt/taskmanagement-app/deploy/deploy-wheel.sh "$WHEEL_PATH"
