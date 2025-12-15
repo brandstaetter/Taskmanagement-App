@@ -1,9 +1,9 @@
 from contextlib import asynccontextmanager
+from importlib.metadata import PackageNotFoundError, version
 from typing import AsyncGenerator
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from importlib.metadata import PackageNotFoundError, version
 
 from taskmanagement_app.api.v1.api import api_router
 from taskmanagement_app.core.config import get_settings
