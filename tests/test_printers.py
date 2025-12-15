@@ -136,8 +136,11 @@ async def test_usb_printer_connection_error(db_session: Session) -> None:
     # Simulate connection error by mocking the Usb class to raise on open()
     mock_usb_instance = MagicMock()
     mock_usb_instance.open.side_effect = Exception("Device not found")
-    
-    with patch("taskmanagement_app.core.printing.usb_printer.Usb", return_value=mock_usb_instance):
+
+    with patch(
+        "taskmanagement_app.core.printing.usb_printer.Usb",
+        return_value=mock_usb_instance,
+    ):
         with pytest.raises(PrinterError) as exc_info:
             printer.connect()
         assert "Failed to connect to USB printer" in str(exc_info.value)
