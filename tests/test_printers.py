@@ -121,7 +121,7 @@ async def test_usb_printer_invalid_config() -> None:
     """Test USB printer with invalid configuration."""
     try:
         from taskmanagement_app.core.printing.usb_printer import USBPrinter
-    except Exception as e:
+    except (ImportError, ModuleNotFoundError) as e:
         pytest.skip(f"USB printer backend unavailable: {e}")
 
     # Test with missing vendor_id
@@ -138,7 +138,7 @@ async def test_usb_printer_connection_error(db_session: Session) -> None:
     """Test USB printer handling of connection errors."""
     try:
         from taskmanagement_app.core.printing.usb_printer import USBPrinter
-    except Exception as e:
+    except (ImportError, ModuleNotFoundError) as e:
         pytest.skip(f"USB printer backend unavailable: {e}")
 
     config = {
@@ -164,7 +164,7 @@ def test_printer_factory() -> None:
     # Test USB printer creation
     try:
         from taskmanagement_app.core.printing.usb_printer import USBPrinter
-    except Exception as e:
+    except (ImportError, ModuleNotFoundError) as e:
         pytest.skip(f"USB printer backend unavailable: {e}")
     else:
         usb_config = {
