@@ -68,7 +68,7 @@ def update_user(db: Session, user_id: int, user: UserUpdate) -> Optional[User]:
 
 
 def generate_random_password(length: int = 12) -> str:
-    alphabet = string.ascii_letters + string.digits + "".join(PASSWORD_SPECIAL_CHARS)
+    alphabet = string.ascii_letters + string.digits + PASSWORD_SPECIAL_CHARS
     while True:
         password = "".join(secrets.choice(alphabet) for _ in range(length))
         try:

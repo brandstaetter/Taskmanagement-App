@@ -56,5 +56,5 @@ class TestPasswordValidation:
 
     def test_password_special_chars_constant(self) -> None:
         """Test that PASSWORD_SPECIAL_CHARS contains expected characters."""
-        expected = set("!@#$%^&*()_+-=[]{}|;:'\",.<>/?")
+        expected = "!@#$%^&*()_+-=[]{}|;:'\",.<>/?"
         assert PASSWORD_SPECIAL_CHARS == expected
