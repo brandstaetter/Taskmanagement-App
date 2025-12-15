@@ -27,6 +27,7 @@ jobs:
           name: wheel
           path: ./wheel
           run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
 
       - name: Deploy
         shell: bash
