@@ -133,11 +133,14 @@ async def test_usb_printer_connection_error(db_session: Session) -> None:
     }
     printer = USBPrinter(config)
 
-    # Simulate connection error
-    with patch("usb.core.find", return_value=None):
+    # Simulate connection error by mocking the Usb class to raise on open()
+    mock_usb_instance = MagicMock()
+    mock_usb_instance.open.side_effect = Exception("Device not found")
+    
+    with patch("taskmanagement_app.core.printing.usb_printer.Usb", return_value=mock_usb_instance):
         with pytest.raises(PrinterError) as exc_info:
             printer.connect()
-        assert "USB device not found" in str(exc_info.value)
+        assert "Failed to connect to USB printer" in str(exc_info.value)
 
 
 def test_printer_factory() -> None:
@@ -153,9 +156,9 @@ def test_printer_factory() -> None:
         "vendor_id": "0x0416",
         "product_id": "0x5011",
     }
-    with patch("usb.core.find", return_value=MagicMock()):
-        usb_printer = PrinterFactory.create_printer(usb_config)
-        assert isinstance(usb_printer, USBPrinter)
+    # Just create the printer instance without connecting
+    usb_printer = PrinterFactory.create_printer(usb_config)
+    assert isinstance(usb_printer, USBPrinter)
 
     # Test invalid printer type
     invalid_config = {"type": "invalid"}
