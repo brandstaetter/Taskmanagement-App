@@ -27,10 +27,9 @@ async def init_db(authorized: bool = Depends(verify_admin)) -> dict:
     Requires admin authentication.
     """
     try:
-        from taskmanagement_app.db.models.task import TaskModel
-        from taskmanagement_app.db.models.user import User
+        from taskmanagement_app.db.models import ensure_models_registered
 
-        _ = (TaskModel, User)
+        ensure_models_registered()
         Base.metadata.create_all(bind=engine)
         return {"message": "Database initialized successfully"}
     except Exception as e:
