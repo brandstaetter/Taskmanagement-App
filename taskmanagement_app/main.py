@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+from importlib.metadata import PackageNotFoundError, version
 from typing import AsyncGenerator
 
 from fastapi import FastAPI
@@ -14,6 +15,13 @@ logger = setup_logging()
 
 # Get settings
 settings = get_settings()
+
+
+def _get_app_version() -> str:
+    try:
+        return version("taskmanagement_app")
+    except PackageNotFoundError:
+        return "0.0.1-SNAPSHOT"
 
 
 @asynccontextmanager
@@ -33,7 +41,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
 app = FastAPI(
     title=settings.PROJECT_NAME,
     description="API for managing tasks with printing capabilities",
-    version=settings.VERSION,
+    version=_get_app_version(),
     lifespan=lifespan,
 )
 
