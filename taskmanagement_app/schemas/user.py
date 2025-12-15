@@ -16,12 +16,7 @@ class UserCreate(UserBase):
     @field_validator("password")
     @classmethod
     def password_strength(cls, v: str) -> str:
-        if not validate_password_strength(v):
-            raise ValueError(
-                "Password must contain at least one uppercase letter, "
-                "one lowercase letter, one digit, and one special character"
-            )
-        return v
+        return validate_password_strength(v)
 
 
 class UserUpdate(BaseModel):
@@ -35,12 +30,7 @@ class UserUpdate(BaseModel):
     def password_strength(cls, v: Optional[str]) -> Optional[str]:
         if v is None:
             return v
-        if not validate_password_strength(v):
-            raise ValueError(
-                "Password must contain at least one uppercase letter, "
-                "one lowercase letter, one digit, and one special character"
-            )
-        return v
+        return validate_password_strength(v)
 
 
 class AdminUserCreate(UserCreate):
@@ -53,12 +43,7 @@ class UserPasswordReset(BaseModel):
     @field_validator("new_password")
     @classmethod
     def password_strength(cls, v: str) -> str:
-        if not validate_password_strength(v):
-            raise ValueError(
-                "Password must contain at least one uppercase letter, "
-                "one lowercase letter, one digit, and one special character"
-            )
-        return v
+        return validate_password_strength(v)
 
 
 class User(UserBase):
