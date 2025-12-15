@@ -6,7 +6,7 @@ permissions:
 
 on:
   workflow_run:
-    workflows: ["CI"]
+    workflows: ["Publish OpenAPI Release Artifact"]
     types:
       - completed
     branches: [ main ]
@@ -42,12 +42,53 @@ jobs:
           rm -rf ./wheel
           mkdir -p ./wheel
 
+      - name: Find matching CI run id
+        id: ci_run
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          RUN_SHA="${{ github.event.workflow_run.head_sha }}"
+
+          python - <<'PY' > ci_run_id.txt
+          import json
+          import os
+          import urllib.request
+
+          repo = os.environ['GITHUB_REPOSITORY']
+          token = os.environ['GH_TOKEN']
+          run_sha = os.environ['RUN_SHA']
+
+          url = f"https://api.github.com/repos/{repo}/actions/runs?per_page=50"
+          req = urllib.request.Request(url)
+          req.add_header('Authorization', f'Bearer {token}')
+          req.add_header('Accept', 'application/vnd.github+json')
+
+          with urllib.request.urlopen(req) as resp:
+              payload = json.loads(resp.read().decode('utf-8'))
+
+          run_id = None
+          for r in payload.get('workflow_runs', []):
+              if r.get('name') == 'CI' and r.get('head_sha') == run_sha:
+                  run_id = r.get('id')
+                  break
+
+          if not run_id:
+              raise SystemExit(f"Could not find CI workflow run for sha {run_sha}")
+
+          print(run_id)
+          PY
+
+          echo "ci_run_id=$(cat ci_run_id.txt)" >> "$GITHUB_OUTPUT"
+
       - name: Download wheel artifact
         uses: actions/download-artifact@v7
         with:
           name: wheel
           path: ./wheel
-          run-id: ${{ github.event.workflow_run.id }}
+          run-id: ${{ steps.ci_run.outputs.ci_run_id }}
           github-token: ${{ github.token }}
 
       - name: Deploy
