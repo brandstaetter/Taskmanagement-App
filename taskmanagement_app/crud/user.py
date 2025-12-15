@@ -5,7 +5,11 @@ from typing import List, Optional, Tuple
 
 from sqlalchemy.orm import Session
 
-from taskmanagement_app.core.security import get_password_hash
+from taskmanagement_app.core.security import (
+    PASSWORD_SPECIAL_CHARS,
+    get_password_hash,
+    validate_password_strength,
+)
 from taskmanagement_app.db.models.user import User
 from taskmanagement_app.schemas.user import (
     AdminUserCreate,
@@ -64,16 +68,15 @@ def update_user(db: Session, user_id: int, user: UserUpdate) -> Optional[User]:
 
 
 def generate_random_password(length: int = 12) -> str:
-    alphabet = string.ascii_letters + string.digits + string.punctuation
+    alphabet = string.ascii_letters + string.digits + PASSWORD_SPECIAL_CHARS
     while True:
         password = "".join(secrets.choice(alphabet) for _ in range(length))
-        if (
-            any(c.islower() for c in password)
-            and any(c.isupper() for c in password)
-            and any(c.isdigit() for c in password)
-            and any(c in string.punctuation for c in password)
-        ):
+        try:
+            validate_password_strength(password)
             return password
+        except ValueError:
+            # Password doesn't meet requirements, try again
+            continue
 
 
 def reset_user_password(
