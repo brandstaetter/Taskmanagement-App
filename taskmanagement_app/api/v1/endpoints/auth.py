@@ -54,7 +54,7 @@ async def login_user_for_access_token(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    if not getattr(user, "is_active", True):
+    if not user.is_active:
         raise HTTPException(
             status_code=403,
             detail="User account is inactive",
