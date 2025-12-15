@@ -70,7 +70,11 @@ jobs:
 
           run_id = None
           for r in payload.get('workflow_runs', []):
-              if r.get('name') == 'CI' and r.get('head_sha') == run_sha:
+              if (
+                  r.get('name') == 'CI'
+                  and r.get('head_sha') == run_sha
+                  and r.get('conclusion') == 'success'
+              ):
                   run_id = r.get('id')
                   break
 
