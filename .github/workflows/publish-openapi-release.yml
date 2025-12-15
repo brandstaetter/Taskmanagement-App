@@ -58,7 +58,7 @@ jobs:
           cp ./openapi/openapi.json ./openapi.json
 
       - name: Publish OpenAPI as release asset
-        uses: ncipollo/release-action@v1
+        uses: ncipollo/release-action@b7eabc95ff50cbeeedec83973935c8f306dfcd0b  # v1
         with:
           tag: v${{ steps.package_version.outputs.version }}
           name: v${{ steps.package_version.outputs.version }}
