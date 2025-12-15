@@ -1,0 +1,37 @@
+name: Deploy
+
+permissions:
+  contents: read
+  actions: read
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types:
+      - completed
+
+concurrency:
+  group: deploy-main
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy wheel to server
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' }}
+    runs-on: [self-hosted, linux, deploy]
+
+    steps:
+      - name: Download wheel artifact
+        uses: actions/download-artifact@v6
+        with:
+          name: wheel
+          path: ./wheel
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+
+      - name: Deploy
+        shell: bash
+        run: |
+          set -euo pipefail
+          WHEEL_PATH="$(ls -1 ./wheel/*.whl | head -n 1)"
+          sudo /opt/taskmanagement-app/deploy/deploy-wheel.sh "$WHEEL_PATH"
