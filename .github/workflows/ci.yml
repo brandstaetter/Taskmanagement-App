@@ -60,9 +60,11 @@ jobs:
         poetry run pytest --cov=taskmanagement_app --cov-report=xml --cov-report=term-missing --junitxml=junit.xml -o junit_family=legacy tests/
 
     - name: Build wheel
+      if: success()
       run: poetry build -f wheel
 
     - name: Upload wheel artifact
+      if: success()
       uses: actions/upload-artifact@v6
       with:
         name: wheel
