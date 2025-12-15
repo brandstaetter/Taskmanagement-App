@@ -41,15 +41,15 @@ class TestPasswordValidation:
         for special_char in PASSWORD_SPECIAL_CHARS:
             password = f"Test{special_char}123"
             result = validate_password_strength(password)
-            assert result == password, (
-                f"Password with special char '{special_char}' should be valid"
-            )
+            assert (
+                result == password
+            ), f"Password with special char '{special_char}' should be valid"
 
     def test_validate_password_strength_edge_cases(self) -> None:
         """Test edge cases for password validation."""
         # Minimum valid password
         assert validate_password_strength("Aa1!") == "Aa1!"
-        
+
         # Very long password
         long_password = "A" * 50 + "a" * 50 + "1" * 50 + "!" * 50
         assert validate_password_strength(long_password) == long_password

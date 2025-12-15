@@ -16,22 +16,22 @@ def get_password_hash(password: str) -> str:
 
 def validate_password_strength(password: str) -> str:
     """Validate password strength requirements.
-    
+
     Note: Minimum length validation is handled by Pydantic's Field
     min_length constraint.
-    
+
     Requirements:
     - At least one uppercase letter
     - At least one lowercase letter
     - At least one digit
     - At least one special character from PASSWORD_SPECIAL_CHARS
-    
+
     Args:
         password: The password to validate
-        
+
     Returns:
         The validated password
-        
+
     Raises:
         ValueError: If password doesn't meet strength requirements
     """
