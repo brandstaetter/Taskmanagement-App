@@ -5,6 +5,7 @@ from typing import Any, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy.orm import Session
 
+from taskmanagement_app.core.auth import verify_access_token
 from taskmanagement_app.core.exceptions import TaskNotFoundError, TaskStatusError
 from taskmanagement_app.core.printing.printer_factory import PrinterFactory
 from taskmanagement_app.crud.task import (
@@ -28,7 +29,7 @@ from taskmanagement_app.schemas.task import Task, TaskCreate, TaskUpdate
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(verify_access_token)])
 
 
 @router.get("", response_model=List[Task])
