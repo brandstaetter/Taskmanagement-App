@@ -2,14 +2,17 @@ from unittest.mock import MagicMock
 
 import pytest
 import pytest_asyncio
-from escpos.printer import Usb
-
-from taskmanagement_app.core.printing.usb_printer import USBPrinter
 
 
 @pytest.fixture
 def mock_usb_printer():
     """Test USB printer functionality."""
+    try:
+        from escpos.printer import Usb
+        from taskmanagement_app.core.printing.usb_printer import USBPrinter
+    except Exception as e:
+        pytest.skip(f"USB printer backend unavailable: {e}")
+
     # Mock USB device
     mock_device = MagicMock(spec=Usb)
     mock_device.text = MagicMock()

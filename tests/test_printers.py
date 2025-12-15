@@ -8,7 +8,6 @@ from typing import Generator
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from escpos.printer import Usb
 from fastapi.responses import FileResponse, JSONResponse
 from sqlalchemy.orm import Session
 
@@ -16,7 +15,6 @@ from taskmanagement_app.core.exceptions import PrinterError
 from taskmanagement_app.core.printing.base_printer import BasePrinter
 from taskmanagement_app.core.printing.pdf_printer import PDFPrinter
 from taskmanagement_app.core.printing.printer_factory import PrinterFactory
-from taskmanagement_app.core.printing.usb_printer import USBPrinter
 from taskmanagement_app.crud.task import create_task
 from taskmanagement_app.db.models.task import TaskModel
 from taskmanagement_app.schemas.task import TaskCreate
@@ -79,6 +77,12 @@ async def test_pdf_printer_invalid_config() -> None:
 
 def test_usb_printer(db_session: Session) -> None:
     """Test USB printer functionality."""
+    try:
+        from escpos.printer import Usb
+        from taskmanagement_app.core.printing.usb_printer import USBPrinter
+    except Exception as e:
+        pytest.skip(f"USB printer backend unavailable: {e}")
+
     # Mock USB device
     mock_device = MagicMock(spec=Usb)
     mock_device.text = MagicMock()
@@ -115,6 +119,11 @@ def test_usb_printer(db_session: Session) -> None:
 @pytest.mark.asyncio
 async def test_usb_printer_invalid_config() -> None:
     """Test USB printer with invalid configuration."""
+    try:
+        from taskmanagement_app.core.printing.usb_printer import USBPrinter
+    except Exception as e:
+        pytest.skip(f"USB printer backend unavailable: {e}")
+
     # Test with missing vendor_id
     with pytest.raises(PrinterError):
         USBPrinter({"product_id": "0x5011"})
@@ -127,6 +136,11 @@ async def test_usb_printer_invalid_config() -> None:
 @pytest.mark.asyncio
 async def test_usb_printer_connection_error(db_session: Session) -> None:
     """Test USB printer handling of connection errors."""
+    try:
+        from taskmanagement_app.core.printing.usb_printer import USBPrinter
+    except Exception as e:
+        pytest.skip(f"USB printer backend unavailable: {e}")
+
     config = {
         "vendor_id": "0x0416",
         "product_id": "0x5011",
@@ -148,14 +162,19 @@ def test_printer_factory() -> None:
     assert isinstance(pdf_printer, PDFPrinter)
 
     # Test USB printer creation
-    usb_config = {
-        "type": "usb",
-        "vendor_id": "0x0416",
-        "product_id": "0x5011",
-    }
-    with patch("usb.core.find", return_value=MagicMock()):
-        usb_printer = PrinterFactory.create_printer(usb_config)
-        assert isinstance(usb_printer, USBPrinter)
+    try:
+        from taskmanagement_app.core.printing.usb_printer import USBPrinter
+    except Exception as e:
+        pytest.skip(f"USB printer backend unavailable: {e}")
+    else:
+        usb_config = {
+            "type": "usb",
+            "vendor_id": "0x0416",
+            "product_id": "0x5011",
+        }
+        with patch("usb.core.find", return_value=MagicMock()):
+            usb_printer = PrinterFactory.create_printer(usb_config)
+            assert isinstance(usb_printer, USBPrinter)
 
     # Test invalid printer type
     invalid_config = {"type": "invalid"}

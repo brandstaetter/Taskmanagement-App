@@ -6,7 +6,6 @@ from typing import Any, Dict, Optional, Type, Union
 from taskmanagement_app.core.exceptions import PrinterError
 from taskmanagement_app.core.printing.base_printer import BasePrinter
 from taskmanagement_app.core.printing.pdf_printer import PDFPrinter
-from taskmanagement_app.core.printing.usb_printer import USBPrinter
 
 logger = logging.getLogger(__name__)
 
@@ -14,10 +13,19 @@ logger = logging.getLogger(__name__)
 class PrinterFactory:
     """Factory class for creating printer instances."""
 
-    _printer_classes: Dict[str, Type[BasePrinter]] = {
-        "pdf": PDFPrinter,
-        "usb": USBPrinter,
-    }
+    _supported_printer_types = {"pdf", "usb"}
+
+    @classmethod
+    def _get_printer_class(cls, printer_type: str) -> Type[BasePrinter]:
+        if printer_type == "pdf":
+            return PDFPrinter
+        if printer_type == "usb":
+            try:
+                from taskmanagement_app.core.printing.usb_printer import USBPrinter
+            except Exception as e:
+                raise PrinterError(f"USB printer backend unavailable: {e}") from e
+            return USBPrinter
+        raise PrinterError(f"Unsupported printer type: {printer_type}")
 
     @classmethod
     def create_printer(
@@ -83,7 +91,7 @@ class PrinterFactory:
             logger.debug(f"Using printer type from config: {printer_type}")
 
         # Get printer class
-        if printer_type not in cls._printer_classes:
+        if printer_type not in cls._supported_printer_types:
             logger.error(f"Unsupported printer type: {printer_type}")
             raise PrinterError(f"Unsupported printer type: {printer_type}")
 
@@ -94,4 +102,5 @@ class PrinterFactory:
 
         # Create and return printer instance
         logger.debug(f"Creating printer instance for type: {printer_type}")
-        return cls._printer_classes[str(printer_type)](printer_config)
+        printer_class = cls._get_printer_class(str(printer_type))
+        return printer_class(printer_config)
