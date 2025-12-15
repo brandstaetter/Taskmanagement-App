@@ -47,10 +47,9 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          RUN_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
           set -euo pipefail
-
-          RUN_SHA="${{ github.event.workflow_run.head_sha }}"
 
           python - <<'PY' > ci_run_id.txt
           import json
