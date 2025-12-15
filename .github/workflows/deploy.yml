@@ -51,7 +51,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          python - <<'PY' > ci_run_id.txt
+          CI_RUN_ID=$(python - <<'PY'
           import json
           import os
           import urllib.request
@@ -83,8 +83,9 @@ jobs:
 
           print(run_id)
           PY
+          )
 
-          echo "ci_run_id=$(cat ci_run_id.txt)" >> "$GITHUB_OUTPUT"
+          echo "ci_run_id=$CI_RUN_ID" >> "$GITHUB_OUTPUT"
 
       - name: Download wheel artifact
         uses: actions/download-artifact@v7
