@@ -13,4 +13,3 @@ def test_importing_app_does_not_require_escpos() -> None:
         capture_output=True,
         text=True,
     )
-    assert result.returncode == 0

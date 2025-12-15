@@ -80,7 +80,7 @@ def test_usb_printer(db_session: Session) -> None:
     try:
         from escpos.printer import Usb
         from taskmanagement_app.core.printing.usb_printer import USBPrinter
-    except Exception as e:
+    except (ImportError, ModuleNotFoundError) as e:
         pytest.skip(f"USB printer backend unavailable: {e}")
 
     # Mock USB device

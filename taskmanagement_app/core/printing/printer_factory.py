@@ -22,7 +22,7 @@ class PrinterFactory:
         if printer_type == "usb":
             try:
                 from taskmanagement_app.core.printing.usb_printer import USBPrinter
-            except Exception as e:
+            except (ImportError, ModuleNotFoundError) as e:
                 raise PrinterError(f"USB printer backend unavailable: {e}") from e
             return USBPrinter
         raise PrinterError(f"Unsupported printer type: {printer_type}")
@@ -91,9 +91,6 @@ class PrinterFactory:
             logger.debug(f"Using printer type from config: {printer_type}")
 
         # Get printer class
-        if printer_type not in cls._supported_printer_types:
-            logger.error(f"Unsupported printer type: {printer_type}")
-            raise PrinterError(f"Unsupported printer type: {printer_type}")
 
         # Get printer configuration from ini file if not provided in dict
         if not printer_config and printer_type in config:
