@@ -34,7 +34,7 @@ pydantic = "2.12.5"
 "python-multipart" = "0.0.20"
 httpx = "0.28.1"
 reportlab = "4.4.6"
-"python-escpos" = "3.0a8"
+"python-escpos" = "3.1"
 "qrcode" = {version = "8.2", extras = ["pil"]}
 "email-validator" = ">=2.2.0,<3.0.0"
 
