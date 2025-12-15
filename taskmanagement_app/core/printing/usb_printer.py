@@ -78,21 +78,19 @@ class USBPrinter(BasePrinter):
             if self.device is not None:
                 self.logger.info("USB printer already connected")
                 return
-            self.logger.debug("Searching for USB device...")
+
+            self.logger.debug("Initializing USB device...")
+            # Create USB printer instance
             self.device = Usb(self.vendor_id, self.product_id, timeout=0)
 
-            if self.device is None:
-                error_msg = "Printer not found: "
-                f"vendor_id=0x{self.vendor_id:04x}, product_id=0x{self.product_id:04x}"
-                self.logger.error(error_msg)
-                raise PrinterError(error_msg)
-
-            self.logger.info("USB printer found: %s", self.device)
+            # Open connection to device (required in python-escpos v3.1+)
+            self.logger.debug("Opening connection to USB device...")
+            self.device.open()
 
             self.logger.info("Successfully connected to USB printer")
 
         except Exception as e:
-            error_msg = f"Unexpected error while connecting to printer: {str(e)}"
+            error_msg = f"Failed to connect to USB printer: {str(e)}"
             self.logger.error(error_msg, exc_info=True)
             raise PrinterError(error_msg)
 
