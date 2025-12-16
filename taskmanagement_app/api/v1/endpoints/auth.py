@@ -4,7 +4,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
-from taskmanagement_app.core.auth import create_admin_token, create_user_token
+from taskmanagement_app.core.auth import (
+    create_admin_user_token,
+    create_superadmin_token,
+    create_user_token,
+)
 from taskmanagement_app.core.config import get_settings
 from taskmanagement_app.core.security import verify_password
 from taskmanagement_app.crud.user import get_user_by_email, update_last_login
@@ -15,37 +19,20 @@ router = APIRouter()
 settings = get_settings()
 
 
-@router.post("/token")
-async def login_for_access_token(
-    form_data: OAuth2PasswordRequestForm = Depends(),
-) -> dict:
-    """
-    OAuth2 compatible token login, get an access token for admin access.
-    """
-    # Verify credentials
-    if (
-        form_data.username != settings.ADMIN_USERNAME
-        or form_data.password != settings.ADMIN_PASSWORD
-    ):
-        raise HTTPException(
-            status_code=401,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    # Create access token
-    access_token = create_admin_token(
-        expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    )
-
-    return {"access_token": access_token, "token_type": "bearer"}
-
-
 @router.post("/user/token", response_model=Token)
 async def login_user_for_access_token(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db),
 ) -> Token:
+    if (
+        form_data.username == settings.ADMIN_USERNAME
+        and form_data.password == settings.ADMIN_PASSWORD
+    ):
+        access_token = create_superadmin_token(
+            expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        )
+        return Token(access_token=access_token, token_type="bearer")
+
     user = get_user_by_email(db, form_data.username)
     if user is None or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(
@@ -63,8 +50,14 @@ async def login_user_for_access_token(
 
     update_last_login(db, user.id)
 
-    access_token = create_user_token(
-        subject=user.email,
-        expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
-    )
+    if user.is_admin:
+        access_token = create_admin_user_token(
+            subject=user.email,
+            expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
+        )
+    else:
+        access_token = create_user_token(
+            subject=user.email,
+            expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
+        )
     return Token(access_token=access_token, token_type="bearer")

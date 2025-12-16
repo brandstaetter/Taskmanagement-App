@@ -10,7 +10,7 @@ from taskmanagement_app.core.config import get_settings
 
 settings = get_settings()
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/user/token")
 
 
 def create_admin_token(expires_delta: Optional[timedelta] = None) -> str:
@@ -27,6 +27,41 @@ def create_admin_token(expires_delta: Optional[timedelta] = None) -> str:
         to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM
     )
     # Ensure we always return a str, regardless of platform
+    return str(encoded_jwt)
+
+
+def create_superadmin_token(expires_delta: Optional[timedelta] = None) -> str:
+    to_encode: dict[str, Any] = {
+        "sub": settings.ADMIN_USERNAME,
+        "role": "superadmin",
+    }
+    if expires_delta:
+        expire = datetime.now(tz=timezone.utc) + expires_delta
+    else:
+        expire = datetime.now(tz=timezone.utc) + timedelta(
+            minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
+        )
+    to_encode.update({"exp": int(expire.timestamp())})
+    encoded_jwt = jwt.encode(
+        to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM
+    )
+    return str(encoded_jwt)
+
+
+def create_admin_user_token(
+    subject: str, expires_delta: Optional[timedelta] = None
+) -> str:
+    to_encode: dict[str, Any] = {"sub": subject, "role": "admin"}
+    if expires_delta:
+        expire = datetime.now(tz=timezone.utc) + expires_delta
+    else:
+        expire = datetime.now(tz=timezone.utc) + timedelta(
+            minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
+        )
+    to_encode.update({"exp": int(expire.timestamp())})
+    encoded_jwt = jwt.encode(
+        to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM
+    )
     return str(encoded_jwt)
 
 
@@ -81,6 +116,32 @@ async def verify_admin(payload: dict[str, Any] = Depends(verify_access_token)) -
     Returns True if valid, raises HTTPException if not.
     """
     role: Optional[str] = payload.get("role")
+    if role is None or role not in {"admin", "superadmin"}:
+        raise HTTPException(
+            status_code=403,
+            detail="Not enough permissions",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return True
+
+
+async def verify_superadmin(
+    payload: dict[str, Any] = Depends(verify_access_token),
+) -> bool:
+    role: Optional[str] = payload.get("role")
+    if role is None or role != "superadmin":
+        raise HTTPException(
+            status_code=403,
+            detail="Not enough permissions",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return True
+
+
+async def verify_admin_only(
+    payload: dict[str, Any] = Depends(verify_access_token),
+) -> bool:
+    role: Optional[str] = payload.get("role")
     if role is None or role != "admin":
         raise HTTPException(
             status_code=403,
@@ -90,5 +151,22 @@ async def verify_admin(payload: dict[str, Any] = Depends(verify_access_token)) -
     return True
 
 
+async def verify_not_superadmin(
+    payload: dict[str, Any] = Depends(verify_access_token),
+) -> dict[str, Any]:
+    role: Optional[str] = payload.get("role")
+    if role is None or role == "superadmin":
+        raise HTTPException(
+            status_code=403,
+            detail="Not enough permissions",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return payload
+
+
 # Dependency for admin-only endpoints
 require_admin = Depends(verify_admin)
+
+require_superadmin = Depends(verify_superadmin)
+require_admin_only = Depends(verify_admin_only)
+require_not_superadmin = Depends(verify_not_superadmin)

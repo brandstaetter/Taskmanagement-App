@@ -3,13 +3,18 @@ from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
+from taskmanagement_app.core.auth import create_superadmin_token
+
 
 def test_admin_db_init_failure_returns_500(client: TestClient) -> None:
     with patch(
         "taskmanagement_app.api.v1.endpoints.admin.Base.metadata.create_all",
         side_effect=RuntimeError("db down"),
     ):
-        response = client.post("/api/v1/admin/db/init")
+        response = client.post(
+            "/api/v1/admin/db/init",
+            headers={"Authorization": f"Bearer {create_superadmin_token()}"},
+        )
 
     assert response.status_code == 500
     assert "Failed to initialize database" in response.json()["detail"]
