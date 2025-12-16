@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "taskmanagement_app"
-version = "0.2.1"
+version = "0.2.2"
 description = "A task management application"
 authors = ["Hannes Brandstätter-Müller <hannes.mueller@gmail.com>"]
 readme = "README.md"
