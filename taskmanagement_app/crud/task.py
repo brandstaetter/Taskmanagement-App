@@ -67,14 +67,7 @@ def get_due_tasks(db: Session) -> Sequence[TaskModel]:
 
     logger = logging.getLogger(__name__)
 
-    candidates = (
-        db.query(TaskModel)
-        .filter(
-            TaskModel.due_date.isnot(None),
-            TaskModel.state.notin_([TaskState.done, TaskState.archived]),
-        )
-        .all()
-    )
+    candidates = db.query(TaskModel).filter(TaskModel.due_date.isnot(None)).all()
 
     invalid_tasks: List[TaskModel] = []
     due_tasks: List[tuple[datetime, TaskModel]] = []
@@ -93,7 +86,10 @@ def get_due_tasks(db: Session) -> Sequence[TaskModel]:
             invalid_tasks.append(task)
             continue
 
-        if now <= due_date <= tomorrow:
+        if (
+            task.state not in (TaskState.done, TaskState.archived)
+            and now <= due_date <= tomorrow
+        ):
             due_tasks.append((due_date, task))
 
     if invalid_tasks:
