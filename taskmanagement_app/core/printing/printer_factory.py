@@ -39,7 +39,7 @@ class PrinterFactory:
             Path(__file__).parent.parent.parent.parent / "config" / "printers.ini"
         )
 
-        logger.debug(f"Looking for printer config at: {config_path}")
+        logger.info(f"Looking for printer config at: {config_path}")
 
         # Create default config if it doesn't exist
         if not config_path.exists():
