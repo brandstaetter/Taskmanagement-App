@@ -348,6 +348,38 @@ def test_process_due_tasks_invalid_date(db_session: Session) -> None:
         assert archived.due_date is None
 
 
+def test_get_due_tasks_isoformat_with_timezone_offset(db_session: Session) -> None:
+    """Regression test: ISO8601 due_date strings with timezone offsets must be included.
+
+    This protects against regressions where due-date filtering relies on lexicographic
+    string comparisons between mismatched datetime formats.
+    """
+    from taskmanagement_app.crud.task import get_due_tasks
+
+    now = datetime.now(timezone.utc)
+
+    due_soon_task = create_test_task(
+        db_session,
+        title="Due Soon ISO Task",
+        state="todo",
+    )
+    due_soon_task.due_date = (now + timedelta(hours=3)).isoformat()
+    db_session.commit()
+
+    not_due_task = create_test_task(
+        db_session,
+        title="Not Due ISO Task",
+        state="todo",
+    )
+    not_due_task.due_date = (now + timedelta(days=2)).isoformat()
+    db_session.commit()
+
+    tasks = get_due_tasks(db_session)
+    task_ids = {t.id for t in tasks}
+    assert due_soon_task.id in task_ids
+    assert not_due_task.id not in task_ids
+
+
 def test_process_due_tasks_printer_initialization_error(
     db_session: Session,
 ) -> None:

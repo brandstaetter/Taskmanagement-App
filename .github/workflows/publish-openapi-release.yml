@@ -1,0 +1,67 @@
+name: Publish OpenAPI Release Artifact
+
+permissions:
+  contents: write
+  actions: read
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types:
+      - completed
+    branches: [ main ]
+
+jobs:
+  publish-openapi:
+    name: Publish OpenAPI as release artifact
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Determine package version
+        id: package_version
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$(python - <<'PY'
+          import tomllib
+          from pathlib import Path
+
+          data = tomllib.loads(Path('pyproject.toml').read_text(encoding='utf-8'))
+          print(data['tool']['poetry']['version'])
+          PY
+          )"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Download OpenAPI artifact from CI
+        uses: actions/download-artifact@v7
+        with:
+          name: openapi-json
+          path: ./openapi
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+
+      - name: Prepare OpenAPI asset
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -s ./openapi/openapi.json ]; then
+            echo "OpenAPI artifact missing or empty"
+            ls -la ./openapi || true
+            exit 1
+          fi
+          cp ./openapi/openapi.json ./openapi.json
+
+      - name: Publish OpenAPI as release asset
+        uses: ncipollo/release-action@b7eabc95ff50cbeeedec83973935c8f306dfcd0b  # v1
+        with:
+          tag: v${{ steps.package_version.outputs.version }}
+          name: v${{ steps.package_version.outputs.version }}
+          artifacts: openapi.json
+          allowUpdates: true
+          replacesArtifacts: true
