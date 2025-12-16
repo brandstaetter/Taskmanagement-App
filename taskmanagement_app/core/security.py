@@ -1,17 +1,40 @@
-from passlib.context import CryptContext
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+import bcrypt
 
 # Define password requirements
 PASSWORD_SPECIAL_CHARS = "!@#$%^&*()_+-=[]{}|;:'\",.<>/?"
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
+    """Verify a plain password against a hashed password.
+
+    Args:
+        plain_password: The plain text password to verify
+        hashed_password: The bcrypt hash string from the database
+
+    Returns:
+        True if the password matches the hash, False otherwise
+    """
+    try:
+        return bcrypt.checkpw(
+            plain_password.encode("utf-8"), hashed_password.encode("utf-8")
+        )
+    except Exception:
+        # If the hash is malformed or corrupted, treat as non-match
+        return False
 
 
 def get_password_hash(password: str) -> str:
-    return pwd_context.hash(password)
+    """Generate a bcrypt hash for the given password.
+
+    Args:
+        password: The plain text password to hash
+
+    Returns:
+        A bcrypt hash string suitable for database storage
+    """
+    salt = bcrypt.gensalt()
+    hashed = bcrypt.hashpw(password.encode("utf-8"), salt)
+    return hashed.decode("utf-8")
 
 
 def validate_password_strength(password: str) -> str:
