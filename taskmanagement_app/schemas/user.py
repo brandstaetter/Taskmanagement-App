@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, EmailStr, Field, HttpUrl, field_validator
 
 from taskmanagement_app.core.security import validate_password_strength
 
@@ -44,6 +44,20 @@ class UserPasswordReset(BaseModel):
     @classmethod
     def password_strength(cls, v: str) -> str:
         return validate_password_strength(v)
+
+
+class UserPasswordChange(BaseModel):
+    current_password: str
+    new_password: str = Field(..., min_length=8)
+
+    @field_validator("new_password")
+    @classmethod
+    def password_strength(cls, v: str) -> str:
+        return validate_password_strength(v)
+
+
+class UserAvatarUpdate(BaseModel):
+    avatar_url: HttpUrl
 
 
 class User(UserBase):
