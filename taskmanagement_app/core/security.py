@@ -6,11 +6,11 @@ PASSWORD_SPECIAL_CHARS = "!@#$%^&*()_+-=[]{}|;:'\",.<>/?"
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a plain password against a hashed password.
-    
+
     Args:
         plain_password: The plain text password to verify
         hashed_password: The bcrypt hash string from the database
-        
+
     Returns:
         True if the password matches the hash, False otherwise
     """
@@ -25,10 +25,10 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 def get_password_hash(password: str) -> str:
     """Generate a bcrypt hash for the given password.
-    
+
     Args:
         password: The plain text password to hash
-        
+
     Returns:
         A bcrypt hash string suitable for database storage
     """
