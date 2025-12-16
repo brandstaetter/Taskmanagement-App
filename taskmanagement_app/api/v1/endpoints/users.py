@@ -3,7 +3,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from taskmanagement_app.core.auth import verify_access_token
+from taskmanagement_app.core.auth import verify_not_superadmin
 from taskmanagement_app.core.security import verify_password
 from taskmanagement_app.crud.user import (
     change_user_password as crud_change_user_password,
@@ -25,7 +25,7 @@ router = APIRouter()
 
 
 def get_current_user(
-    payload: dict[str, Any] = Depends(verify_access_token),
+    payload: dict[str, Any] = Depends(verify_not_superadmin),
     db: Session = Depends(get_db),
 ) -> User:
     """Return the authenticated user from the access token payload."""

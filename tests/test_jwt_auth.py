@@ -6,7 +6,11 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from taskmanagement_app.core.auth import create_admin_token, create_user_token
+from taskmanagement_app.core.auth import (
+    create_admin_token,
+    create_superadmin_token,
+    create_user_token,
+)
 from taskmanagement_app.core.config import get_settings
 from taskmanagement_app.crud.user import create_user
 from taskmanagement_app.main import app
@@ -94,8 +98,17 @@ def test_admin_403_with_user_token(raw_client: TestClient, db_session: Session) 
     assert response.status_code == 403
 
 
-def test_admin_db_init_200_with_admin_token(raw_client: TestClient) -> None:
+def test_admin_db_init_403_with_admin_token(raw_client: TestClient) -> None:
     token = create_admin_token()
+    response = raw_client.post(
+        "/api/v1/admin/db/init",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 403
+
+
+def test_admin_db_init_200_with_superadmin_token(raw_client: TestClient) -> None:
+    token = create_superadmin_token()
     response = raw_client.post(
         "/api/v1/admin/db/init",
         headers={"Authorization": f"Bearer {token}"},

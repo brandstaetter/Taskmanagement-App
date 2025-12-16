@@ -6,7 +6,11 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from taskmanagement_app.core.auth import verify_admin
+from taskmanagement_app.core.auth import (
+    verify_admin,
+    verify_admin_only,
+    verify_superadmin,
+)
 from taskmanagement_app.crud.user import (
     admin_create_user,
     get_user,
@@ -46,10 +50,10 @@ router = APIRouter()
 
 
 @router.post("/db/init")
-async def init_db(authorized: bool = Depends(verify_admin)) -> dict:
+async def init_db(authorized: bool = Depends(verify_superadmin)) -> dict:
     """
     Initialize database by creating all tables.
-    Requires admin authentication.
+    Requires superadmin authentication.
     """
     try:
         from taskmanagement_app.db.models import ensure_models_registered
@@ -125,7 +129,7 @@ def create_new_user(
 def reset_password(
     user_id: int,
     db: Session = Depends(get_db),
-    _: bool = Depends(verify_admin),
+    _: bool = Depends(verify_admin_only),
 ) -> dict:
     if get_user(db, user_id=user_id) is None:
         raise HTTPException(status_code=404, detail="User not found")

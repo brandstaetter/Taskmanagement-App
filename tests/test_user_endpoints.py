@@ -110,6 +110,49 @@ def test_change_password_requires_authentication(
     assert response.status_code == 401
 
 
+def test_superadmin_cannot_change_password(client: TestClient) -> None:
+    from taskmanagement_app.core.config import get_settings
+
+    settings = get_settings()
+    login = client.post(
+        "/api/v1/auth/user/token",
+        data={"username": settings.ADMIN_USERNAME, "password": settings.ADMIN_PASSWORD},
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+    assert login.status_code == 200
+    token = login.json()["access_token"]
+
+    response = client.put(
+        "/api/v1/users/me/password",
+        json={
+            "current_password": "irrelevant",
+            "new_password": "N3w!StrongPass",
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 403
+
+
+def test_superadmin_cannot_update_avatar(client: TestClient) -> None:
+    from taskmanagement_app.core.config import get_settings
+
+    settings = get_settings()
+    login = client.post(
+        "/api/v1/auth/user/token",
+        data={"username": settings.ADMIN_USERNAME, "password": settings.ADMIN_PASSWORD},
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+    assert login.status_code == 200
+    token = login.json()["access_token"]
+
+    response = client.put(
+        "/api/v1/users/me/avatar",
+        json={"avatar_url": "https://example.com/avatar.png"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 403
+
+
 def test_change_password_inactive_user_forbidden(
     client: TestClient, db_session: Session
 ) -> None:
