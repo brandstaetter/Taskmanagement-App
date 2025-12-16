@@ -65,45 +65,44 @@ def get_due_tasks(db: Session) -> Sequence[TaskModel]:
     now = datetime.now(timezone.utc)
     tomorrow = now + timedelta(days=1)
 
-    # First, clean up any invalid due dates
-    tasks_with_invalid_dates = (
+    logger = logging.getLogger(__name__)
+
+    candidates = (
         db.query(TaskModel)
         .filter(
-            TaskModel.due_date.isnot(None),  # Has a due date
-            ~TaskModel.due_date.regexp_match(
-                r"\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}"
-            ),  # Invalid format
+            TaskModel.due_date.isnot(None),
+            TaskModel.state.notin_([TaskState.done, TaskState.archived]),
         )
         .all()
     )
 
-    logger = logging.getLogger(__name__)
-    for task in tasks_with_invalid_dates:
-        logger.warning(
-            f"Task {task.id} has invalid due_date "
-            f"format: {task.due_date}. Setting to None."
-        )
-        task.due_date = None
-        db.add(task)
+    invalid_tasks: List[TaskModel] = []
+    due_tasks: List[tuple[datetime, TaskModel]] = []
 
-    if tasks_with_invalid_dates:
+    for task in candidates:
+        if not task.due_date:
+            continue
+        try:
+            due_date = datetime.fromisoformat(task.due_date.replace("Z", "+00:00"))
+        except (ValueError, TypeError):
+            logger.warning(
+                f"Task {task.id} has invalid due_date format: {task.due_date}. "
+                "Setting to None."
+            )
+            task.due_date = None
+            invalid_tasks.append(task)
+            continue
+
+        if now <= due_date <= tomorrow:
+            due_tasks.append((due_date, task))
+
+    if invalid_tasks:
+        for task in invalid_tasks:
+            db.add(task)
         db.commit()
 
-    # Now get tasks due within 24 hours
-    return (
-        db.query(TaskModel)
-        .filter(
-            TaskModel.due_date.isnot(None),  # Filter out tasks with no due date
-            TaskModel.due_date
-            <= tomorrow.strftime("%Y-%m-%d %H:%M:%S"),  # Due before tomorrow
-            TaskModel.due_date >= now.strftime("%Y-%m-%d %H:%M:%S"),  # Due after now
-            TaskModel.state.notin_(
-                [TaskState.done, TaskState.archived]
-            ),  # Not completed or archived
-        )
-        .order_by(TaskModel.due_date.asc())
-        .all()
-    )
+    due_tasks.sort(key=lambda x: x[0])
+    return [task for _, task in due_tasks]
 
 
 def weighted_random_choice(tasks: Sequence[TaskModel]) -> Optional[TaskModel]:
