@@ -88,6 +88,15 @@ def test_change_user_password(db_session: Session) -> None:
     assert changed.hashed_password != old_hashed_password
 
 
+def test_update_user_avatar(db_session: Session) -> None:
+    data = UserCreate(email=f"u_avatar_{uuid4()}@example.com", password="StrongPass4!")
+    created = user_crud.create_user(db_session, data)
+
+    updated = user_crud.update_user_avatar(db_session, created.id, "/avatar.png")
+    assert updated is not None
+    assert updated.avatar_url == "/avatar.png"
+
+
 def test_reset_user_password(db_session: Session) -> None:
     data = UserCreate(email=f"u5_{uuid4()}@example.com", password="StrongPass5!")
     created = user_crud.create_user(db_session, data)
