@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 
 
 def _get_db_location_for_log() -> str:
+    """Return a string describing the database location for logging purposes."""
     try:
         url = engine.url
     except Exception:
