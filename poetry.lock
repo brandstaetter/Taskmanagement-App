@@ -40,7 +40,6 @@ python-versions = ">=3.9"
 
 [package.dependencies]
 idna = ">=2.8"
-typing_extensions = {version = ">=4.5", markers = "python_version < \"3.13\""}
 
 [package.extras]
 trio = ["trio (>=0.31.0)", "trio (>=0.32.0)"]
@@ -644,7 +643,6 @@ python-versions = ">=3.10"
 
 [package.dependencies]
 pytest = ">=8.2,<10"
-typing-extensions = {version = ">=4.12", markers = "python_version < \"3.13\""}
 
 [package.extras]
 docs = ["sphinx (>=5.3)", "sphinx-rtd-theme (>=1)"]
@@ -880,7 +878,6 @@ python-versions = ">=3.10"
 
 [package.dependencies]
 anyio = ">=3.6.2,<5"
-typing-extensions = {version = ">=4.10.0", markers = "python_version < \"3.13\""}
 
 [package.extras]
 full = ["httpx (>=0.27.0,<0.29.0)", "itsdangerous", "jinja2", "python-multipart (>=0.0.18)", "pyyaml"]
@@ -1053,8 +1050,8 @@ python-versions = ">=3.9"
 
 [metadata]
 lock-version = "1.1"
-python-versions = ">=3.11,<3.14"
-content-hash = "24e3acce777316dd216d39a4ea1b20684c8ecec1127f86d6bbaad8797095aac8"
+python-versions = ">=3.14,<3.15"
+content-hash = "13fb42fc857d44c9ddbe94d836b17db280635d8d7f322ef3d12f4fe6cc64bc3f"
 
 [metadata.files]
 alembic = [
