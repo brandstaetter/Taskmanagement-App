@@ -51,7 +51,17 @@ jobs:
         run: |
           set -euo pipefail
 
-          CI_RUN_ID=$(python - <<'PY'
+          PYTHON_BIN=""
+          if command -v python3 >/dev/null 2>&1; then
+            PYTHON_BIN="python3"
+          elif command -v python >/dev/null 2>&1; then
+            PYTHON_BIN="python"
+          else
+            echo "Neither python3 nor python is available on this runner" >&2
+            exit 1
+          fi
+
+          CI_RUN_ID=$($PYTHON_BIN - <<'PY'
           import json
           import os
           import sys
