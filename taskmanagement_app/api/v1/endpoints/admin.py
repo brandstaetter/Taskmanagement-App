@@ -1,3 +1,4 @@
+import logging
 import subprocess
 import sys
 from pathlib import Path
@@ -17,6 +18,30 @@ from taskmanagement_app.db.session import get_db
 from taskmanagement_app.schemas.user import AdminUserCreate
 from taskmanagement_app.schemas.user import User as UserSchema
 
+logger = logging.getLogger(__name__)
+
+
+def _get_db_location_for_log() -> str:
+    """Return a string describing the database location for logging purposes."""
+    try:
+        url = engine.url
+    except Exception:
+        return "unknown"
+
+    try:
+        if url.get_backend_name() == "sqlite":
+            db_path = url.database
+            if db_path is None or db_path == "":
+                return url.render_as_string(hide_password=True)
+            if db_path == ":memory:":
+                return ":memory:"
+            return str(Path(db_path).resolve())
+
+        return url.render_as_string(hide_password=True)
+    except Exception:
+        return str(url)
+
+
 router = APIRouter()
 
 
@@ -33,6 +58,10 @@ async def init_db(authorized: bool = Depends(verify_admin)) -> dict:
         Base.metadata.create_all(bind=engine)
         return {"message": "Database initialized successfully"}
     except Exception as e:
+        logger.exception(
+            "Failed to initialize database (db=%s)",
+            _get_db_location_for_log(),
+        )
         raise HTTPException(
             status_code=500, detail=f"Failed to initialize database: {str(e)}"
         )
