@@ -35,9 +35,7 @@ class PrinterFactory:
         """
         # Load printer configuration
         config = configparser.ConfigParser()
-        config_path = (
-            Path(__file__).parent.parent.parent.parent / "config" / "printers.ini"
-        )
+        config_path = Path.cwd() / "config" / "printers.ini"
 
         logger.info(f"Looking for printer config at: {config_path}")
 

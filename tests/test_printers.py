@@ -146,8 +146,10 @@ async def test_usb_printer_connection_error(db_session: Session) -> None:
         assert "Failed to connect to USB printer" in str(exc_info.value)
 
 
-def test_printer_factory() -> None:
+def test_printer_factory(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """Test printer factory functionality."""
+    monkeypatch.chdir(tmp_path)
+
     # Test PDF printer creation
     pdf_config = {"type": "pdf", "output_dir": tempfile.gettempdir()}
     pdf_printer = PrinterFactory.create_printer(pdf_config)
