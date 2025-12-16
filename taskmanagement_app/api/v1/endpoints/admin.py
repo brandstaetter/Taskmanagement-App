@@ -30,7 +30,7 @@ def _get_db_location_for_log() -> str:
     try:
         if url.get_backend_name() == "sqlite":
             db_path = url.database
-            if db_path in (None, ""):
+            if db_path is None or db_path == "":
                 return url.render_as_string(hide_password=True)
             if db_path == ":memory:":
                 return ":memory:"
