@@ -254,11 +254,11 @@ idna = ">=2.0.0"
 
 [[package]]
 name = "fastapi"
-version = "0.124.4"
+version = "0.125.0"
 description = "FastAPI framework, high performance, easy to learn, fast to code, ready for production"
 category = "main"
 optional = false
-python-versions = ">=3.8"
+python-versions = ">=3.9"
 
 [package.dependencies]
 annotated-doc = ">=0.0.2"
@@ -1054,7 +1054,7 @@ python-versions = ">=3.9"
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.11,<3.14"
-content-hash = "474769b22c68190f9d112e69ae4d089d4328d3eaae40d5bf637f96c543fe1414"
+content-hash = "1a9c8cf6fcb8363ccc8e184d86254c14db866b7eb8d64a6335a520cf018fec54"
 
 [metadata.files]
 alembic = [
@@ -1559,8 +1559,8 @@ email-validator = [
     {file = "email_validator-2.3.0.tar.gz", hash = "sha256:9fc05c37f2f6cf439ff414f8fc46d917929974a82244c20eb10231ba60c54426"},
 ]
 fastapi = [
-    {file = "fastapi-0.124.4-py3-none-any.whl", hash = "sha256:6d1e703698443ccb89e50abe4893f3c84d9d6689c0cf1ca4fad6d3c15cf69f15"},
-    {file = "fastapi-0.124.4.tar.gz", hash = "sha256:0e9422e8d6b797515f33f500309f6e1c98ee4e85563ba0f2debb282df6343763"},
+    {file = "fastapi-0.125.0-py3-none-any.whl", hash = "sha256:2570ec4f3aecf5cca8f0428aed2398b774fcdfee6c2116f86e80513f2f86a7a1"},
+    {file = "fastapi-0.125.0.tar.gz", hash = "sha256:16b532691a33e2c5dee1dac32feb31dc6eb41a3dd4ff29a95f9487cb21c054c0"},
 ]
 flake8 = [
     {file = "flake8-7.3.0-py2.py3-none-any.whl", hash = "sha256:b9696257b9ce8beb888cdbe31cf885c90d31928fe202be0889a7cdafad32f01e"},
