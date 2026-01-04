@@ -57,9 +57,7 @@ def test_create_task(client: TestClient) -> None:
         "created_by": 1,
     }
     response = client.post("/api/v1/tasks", json=task_data)
-    if response.status_code != 200:
-        print(f"Error response: {response.text}")
-    assert response.status_code == 200
+    assert response.status_code == 200, f"Error response: {response.text}"
     data = response.json()
     assert data["title"] == task_data["title"]
     assert data["description"] == task_data["description"]
@@ -109,17 +107,14 @@ def test_read_tasks(client: TestClient) -> None:
 
     response1 = client.post("/api/v1/tasks", json=task_data1)
     assert response1.status_code == 200
-    print(f"Created task 1: {response1.json()}")
 
     response2 = client.post("/api/v1/tasks", json=task_data2)
     assert response2.status_code == 200
-    print(f"Created task 2: {response2.json()}")
 
     # Get all non-archived tasks (default behavior)
     response = client.get("/api/v1/tasks")  # Default is include_archived=false
     assert response.status_code == 200
     data = response.json()
-    print(f"Initial tasks: {data}")
     assert len(data) >= 2
     tasks = {task["title"]: task for task in data}
     assert task_data1["title"] in tasks
@@ -128,26 +123,24 @@ def test_read_tasks(client: TestClient) -> None:
     # Archive one task
     task1_id = tasks[task_data1["title"]]["id"]
     start_response = client.post(f"/api/v1/tasks/{task1_id}/start")
-    print(f"Start task response: {start_response.json()}")
+    assert start_response.status_code == 200
     complete_response = client.post(f"/api/v1/tasks/{task1_id}/complete")
-    print(f"Complete task response: {complete_response.json()}")
+    assert complete_response.status_code == 200
     archive_response = client.delete(f"/api/v1/tasks/{task1_id}")
-    print(f"Archive task response: {archive_response.json()}")
+    assert archive_response.status_code == 200
 
     # Verify it's not in the default list
     response = client.get("/api/v1/tasks")  # Default is include_archived=false
     assert response.status_code == 200
     data = response.json()
-    print(f"Tasks after archive (default): {data}")
     tasks = {task["title"]: task for task in data}
     assert task_data1["title"] not in tasks
     assert task_data2["title"] in tasks
 
-    # Verify it is in the list when including archived tasks
+    # Verify it appears when include_archived=True
     response = client.get("/api/v1/tasks", params={"include_archived": True})
     assert response.status_code == 200
     data = response.json()
-    print(f"Tasks after archive (include_archived=True): {data}")
     tasks = {task["title"]: task for task in data}
     assert task_data1["title"] in tasks
     assert task_data2["title"] in tasks
@@ -445,52 +438,40 @@ def test_task_search(client: TestClient) -> None:
     }
 
     # Create task1
-    print("\nCreating task1...")
     response = client.post("/api/v1/tasks", json=task_data1)
     assert response.status_code == 200, f"Failed to create task1: {response.text}"
     task1 = response.json()
-    print(f"Created task1: {task1}")
 
     # Create task2
-    print("\nCreating task2...")
     response = client.post("/api/v1/tasks", json=task_data2)
     assert response.status_code == 200, f"Failed to create task2: {response.text}"
     task2 = response.json()
-    print(f"Created task2: {task2}")
 
     # Move task1 through states: todo -> in_progress -> done -> archived
     task1_id = task1["id"]
 
     # Start task1
-    print("\nStarting task1...")
     response = client.post(f"/api/v1/tasks/{task1_id}/start")
     assert response.status_code == 200, f"Failed to start task1: {response.text}"
     task1 = response.json()
-    print(f"Started task1: {task1}")
     assert task1["state"] == "in_progress"
 
     # Complete task1
-    print("\nCompleting task1...")
     response = client.post(f"/api/v1/tasks/{task1_id}/complete")
     assert response.status_code == 200, f"Failed to complete task1: {response.text}"
     task1 = response.json()
-    print(f"Completed task1: {task1}")
     assert task1["state"] == "done"
 
     # Archive task1 (only done tasks can be archived)
-    print("\nArchiving task1...")
     response = client.delete(f"/api/v1/tasks/{task1_id}")
     assert response.status_code == 200, f"Failed to archive task1: {response.text}"
     task1 = response.json()
-    print(f"Archived task1: {task1}")
     assert task1["state"] == "archived"
 
     # Test searching by title (default: don't include archived)
-    print("\nSearching for 'meeting' without archived...")
     response = client.get("/api/v1/tasks/search/", params={"q": "meeting"})
     assert response.status_code == 200, f"Search failed: {response.text}"
     results = response.json()
-    print(f"Search results for 'meeting' (without archived): {results}")
     assert not any(
         t["id"] == task1["id"] for t in results
     ), "Archived task should not be found"
@@ -499,13 +480,11 @@ def test_task_search(client: TestClient) -> None:
     ), "Task without 'meeting' in title/description should not be found"
 
     # Test searching with archived tasks included
-    print("\nSearching for 'meeting' with archived...")
     response = client.get(
         "/api/v1/tasks/search/", params={"q": "meeting", "include_archived": True}
     )
     assert response.status_code == 200, f"Search with archived failed: {response.text}"
     results = response.json()
-    print(f"Search results for 'meeting' (with archived): {results}")
     assert any(
         t["id"] == task1["id"] for t in results
     ), "Archived task should be found when include_archived=True"
@@ -514,11 +493,9 @@ def test_task_search(client: TestClient) -> None:
     ), "Task without 'meeting' in title/description should not be found"
 
     # Test searching by description
-    print("\nSearching for 'pull requests'...")
     response = client.get("/api/v1/tasks/search/", params={"q": "pull requests"})
     assert response.status_code == 200, f"Search by description failed: {response.text}"
     results = response.json()
-    print(f"Search results for 'pull requests': {results}")
     assert not any(
         t["id"] == task1["id"] for t in results
     ), "Task without 'pull requests' in title/description should not be found"
@@ -527,13 +504,11 @@ def test_task_search(client: TestClient) -> None:
     ), "Task with 'pull requests' in description should be found"
 
     # Test case-insensitive search
-    print("\nTesting case-insensitive search...")
     response = client.get("/api/v1/tasks/search/", params={"q": "MEETING"})
     assert (
         response.status_code == 200
     ), f"Case-insensitive search failed: {response.text}"
     results = response.json()
-    print(f"Search results for 'MEETING': {results}")
     assert not any(
         t["id"] == task1["id"] for t in results
     ), "Archived task should not be found"

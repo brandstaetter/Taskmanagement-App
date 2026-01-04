@@ -53,7 +53,11 @@ def db_engine() -> Generator[Engine, None, None]:
         if os.path.exists(test_db_path):
             os.remove(test_db_path)
     except PermissionError:
-        print("Warning: Could not remove test.db file - it may still be in use")
+        # Log warning but don't fail the test setup
+        import logging
+
+        logger = logging.getLogger(__name__)
+        logger.warning("Could not remove test.db file - it may still be in use")
 
 
 @pytest.fixture(scope="function")
