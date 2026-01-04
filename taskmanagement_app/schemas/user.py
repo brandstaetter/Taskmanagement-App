@@ -64,7 +64,7 @@ class User(UserBase):
     id: int
     is_active: bool
     is_admin: bool
-    is_superadmin: bool
+    is_superadmin: bool = False
     avatar_url: Optional[str] = None
     last_login: Optional[datetime] = None
     created_at: datetime

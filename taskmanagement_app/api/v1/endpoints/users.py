@@ -88,7 +88,23 @@ def get_current_user_info(
     current_user: Union[User, dict[str, Any]] = Depends(get_current_user_for_me),
 ) -> UserSchema:
     """Get the current user's information."""
-    return UserSchema.model_validate(current_user)
+    if isinstance(current_user, dict):
+        # Superadmin case - already has all fields including is_superadmin
+        return UserSchema.model_validate(current_user)
+    else:
+        # Regular user case - add is_superadmin field dynamically
+        user_dict = {
+            "id": current_user.id,
+            "email": current_user.email,
+            "is_active": current_user.is_active,
+            "is_admin": current_user.is_admin,
+            "is_superadmin": False,  # Regular users are never superadmin
+            "avatar_url": current_user.avatar_url,
+            "last_login": current_user.last_login,
+            "created_at": current_user.created_at,
+            "updated_at": current_user.updated_at,
+        }
+        return UserSchema.model_validate(user_dict)
 
 
 @router.put("/me/password", response_model=UserSchema)
