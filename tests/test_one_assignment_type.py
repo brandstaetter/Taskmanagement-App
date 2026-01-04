@@ -1,3 +1,4 @@
+import pytest
 from sqlalchemy.orm import Session
 
 from taskmanagement_app.crud.task import create_task, get_task
@@ -124,12 +125,6 @@ def test_create_task_with_one_assignment_type_invalid_user(db_session: Session) 
         assigned_to=99999,  # Non-existent user ID
     )
 
-    # This should not raise an error during creation (foreign key constraint
-    # might be enforced at database level, but SQLAlchemy allows it)
-    created_task = create_task(db_session, task_data)
-
-    # Verify the task was created but assigned_to points to invalid user
-    assert created_task.title == "Invalid Assignment Task"
-    assert created_task.assignment_type == AssignmentType.one
-    assert created_task.assigned_to == 99999
-    assert created_task.assigned_user is None  # Should be None since user doesn't exist
+    # This should raise a validation error due to invalid user reference
+    with pytest.raises(ValueError, match="User with ID 99999 does not exist"):
+        create_task(db_session, task_data)

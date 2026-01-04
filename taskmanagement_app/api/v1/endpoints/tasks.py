@@ -89,8 +89,11 @@ def create_new_task(
             detail="created_by field is required",
         )
 
-    db_task = create_task(db=db, task=task)
-    return Task.model_validate(db_task)
+    try:
+        db_task = create_task(db=db, task=task)
+        return Task.model_validate(db_task)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.get("/due/", response_model=List[Task])
@@ -321,5 +324,8 @@ def update_task_endpoint(
     if not db_task:
         raise HTTPException(status_code=404, detail="Task not found")
 
-    updated_task = update_task(db, task_id, task)
-    return Task.model_validate(updated_task)
+    try:
+        updated_task = update_task(db, task_id, task)
+        return Task.model_validate(updated_task)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))

@@ -6,8 +6,53 @@ from typing import Any, Dict, List, Optional, Sequence, Union
 from sqlalchemy.orm import Session
 
 from taskmanagement_app.core.exceptions import TaskNotFoundError, TaskStatusError
+from taskmanagement_app.crud.user import get_user
 from taskmanagement_app.db.models.task import TaskModel, TaskState
 from taskmanagement_app.schemas.task import TaskCreate, TaskUpdate
+
+
+def validate_user_references(
+    db: Session, task_data: Union[TaskCreate, TaskUpdate, Dict[str, Any]]
+) -> None:
+    """
+    Validate that all referenced user IDs exist in the database.
+
+    Args:
+        db: Database session
+        task_data: Task data containing user references
+
+    Raises:
+        ValueError: If any referenced user ID does not exist
+    """
+    # Convert to dict if needed
+    if isinstance(task_data, dict):
+        data = task_data
+    else:
+        data = (
+            task_data.model_dump(exclude_unset=True)
+            if hasattr(task_data, "model_dump")
+            else task_data.dict(exclude_unset=True)
+        )
+
+    user_ids_to_check = []
+
+    # Check created_by
+    if "created_by" in data and data["created_by"] is not None:
+        user_ids_to_check.append(data["created_by"])
+
+    # Check assigned_to
+    if "assigned_to" in data and data["assigned_to"] is not None:
+        user_ids_to_check.append(data["assigned_to"])
+
+    # Check assigned_user_ids
+    if "assigned_user_ids" in data and data["assigned_user_ids"] is not None:
+        user_ids_to_check.extend(data["assigned_user_ids"])
+
+    # Validate each user ID exists
+    for user_id in user_ids_to_check:
+        user = get_user(db, user_id)
+        if user is None:
+            raise ValueError(f"User with ID {user_id} does not exist")
 
 
 def get_tasks(
@@ -81,6 +126,9 @@ def get_tasks(
 
 def create_task(db: Session, task: TaskCreate) -> TaskModel:
     from taskmanagement_app.db.models.task import AssignmentType
+
+    # Validate user references before creating task
+    validate_user_references(db, task)
 
     db_task = TaskModel(
         title=task.title,
@@ -242,6 +290,10 @@ def update_task(
     update_data = (
         task if isinstance(task, dict) else task.model_dump(exclude_unset=True)
     )
+
+    # Validate user references before updating task
+    if update_data:
+        validate_user_references(db, update_data)
 
     # Update task attributes
     for key, value in update_data.items():
