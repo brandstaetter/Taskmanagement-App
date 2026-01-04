@@ -7,6 +7,9 @@ from sqlalchemy.sql import func
 
 from taskmanagement_app.db.base import Base
 
+# Constant for users.id foreign key reference
+USERS_ID_FK = "users.id"
+
 if TYPE_CHECKING:
     from .user import User
 
@@ -30,7 +33,7 @@ task_assigned_users = Table(
     "task_assigned_users",
     Base.metadata,
     Column("task_id", ForeignKey("tasks.id"), primary_key=True),
-    Column("user_id", ForeignKey("users.id"), primary_key=True),
+    Column("user_id", ForeignKey(USERS_ID_FK), primary_key=True),
 )
 
 
@@ -49,13 +52,13 @@ class TaskModel(Base):
 
     # Assignment and creator fields
     created_by: Mapped[int] = mapped_column(
-        ForeignKey("users.id"), nullable=False, index=True
+        ForeignKey(USERS_ID_FK), nullable=False, index=True
     )
     assignment_type: Mapped[AssignmentType] = mapped_column(
         Enum(AssignmentType), default=AssignmentType.any
     )
     assigned_to: Mapped[Optional[int]] = mapped_column(
-        ForeignKey("users.id"), nullable=True, index=True
+        ForeignKey(USERS_ID_FK), nullable=True, index=True
     )
 
     # Relationships

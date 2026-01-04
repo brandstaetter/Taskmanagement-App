@@ -24,6 +24,43 @@ class TaskBase(BaseModel):
     assigned_to: Optional[int] = None
     assigned_user_ids: Optional[list[int]] = None
 
+    def _validate_one_assignment(
+        self, assigned_to: Optional[int], assigned_user_ids: Optional[list[int]]
+    ) -> None:
+        """Validate assignment consistency for 'one' assignment type."""
+        if assigned_to is None:
+            raise ValueError(
+                "assigned_to must be specified when assignment_type is 'one'"
+            )
+        if assigned_user_ids is not None and assigned_user_ids:
+            raise ValueError(
+                "assigned_user_ids must be None or empty "
+                "when assignment_type is 'one'"
+            )
+
+    def _validate_some_assignment(
+        self, assigned_to: Optional[int], assigned_user_ids: Optional[list[int]]
+    ) -> None:
+        """Validate assignment consistency for 'some' assignment type."""
+        if assigned_user_ids is None or not assigned_user_ids:
+            raise ValueError(
+                "assigned_user_ids must be specified when assignment_type is 'some'"
+            )
+        if assigned_to is not None:
+            raise ValueError("assigned_to must be None when assignment_type is 'some'")
+
+    def _validate_any_assignment(
+        self, assigned_to: Optional[int], assigned_user_ids: Optional[list[int]]
+    ) -> None:
+        """Validate assignment consistency for 'any' assignment type."""
+        if assigned_to is not None:
+            raise ValueError("assigned_to must be None when assignment_type is 'any'")
+        if assigned_user_ids is not None and assigned_user_ids:
+            raise ValueError(
+                "assigned_user_ids must be None or empty "
+                "when assignment_type is 'any'"
+            )
+
     @model_validator(mode="after")
     def validate_assignment_consistency(self) -> Any:
         assignment_type = self.assignment_type
@@ -31,36 +68,11 @@ class TaskBase(BaseModel):
         assigned_user_ids = self.assigned_user_ids
 
         if assignment_type == "one":
-            if assigned_to is None:
-                raise ValueError(
-                    "assigned_to must be specified when assignment_type is 'one'"
-                )
-            if assigned_user_ids is not None and assigned_user_ids:
-                raise ValueError(
-                    "assigned_user_ids must be None or empty "
-                    "when assignment_type is 'one'"
-                )
-
+            self._validate_one_assignment(assigned_to, assigned_user_ids)
         elif assignment_type == "some":
-            if assigned_user_ids is None or not assigned_user_ids:
-                raise ValueError(
-                    "assigned_user_ids must be specified when assignment_type is 'some'"
-                )
-            if assigned_to is not None:
-                raise ValueError(
-                    "assigned_to must be None when assignment_type is 'some'"
-                )
-
+            self._validate_some_assignment(assigned_to, assigned_user_ids)
         elif assignment_type == "any":
-            if assigned_to is not None:
-                raise ValueError(
-                    "assigned_to must be None when assignment_type is 'any'"
-                )
-            if assigned_user_ids is not None and assigned_user_ids:
-                raise ValueError(
-                    "assigned_user_ids must be None or empty "
-                    "when assignment_type is 'any'"
-                )
+            self._validate_any_assignment(assigned_to, assigned_user_ids)
 
         return self
 
