@@ -10,19 +10,8 @@ from pydantic import (
 )
 
 
-class TaskBase(BaseModel):
-    title: str
-    description: str
-    state: Literal["todo", "in_progress", "done", "archived"] = "todo"
-    due_date: Optional[str] = None
-    reward: Optional[str] = None
-    created_at: Optional[str] = None
-    started_at: Optional[str] = None
-    completed_at: Optional[str] = None
-    created_by: Optional[int] = None
-    assignment_type: Literal["any", "some", "one"] = "any"
-    assigned_to: Optional[int] = None
-    assigned_user_ids: Optional[list[int]] = None
+class AssignmentValidationMixin:
+    """Mixin class containing assignment validation methods."""
 
     def _validate_one_assignment(
         self, assigned_to: Optional[int], assigned_user_ids: Optional[list[int]]
@@ -60,6 +49,21 @@ class TaskBase(BaseModel):
                 "assigned_user_ids must be None or empty "
                 "when assignment_type is 'any'"
             )
+
+
+class TaskBase(BaseModel, AssignmentValidationMixin):
+    title: str
+    description: str
+    state: Literal["todo", "in_progress", "done", "archived"] = "todo"
+    due_date: Optional[str] = None
+    reward: Optional[str] = None
+    created_at: Optional[str] = None
+    started_at: Optional[str] = None
+    completed_at: Optional[str] = None
+    created_by: Optional[int] = None
+    assignment_type: Literal["any", "some", "one"] = "any"
+    assigned_to: Optional[int] = None
+    assigned_user_ids: Optional[list[int]] = None
 
     @model_validator(mode="after")
     def validate_assignment_consistency(self) -> Any:
@@ -87,7 +91,7 @@ class TaskCreate(TaskBase):
     created_by: int
 
 
-class TaskUpdate(BaseModel):
+class TaskUpdate(BaseModel, AssignmentValidationMixin):
     title: Optional[Annotated[str, StringConstraints(min_length=1)]] = None
     description: Optional[Annotated[str, StringConstraints(min_length=1)]] = None
     state: Optional[Literal["todo", "in_progress", "done", "archived"]] = None
@@ -96,43 +100,6 @@ class TaskUpdate(BaseModel):
     assignment_type: Optional[Literal["any", "some", "one"]] = None
     assigned_to: Optional[int] = None
     assigned_user_ids: Optional[list[int]] = None
-
-    def _validate_one_assignment(
-        self, assigned_to: Optional[int], assigned_user_ids: Optional[list[int]]
-    ) -> None:
-        """Validate assignment consistency for 'one' assignment type."""
-        if assigned_to is None:
-            raise ValueError(
-                "assigned_to must be specified when assignment_type is 'one'"
-            )
-        if assigned_user_ids is not None and assigned_user_ids:
-            raise ValueError(
-                "assigned_user_ids must be None or empty "
-                "when assignment_type is 'one'"
-            )
-
-    def _validate_some_assignment(
-        self, assigned_to: Optional[int], assigned_user_ids: Optional[list[int]]
-    ) -> None:
-        """Validate assignment consistency for 'some' assignment type."""
-        if assigned_user_ids is None or not assigned_user_ids:
-            raise ValueError(
-                "assigned_user_ids must be specified when assignment_type is 'some'"
-            )
-        if assigned_to is not None:
-            raise ValueError("assigned_to must be None when assignment_type is 'some'")
-
-    def _validate_any_assignment(
-        self, assigned_to: Optional[int], assigned_user_ids: Optional[list[int]]
-    ) -> None:
-        """Validate assignment consistency for 'any' assignment type."""
-        if assigned_to is not None:
-            raise ValueError("assigned_to must be None when assignment_type is 'any'")
-        if assigned_user_ids is not None and assigned_user_ids:
-            raise ValueError(
-                "assigned_user_ids must be None or empty "
-                "when assignment_type is 'any'"
-            )
 
     @model_validator(mode="after")
     def validate_assignment_consistency(self) -> Any:
