@@ -1,7 +1,13 @@
 from datetime import datetime
-from typing import Annotated, Literal, Optional
+from typing import Annotated, Literal, Optional, Any
 
-from pydantic import BaseModel, ConfigDict, StringConstraints, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    StringConstraints,
+    field_validator,
+    model_validator,
+)
 
 
 class TaskBase(BaseModel):
@@ -17,6 +23,46 @@ class TaskBase(BaseModel):
     assignment_type: Literal["any", "some", "one"] = "any"
     assigned_to: Optional[int] = None
     assigned_user_ids: Optional[list[int]] = None
+
+    @model_validator(mode="after")
+    def validate_assignment_consistency(cls, model: Any) -> Any:
+        assignment_type = model.assignment_type
+        assigned_to = model.assigned_to
+        assigned_user_ids = model.assigned_user_ids
+
+        if assignment_type == "one":
+            if assigned_to is None:
+                raise ValueError(
+                    "assigned_to must be specified when assignment_type is 'one'"
+                )
+            if assigned_user_ids is not None and assigned_user_ids:
+                raise ValueError(
+                    "assigned_user_ids must be None or empty "
+                    "when assignment_type is 'one'"
+                )
+
+        elif assignment_type == "some":
+            if assigned_user_ids is None or not assigned_user_ids:
+                raise ValueError(
+                    "assigned_user_ids must be specified when assignment_type is 'some'"
+                )
+            if assigned_to is not None:
+                raise ValueError(
+                    "assigned_to must be None when assignment_type is 'some'"
+                )
+
+        elif assignment_type == "any":
+            if assigned_to is not None:
+                raise ValueError(
+                    "assigned_to must be None when assignment_type is 'any'"
+                )
+            if assigned_user_ids is not None and assigned_user_ids:
+                raise ValueError(
+                    "assigned_user_ids must be None or empty "
+                    "when assignment_type is 'any'"
+                )
+
+        return model
 
     model_config = ConfigDict(from_attributes=True)
 
