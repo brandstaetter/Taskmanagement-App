@@ -73,7 +73,7 @@ def test_create_task_with_one_assignment_type(db_session: Session) -> None:
 def test_create_task_with_one_assignment_type_no_assigned_user(
     db_session: Session,
 ) -> None:
-    """Test creating a task with 'one' assignment type but no assigned user."""
+    """Test that creating a task with 'one' assignment type but no assigned user fails validation."""
     # Create a user with unique email
     creator = User(
         email="creator_no_assign@example.com",
@@ -85,22 +85,18 @@ def test_create_task_with_one_assignment_type_no_assigned_user(
     db_session.commit()
     db_session.refresh(creator)
 
-    # Create task with "one" assignment type but no assigned_to
-    task_data = TaskCreate(
-        title="Unassigned Single Task",
-        description="One assignment type but no assigned user",
-        created_by=creator.id,
-        assignment_type="one",
-        assigned_to=None,  # This should be allowed
-    )
-
-    created_task = create_task(db_session, task_data)
-
-    # Verify the task was created
-    assert created_task.title == "Unassigned Single Task"
-    assert created_task.assignment_type == AssignmentType.one
-    assert created_task.assigned_to is None
-    assert created_task.assigned_user is None
+    # Try to create task with "one" assignment type but no assigned_to
+    # This should fail validation due to missing assigned_to
+    with pytest.raises(
+        ValueError, match="assigned_to must be specified when assignment_type is 'one'"
+    ):
+        TaskCreate(
+            title="Unassigned Single Task",
+            description="One assignment type but no assigned user",
+            created_by=creator.id,
+            assignment_type="one",
+            assigned_to=None,  # This should NOT be allowed
+        )
 
 
 def test_create_task_with_one_assignment_type_invalid_user(db_session: Session) -> None:

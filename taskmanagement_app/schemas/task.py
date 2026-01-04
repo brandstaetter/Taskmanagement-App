@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Annotated, Literal, Optional, Any
+from typing import Annotated, Any, Literal, Optional
 
 from pydantic import (
     BaseModel,
@@ -25,10 +25,10 @@ class TaskBase(BaseModel):
     assigned_user_ids: Optional[list[int]] = None
 
     @model_validator(mode="after")
-    def validate_assignment_consistency(cls, model: Any) -> Any:
-        assignment_type = model.assignment_type
-        assigned_to = model.assigned_to
-        assigned_user_ids = model.assigned_user_ids
+    def validate_assignment_consistency(self) -> Any:
+        assignment_type = self.assignment_type
+        assigned_to = self.assigned_to
+        assigned_user_ids = self.assigned_user_ids
 
         if assignment_type == "one":
             if assigned_to is None:
@@ -62,7 +62,7 @@ class TaskBase(BaseModel):
                     "when assignment_type is 'any'"
                 )
 
-        return model
+        return self
 
     model_config = ConfigDict(from_attributes=True)
 

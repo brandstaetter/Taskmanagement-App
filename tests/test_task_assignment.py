@@ -111,6 +111,46 @@ def test_get_tasks_user_visibility_filtering(
     assert created_task_created.id not in assigned_task_ids
 
 
+def test_create_task_with_any_assignment_type_null_fields(
+    db_session: Session, test_user: dict
+) -> None:
+    """Test creating a task with 'any' assignment type and null assignment fields."""
+    # Create a user in the database with unique email
+    user = User(
+        email=f"user_any_null_{test_user['email']}",
+        hashed_password="hashed_password",
+        is_active=True,
+        is_admin=False,
+    )
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+
+    task_data = TaskCreate(
+        title="Any Assignment Task",
+        description="Task with no specific assignment",
+        created_by=user.id,
+        assignment_type="any",
+        # Explicitly not setting assigned_to or assigned_user_ids
+    )
+
+    task = create_task(db_session, task_data)
+
+    # Verify task properties
+    assert task.title == "Any Assignment Task"
+    assert task.created_by == user.id
+    assert task.assignment_type == AssignmentType.any
+    assert (
+        task.assigned_to is None
+    ), "assigned_to should be None for 'any' assignment type"
+    assert (
+        task.assigned_user is None
+    ), "assigned_user relationship should be None for 'any' assignment type"
+    assert (
+        task.assigned_users == []
+    ), "assigned_users should be empty list for 'any' assignment type"
+
+
 def test_get_tasks_any_assignment_type(db_session: Session, test_user: dict) -> None:
     """Test that 'any' assignment type tasks are visible to all users."""
     # Create users in the database with unique emails
