@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+from typing import Any
 
 import pytest
 from sqlalchemy.orm import Session
@@ -244,8 +245,8 @@ def test_get_random_task(db_session: Session) -> None:
     assert len(selected_ids) >= 2
 
 
-def test_get_random_due_task(db_session: Session) -> None:
-    """Test random due task selection functionality."""
+def test_get_random_due_task(db_session: Session, monkeypatch: Any) -> None:
+    """Test random due task selection functionality with deterministic mock."""
     # Create a user first for the tasks
     user_id = create_test_user(db_session, "test_get_random_due_task")
 
@@ -271,26 +272,45 @@ def test_get_random_due_task(db_session: Session) -> None:
     )
     future_task = create_task(db=db_session, task=future_task_in)
 
-    # Get random due task multiple times
-    selected_ids = set()
-    future_task_selected_count = 0
+    # Mock random.choices to return deterministic results
+    # First return the future task (lowest weight), then return other tasks
+    mock_choices_calls = []
 
-    for _ in range(50):  # Try more times to account for randomness
+    def mock_choices(tasks_list, weights, k=1):
+        mock_choices_calls.append((tasks_list, weights))
+        if len(mock_choices_calls) == 1:
+            return [future_task]
+        elif len(mock_choices_calls) == 2:
+            return [tasks[0]]
+        else:
+            return [tasks[1]]
+
+    monkeypatch.setattr("random.choices", mock_choices)
+
+    # Test deterministic selection
+    selected_tasks = []
+    for _ in range(3):
         task = get_random_task(db=db_session)
         if task:
-            selected_ids.add(task.id)
-            # Count how often the future task is selected (should be very rare)
-            if task.id == future_task.id:
-                future_task_selected_count += 1
+            selected_tasks.append(task)
 
-    # The future task should be selected very rarely (less than 10% of the time)
-    # due to its very low weight compared to tasks due sooner
-    assert (
-        future_task_selected_count < 5
-    )  # Allow for some randomness but ensure it's rare
+    # Verify we got the expected tasks in the expected order
+    assert len(selected_tasks) == 3
+    assert selected_tasks[0].id == future_task.id  # Future task selected first
+    assert selected_tasks[1].id == tasks[0].id  # Then first task
+    assert selected_tasks[2].id == tasks[1].id  # Then second task
 
-    # Verify we got at least 2 different tasks
-    assert len(selected_ids) >= 2
+    # Verify random.choices was called with correct weights
+    assert len(mock_choices_calls) == 3
+    # Check that weights were calculated (future task should have lowest weight)
+    called_tasks, called_weights = mock_choices_calls[0]
+
+    # Find the index of future task in the called tasks
+    future_task_index = called_tasks.index(future_task)
+    future_task_weight = called_weights[future_task_index]
+
+    # Future task should have the lowest weight (close to 1.0)
+    assert future_task_weight < 10.0  # Much lower than tasks due sooner
 
 
 def test_validate_user_references_with_valid_users(db_session: Session) -> None:
