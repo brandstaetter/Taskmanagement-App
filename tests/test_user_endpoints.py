@@ -169,6 +169,29 @@ def test_change_password_requires_authentication(
     assert response.status_code == 401
 
 
+def test_superadmin_can_get_me_endpoint(client: TestClient) -> None:
+    from taskmanagement_app.core.config import get_settings
+
+    settings = get_settings()
+    login = client.post(
+        "/api/v1/auth/user/token",
+        data={"username": settings.ADMIN_USERNAME, "password": settings.ADMIN_PASSWORD},
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+    assert login.status_code == 200
+    token = login.json()["access_token"]
+
+    response = client.get(
+        "/api/v1/users/me",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 200
+    user_data = response.json()
+    assert user_data["email"] == f"{settings.ADMIN_USERNAME}@example.com"
+    assert user_data["is_admin"] is True
+    assert user_data["is_active"] is True
+
+
 def test_superadmin_cannot_change_password(client: TestClient) -> None:
     from taskmanagement_app.core.config import get_settings
 

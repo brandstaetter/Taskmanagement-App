@@ -1,9 +1,11 @@
-from typing import Any
+from datetime import datetime, timezone
+from typing import Any, Union
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from taskmanagement_app.core.auth import verify_not_superadmin
+from taskmanagement_app.core.auth import verify_access_token, verify_not_superadmin
+from taskmanagement_app.core.config import get_settings
 from taskmanagement_app.core.security import verify_password
 from taskmanagement_app.crud.user import (
     change_user_password as crud_change_user_password,
@@ -22,6 +24,43 @@ from taskmanagement_app.schemas.user import (
 )
 
 router = APIRouter()
+
+
+def get_current_user_for_me(
+    payload: dict[str, Any] = Depends(verify_access_token),
+    db: Session = Depends(get_db),
+) -> Union[User, dict[str, Any]]:
+    """Return the authenticated user from the access token payload for GET /me."""
+    subject = payload.get("sub")
+    role = payload.get("role")
+
+    # Handle superadmin case
+    if role == "superadmin" or subject == get_settings().ADMIN_USERNAME:
+        settings = get_settings()
+        now = datetime.now(timezone.utc)
+        return {
+            "id": 0,  # Superadmin doesn't have a DB record
+            "email": f"{settings.ADMIN_USERNAME}@example.com",  # Make it a valid email
+            "is_active": True,
+            "is_admin": True,
+            "avatar_url": None,
+            "last_login": None,
+            "created_at": now,
+            "updated_at": now,
+        }
+
+    # Handle regular users
+    if not subject:
+        raise HTTPException(status_code=401, detail="Could not validate credentials")
+
+    user = get_user_by_email(db, email=subject)
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="User account is inactive")
+
+    return user
 
 
 def get_current_user(
@@ -45,7 +84,7 @@ def get_current_user(
 
 @router.get("/me", response_model=UserSchema)
 def get_current_user_info(
-    current_user: User = Depends(get_current_user),
+    current_user: Union[User, dict[str, Any]] = Depends(get_current_user_for_me),
 ) -> UserSchema:
     """Get the current user's information."""
     return UserSchema.model_validate(current_user)
