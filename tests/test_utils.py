@@ -22,14 +22,16 @@ class TestUserFactory:
         cls, db_session: Session, email_prefix: str = "test_user"
     ) -> Dict[str, Any]:
         """
-        Create a test user with a unique email address.
+        Create a test user and return their details as a dict.
 
         Args:
             db_session: Database session
             email_prefix: Prefix for the email address
 
         Returns:
-            Dict containing user id and email
+            Dict containing user details with keys:
+            - id: The user's ID (int)
+            - email: The user's unique email address (str)
         """
         cls._counter += 1
         timestamp = int(time.time() * 1000000)  # Microsecond precision
