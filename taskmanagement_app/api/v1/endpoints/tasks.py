@@ -82,13 +82,6 @@ def create_new_task(
     """
     Create new task.
     """
-    # Require created_by field in the request
-    if task.created_by is None:
-        raise HTTPException(
-            status_code=400,
-            detail="created_by field is required",
-        )
-
     try:
         db_task = create_task(db=db, task=task)
         return Task.model_validate(db_task)
