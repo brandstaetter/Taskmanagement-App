@@ -89,22 +89,24 @@ def test_read_task(client: TestClient) -> None:
     assert data["state"] == task_data["state"]
 
 
-def test_read_tasks(client: TestClient) -> None:
+def test_read_tasks(client: TestClient, test_db_user: Dict[str, Any]) -> None:
     """Test reading multiple tasks."""
+    user_id = test_db_user["id"]
+
     # Create multiple tasks
     task_data1: Dict[str, Any] = {
         "title": "Task 1 read tasks",
         "description": "Description 1",
         "due_date": (datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
         "state": "todo",
-        "created_by": 1,
+        "created_by": user_id,
     }
     task_data2: Dict[str, Any] = {
         "title": "Task 2 read tasks",
         "description": "Description 2",
         "due_date": (datetime.now(timezone.utc) + timedelta(days=2)).isoformat(),
         "state": "todo",
-        "created_by": 1,
+        "created_by": user_id,
     }
 
     response1 = client.post("/api/v1/tasks", json=task_data1)
@@ -437,7 +439,9 @@ def test_task_search(client: TestClient, test_db_user: Dict[str, Any]) -> None:
 
     # Verify the task was created by getting it directly
     response = client.get(f"/api/v1/tasks/{task['id']}")
-    assert response.status_code == 200, f"Failed to retrieve created task: {response.text}"
+    assert (
+        response.status_code == 200
+    ), f"Failed to retrieve created task: {response.text}"
     retrieved_task = response.json()
     assert retrieved_task["id"] == task["id"]
 
@@ -445,20 +449,24 @@ def test_task_search(client: TestClient, test_db_user: Dict[str, Any]) -> None:
     response = client.get("/api/v1/tasks/search/", params={"q": "search"})
     assert response.status_code == 200, f"Search failed: {response.text}"
     results = response.json()
-    
+
     # The search endpoint should work and return results (even if not our specific task due to visibility filtering)
     # This verifies the search functionality itself is working
     assert isinstance(results, list), "Search should return a list"
-    
+
     # Test search with no results
     response = client.get("/api/v1/tasks/search/", params={"q": "nonexistentterm12345"})
-    assert response.status_code == 200, f"Search with no results failed: {response.text}"
+    assert (
+        response.status_code == 200
+    ), f"Search with no results failed: {response.text}"
     results = response.json()
     assert len(results) == 0, "Search with no results should return empty list"
 
     # Test case-insensitive search
     response = client.get("/api/v1/tasks/search/", params={"q": "SEARCH"})
-    assert response.status_code == 200, f"Case-insensitive search failed: {response.text}"
+    assert (
+        response.status_code == 200
+    ), f"Case-insensitive search failed: {response.text}"
     results = response.json()
     assert isinstance(results, list), "Search should return a list"
 

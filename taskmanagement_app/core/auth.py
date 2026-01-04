@@ -86,7 +86,7 @@ def create_user_token(subject: str, expires_delta: Optional[timedelta] = None) -
     return str(encoded_jwt)
 
 
-async def verify_access_token(token: str = Depends(oauth2_scheme)) -> dict[str, Any]:
+def verify_access_token(token: str = Depends(oauth2_scheme)) -> dict[str, Any]:
     try:
         payload: dict[str, Any] = jwt.decode(
             token,
@@ -116,7 +116,7 @@ async def verify_access_token(token: str = Depends(oauth2_scheme)) -> dict[str, 
     return payload
 
 
-async def verify_admin(payload: dict[str, Any] = Depends(verify_access_token)) -> bool:
+def verify_admin(payload: dict[str, Any] = Depends(verify_access_token)) -> bool:
     """
     Verify that the request is from an admin.
     Returns True if valid, raises HTTPException if not.
@@ -131,7 +131,7 @@ async def verify_admin(payload: dict[str, Any] = Depends(verify_access_token)) -
     return True
 
 
-async def verify_superadmin(
+def verify_superadmin(
     payload: dict[str, Any] = Depends(verify_access_token),
 ) -> bool:
     role: Optional[str] = payload.get("role")
@@ -144,7 +144,7 @@ async def verify_superadmin(
     return True
 
 
-async def verify_admin_only(
+def verify_admin_only(
     payload: dict[str, Any] = Depends(verify_access_token),
 ) -> bool:
     role: Optional[str] = payload.get("role")
@@ -157,7 +157,7 @@ async def verify_admin_only(
     return True
 
 
-async def get_current_user(
+def get_current_user(
     payload: dict[str, Any] = Depends(verify_access_token),
     db: Session = Depends(get_db),
 ) -> Optional["User"]:
@@ -182,7 +182,7 @@ async def get_current_user(
     return None
 
 
-async def verify_not_superadmin(
+def verify_not_superadmin(
     payload: dict[str, Any] = Depends(verify_access_token),
 ) -> dict[str, Any]:
     role: Optional[str] = payload.get("role")
