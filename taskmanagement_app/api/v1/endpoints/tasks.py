@@ -1,11 +1,11 @@
 import logging
 from datetime import datetime, timezone
-from typing import Any, List, Optional
+from typing import TYPE_CHECKING, Any, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy.orm import Session
 
-from taskmanagement_app.core.auth import verify_not_superadmin
+from taskmanagement_app.core.auth import get_current_user, verify_not_superadmin
 from taskmanagement_app.core.exceptions import TaskNotFoundError, TaskStatusError
 from taskmanagement_app.core.printing.printer_factory import PrinterFactory
 from taskmanagement_app.crud.task import (
@@ -27,6 +27,9 @@ from taskmanagement_app.db.models.task import TaskModel, TaskState
 from taskmanagement_app.db.session import get_db
 from taskmanagement_app.schemas.task import Task, TaskCreate, TaskUpdate
 
+if TYPE_CHECKING:
+    from taskmanagement_app.db.models.user import User
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(dependencies=[Depends(verify_not_superadmin)])
@@ -42,6 +45,7 @@ def read_tasks(
         True, description="Include tasks created by the user"
     ),
     db: Session = Depends(get_db),
+    current_user: Optional["User"] = Depends(get_current_user),
 ) -> List[Task]:
     """
     Retrieve tasks.
@@ -52,10 +56,12 @@ def read_tasks(
         include_archived: Whether to include archived tasks in the result
         state: Optional state to filter tasks by (todo, in_progress, done, archived)
         include_created: Whether to include tasks created by the current user
-        current_user: Current authenticated user (if any)
         db: Database session
+        current_user: Current authenticated user
     """
-    user_id = None  # No user filtering for now
+    user_id = current_user.id if current_user else None
+    # For admin users (current_user is None), show all tasks
+    # For regular users, show only their assigned/created tasks
     db_tasks = get_tasks(
         db,
         skip=skip,
@@ -77,7 +83,7 @@ def create_new_task(
     Create new task.
     """
     # Require created_by field in the request
-    if not task.created_by:
+    if task.created_by is None:
         raise HTTPException(
             status_code=400,
             detail="created_by field is required",

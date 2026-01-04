@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from taskmanagement_app.core.config import get_settings
 from taskmanagement_app.crud.user import get_user_by_email
-from taskmanagement_app.db.session import SessionLocal
+from taskmanagement_app.db.session import get_db
 
 if TYPE_CHECKING:
     from taskmanagement_app.db.models.user import User
@@ -159,7 +159,7 @@ async def verify_admin_only(
 
 async def get_current_user(
     payload: dict[str, Any] = Depends(verify_access_token),
-    db: Session = Depends(SessionLocal),
+    db: Session = Depends(get_db),
 ) -> Optional["User"]:
     """
     Get the current user from the JWT token.
