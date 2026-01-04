@@ -39,6 +39,7 @@ def test_get_current_user_info(client: TestClient, db_session: Session) -> None:
     assert user_data["email"] == email
     assert user_data["is_active"] is True
     assert user_data["is_admin"] is False
+    assert user_data["is_superadmin"] is False
     assert "id" in user_data
     assert "created_at" in user_data
     assert "updated_at" in user_data
@@ -189,6 +190,7 @@ def test_superadmin_can_get_me_endpoint(client: TestClient) -> None:
     user_data = response.json()
     assert user_data["email"] == f"{settings.ADMIN_USERNAME}@example.com"
     assert user_data["is_admin"] is True
+    assert user_data["is_superadmin"] is True
     assert user_data["is_active"] is True
 
 
