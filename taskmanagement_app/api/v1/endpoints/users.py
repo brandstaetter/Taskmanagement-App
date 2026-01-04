@@ -43,6 +43,7 @@ def get_current_user_for_me(
             "email": f"{settings.ADMIN_USERNAME}@example.com",  # Make it a valid email
             "is_active": True,
             "is_admin": True,
+            "is_superadmin": True,
             "avatar_url": None,
             "last_login": None,
             "created_at": now,

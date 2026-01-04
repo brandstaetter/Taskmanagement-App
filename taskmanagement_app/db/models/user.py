@@ -21,6 +21,7 @@ class User(Base):
     hashed_password: Mapped[str] = mapped_column(String)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_superadmin: Mapped[bool] = mapped_column(Boolean, default=False)
     avatar_url: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     last_login: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), nullable=True
