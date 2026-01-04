@@ -329,8 +329,13 @@ def update_task(
             # Clear assigned_users for non-"some" assignment types
             db_task.assigned_users.clear()
 
+    # Remove assigned_user_ids from update_data since it's handled above
+    update_data_for_attrs = {
+        k: v for k, v in update_data.items() if k != "assigned_user_ids"
+    }
+
     # Update task attributes
-    for key, value in update_data.items():
+    for key, value in update_data_for_attrs.items():
         setattr(db_task, key, value)
 
     db.commit()
