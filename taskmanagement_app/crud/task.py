@@ -98,24 +98,23 @@ def get_tasks(
             .select()
         )
 
-        visibility_filter = or_(
+        # Create base visibility filter (tasks visible to user regardless of creator)
+        base_visibility_filter = or_(
             TaskModel.assignment_type == AssignmentType.any,
             TaskModel.assigned_to == user_id,
-            TaskModel.created_by == user_id,
             user_assigned_filter,
         )
 
         if include_created:
             # Include tasks created by user
-            query = query.filter(visibility_filter)
+            visibility_filter = or_(
+                base_visibility_filter, TaskModel.created_by == user_id
+            )
         else:
             # Exclude tasks created by user, only show assigned tasks
-            visibility_filter = or_(
-                TaskModel.assignment_type == AssignmentType.any,
-                TaskModel.assigned_to == user_id,
-                user_assigned_filter,
-            )
-            query = query.filter(visibility_filter)
+            visibility_filter = base_visibility_filter
+
+        query = query.filter(visibility_filter)
 
     # Apply state filter if provided
     if state:
