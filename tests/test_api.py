@@ -15,6 +15,7 @@ def create_test_task(client: TestClient, title: str = "Test Task") -> Dict[str, 
         "description": "Test Description",
         "due_date": (datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
         "state": "todo",
+        "created_by": 1,  # Add required created_by field
     }
     response = client.post("/api/v1/tasks", json=task_data)
     assert response.status_code == 200
@@ -53,8 +54,11 @@ def test_create_task(client: TestClient) -> None:
         "description": "Task Description",
         "due_date": (datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
         "state": "todo",
+        "created_by": 1,
     }
     response = client.post("/api/v1/tasks", json=task_data)
+    if response.status_code != 200:
+        print(f"Error response: {response.text}")
     assert response.status_code == 200
     data = response.json()
     assert data["title"] == task_data["title"]
@@ -70,6 +74,7 @@ def test_read_task(client: TestClient) -> None:
         "description": "Task Description",
         "due_date": (datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
         "state": "todo",
+        "created_by": 1,
     }
     create_response = client.post("/api/v1/tasks", json=task_data)
     assert create_response.status_code == 200
@@ -92,12 +97,14 @@ def test_read_tasks(client: TestClient) -> None:
         "description": "Description 1",
         "due_date": (datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
         "state": "todo",
+        "created_by": 1,
     }
     task_data2: Dict[str, Any] = {
         "title": "Task 2 read tasks",
         "description": "Description 2",
         "due_date": (datetime.now(timezone.utc) + timedelta(days=2)).isoformat(),
         "state": "todo",
+        "created_by": 1,
     }
 
     response1 = client.post("/api/v1/tasks", json=task_data1)
@@ -154,6 +161,7 @@ def test_task_workflow(client: TestClient) -> None:
         "description": "Testing workflow",
         "due_date": (datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
         "state": "todo",
+        "created_by": 1,
     }
     response = client.post("/api/v1/tasks", json=task_data)
     assert response.status_code == 200
@@ -183,6 +191,7 @@ def test_delete_task(client: TestClient) -> None:
         "description": "This will be archived",
         "due_date": (datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
         "state": "todo",
+        "created_by": 1,
     }
     response = client.post("/api/v1/tasks", json=task_data)
     assert response.status_code == 200
@@ -235,6 +244,7 @@ def test_invalid_task_transitions(client: TestClient) -> None:
         "description": "Testing invalid transitions",
         "due_date": (datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
         "state": "todo",
+        "created_by": 1,
     }
     response = client.post("/api/v1/tasks", json=task_data)
     assert response.status_code == 200
@@ -273,6 +283,7 @@ def test_archive_task(client: TestClient) -> None:
         "description": "This will be archived",
         "due_date": (datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
         "state": "todo",
+        "created_by": 1,
     }
     response = client.post("/api/v1/tasks", json=task_data)
     assert response.status_code == 200
@@ -313,6 +324,7 @@ def test_invalid_task_archive(client: TestClient) -> None:
         "description": "Testing invalid archive",
         "due_date": (datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
         "state": "todo",
+        "created_by": 1,
     }
     response = client.post("/api/v1/tasks", json=task_data)
     assert response.status_code == 200
@@ -360,6 +372,7 @@ def test_task_filters(client: TestClient) -> None:
             "description": f"Task in {state} state",
             "due_date": (datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
             "state": "todo",
+            "created_by": 1,
         }
         response = client.post("/api/v1/tasks", json=task_data)
         assert response.status_code == 200
@@ -419,6 +432,7 @@ def test_task_search(client: TestClient) -> None:
         "description": "Weekly sync",
         "due_date": (datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
         "state": "todo",
+        "created_by": 1,
     }
 
     # Create task2
@@ -427,6 +441,7 @@ def test_task_search(client: TestClient) -> None:
         "description": "Review pull requests",
         "due_date": (datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
         "state": "todo",
+        "created_by": 1,
     }
 
     # Create task1
@@ -535,6 +550,7 @@ def test_read_due_tasks(client: TestClient) -> None:
         "description": "This task is due soon",
         "due_date": (datetime.now(timezone.utc) + timedelta(hours=12)).isoformat(),
         "state": "todo",
+        "created_by": 1,
     }
     response = client.post("/api/v1/tasks", json=task_data1)
     assert response.status_code == 200
@@ -546,6 +562,7 @@ def test_read_due_tasks(client: TestClient) -> None:
         "description": "This task is not due soon",
         "due_date": (datetime.now(timezone.utc) + timedelta(days=2)).isoformat(),
         "state": "todo",
+        "created_by": 1,
     }
     response = client.post("/api/v1/tasks", json=task_data2)
     assert response.status_code == 200
@@ -557,6 +574,7 @@ def test_read_due_tasks(client: TestClient) -> None:
         "description": "This task is due soon but archived",
         "due_date": (datetime.now(timezone.utc) + timedelta(hours=6)).isoformat(),
         "state": "todo",
+        "created_by": 1,
     }
     response = client.post("/api/v1/tasks", json=task_data3)
     assert response.status_code == 200

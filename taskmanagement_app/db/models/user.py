@@ -1,11 +1,14 @@
 from datetime import datetime
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import Boolean, DateTime, String
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
 from taskmanagement_app.db.base import Base
+
+if TYPE_CHECKING:
+    from .task import TaskModel
 
 
 class User(Base):
@@ -28,4 +31,12 @@ class User(Base):
         server_default=func.now(),
         onupdate=func.now(),
         nullable=False,
+    )
+
+    # Relationships
+    created_tasks: Mapped[list["TaskModel"]] = relationship(
+        "TaskModel", foreign_keys="TaskModel.created_by", back_populates="creator"
+    )
+    assigned_tasks: Mapped[list["TaskModel"]] = relationship(
+        "TaskModel", secondary="task_assigned_users", back_populates="assigned_users"
     )

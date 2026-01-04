@@ -38,6 +38,9 @@ def read_tasks(
     limit: int = 100,
     include_archived: bool = False,
     state: Optional[str] = Query(None, description="Filter tasks by state"),
+    include_created: bool = Query(
+        True, description="Include tasks created by the user"
+    ),
     db: Session = Depends(get_db),
 ) -> List[Task]:
     """
@@ -48,14 +51,19 @@ def read_tasks(
         limit: Maximum number of records to return
         include_archived: Whether to include archived tasks in the result
         state: Optional state to filter tasks by (todo, in_progress, done, archived)
+        include_created: Whether to include tasks created by the current user
+        current_user: Current authenticated user (if any)
         db: Database session
     """
+    user_id = None  # No user filtering for now
     db_tasks = get_tasks(
         db,
         skip=skip,
         limit=limit,
         include_archived=include_archived,
         state=state,
+        user_id=user_id,
+        include_created=include_created,
     )
     return [Task.model_validate(task) for task in db_tasks]
 
@@ -68,6 +76,13 @@ def create_new_task(
     """
     Create new task.
     """
+    # Require created_by field in the request
+    if not task.created_by:
+        raise HTTPException(
+            status_code=400,
+            detail="created_by field is required",
+        )
+
     db_task = create_task(db=db, task=task)
     return Task.model_validate(db_task)
 

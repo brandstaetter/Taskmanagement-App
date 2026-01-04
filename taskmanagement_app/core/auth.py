@@ -1,12 +1,18 @@
 from datetime import datetime, timedelta, timezone
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from fastapi import Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from jose.exceptions import ExpiredSignatureError
+from sqlalchemy.orm import Session
 
 from taskmanagement_app.core.config import get_settings
+from taskmanagement_app.crud.user import get_user_by_email
+from taskmanagement_app.db.session import SessionLocal
+
+if TYPE_CHECKING:
+    from taskmanagement_app.db.models.user import User
 
 settings = get_settings()
 
@@ -80,7 +86,7 @@ def create_user_token(subject: str, expires_delta: Optional[timedelta] = None) -
     return str(encoded_jwt)
 
 
-def verify_access_token(token: str = Depends(oauth2_scheme)) -> dict[str, Any]:
+async def verify_access_token(token: str = Depends(oauth2_scheme)) -> dict[str, Any]:
     try:
         payload: dict[str, Any] = jwt.decode(
             token,
@@ -149,6 +155,31 @@ async def verify_admin_only(
             headers={"WWW-Authenticate": "Bearer"},
         )
     return True
+
+
+async def get_current_user(
+    payload: dict[str, Any] = Depends(verify_access_token),
+    db: Session = Depends(SessionLocal),
+) -> Optional["User"]:
+    """
+    Get the current user from the JWT token.
+
+    Returns:
+        User object if found, None for admin/superadmin tokens
+    """
+    subject = payload.get("sub")
+    role = payload.get("role")
+
+    # For admin/superadmin tokens, return None as they don't have user records
+    if role in {"admin", "superadmin"} or subject in {"admin", settings.ADMIN_USERNAME}:
+        return None
+
+    # For user tokens, try to get the user from database
+    if subject and "@" in subject:  # Simple check for email format
+        user = get_user_by_email(db, email=subject)
+        return user
+
+    return None
 
 
 async def verify_not_superadmin(

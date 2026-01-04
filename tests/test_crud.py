@@ -21,6 +21,7 @@ def test_create_task(db_session: Session) -> None:
         description="Test Description",
         due_date=(datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
         state="todo",
+        created_by=1,  # Add required created_by field
     )
     task = create_task(db=db_session, task=task_in)
     assert task.title == task_in.title
@@ -34,6 +35,7 @@ def test_get_task(db_session: Session) -> None:
         description="Test Description",
         due_date=(datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
         state="todo",
+        created_by=1,
     )
     task = create_task(db=db_session, task=task_in)
     stored_task = get_task(db=db_session, task_id=task.id)
@@ -49,12 +51,14 @@ def test_get_tasks(db_session: Session) -> None:
         description="Test Description 1",
         due_date=(datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
         state="todo",
+        created_by=1,
     )
     task_in2 = TaskCreate(
         title="Test Task 2",
         description="Test Description 2",
         due_date=(datetime.now(timezone.utc) + timedelta(days=2)).isoformat(),
         state="todo",
+        created_by=1,
     )
     task1 = create_task(db=db_session, task=task_in1)
     task2 = create_task(db=db_session, task=task_in2)
@@ -70,6 +74,7 @@ def test_update_task(db_session: Session) -> None:
         description="Test Description",
         due_date=(datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
         state="todo",
+        created_by=1,
     )
     task = create_task(db=db_session, task=task_in)
 
@@ -89,6 +94,7 @@ def test_archive_task(db_session: Session) -> None:
         description="Test Description",
         due_date=(datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
         state="done",
+        created_by=1,
     )
     task = create_task(db=db_session, task=task_in)
     archived_task = archive_task(db=db_session, task_id=task.id)
@@ -106,6 +112,7 @@ def test_task_state_transitions(db_session: Session) -> None:
         description="Test Description",
         due_date=(datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
         state="todo",
+        created_by=1,
     )
     task = create_task(db=db_session, task=task_in)
 
@@ -128,6 +135,7 @@ def test_task_state_archived(db_session: Session) -> None:
         description="Test Description",
         due_date=(datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
         state="todo",
+        created_by=1,
     )
     task = create_task(db=db_session, task=task_in)
 
@@ -163,9 +171,10 @@ def test_get_tasks_with_invalid_dates(db_session: Session) -> None:
     """Test that tasks with invalid dates are handled correctly."""
     # Create a task with invalid due date
     task_in = TaskCreate(
-        title="Invalid Date Task",
+        title="Test Task",
         description="Test Description",
         state="todo",
+        created_by=1,
     )
     task = create_task(db=db_session, task=task_in)
     task.due_date = "invalid-date"
@@ -194,6 +203,7 @@ def test_get_random_task(db_session: Session) -> None:
             description=f"Description {i}",
             due_date=(datetime.now(timezone.utc) + timedelta(days=i + 1)).isoformat(),
             state="todo",
+            created_by=1,
         )
         tasks.append(create_task(db=db_session, task=task_in))
 
@@ -233,6 +243,7 @@ def test_get_random_due_task(db_session: Session) -> None:
             description=f"Description {i}",
             due_date=(datetime.now(timezone.utc) + timedelta(hours=i)).isoformat(),
             state="todo",
+            created_by=1,
         )
         tasks.append(create_task(db=db_session, task=task_in))
 
@@ -242,6 +253,7 @@ def test_get_random_due_task(db_session: Session) -> None:
         description="Due in far future",
         due_date=(datetime.now(timezone.utc) + timedelta(days=30)).isoformat(),
         state="todo",
+        created_by=1,
     )
     future_task = create_task(db=db_session, task=future_task_in)
 

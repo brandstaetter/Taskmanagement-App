@@ -16,6 +16,8 @@ def get_tasks(
     limit: int = 100,
     include_archived: bool = False,
     state: Optional[str] = None,
+    user_id: Optional[int] = None,
+    include_created: bool = True,
 ) -> Sequence[TaskModel]:
     """Get a list of tasks.
 
@@ -25,11 +27,36 @@ def get_tasks(
         limit: Maximum number of records to return
         include_archived: Whether to include archived tasks in the result
         state: Optional state to filter by
+        user_id: Optional user ID to filter tasks by visibility/assignment
+        include_created: Whether to include tasks created by the user
 
     Returns:
         List of tasks
     """
+    from taskmanagement_app.db.models.task import AssignmentType
+
     query = db.query(TaskModel)
+
+    # Apply user visibility filter if user_id is provided
+    if user_id is not None:
+        from sqlalchemy import or_
+
+        visibility_filter = or_(
+            TaskModel.assignment_type == AssignmentType.any,
+            TaskModel.assigned_to == user_id,
+            TaskModel.created_by == user_id,
+        )
+
+        if include_created:
+            # Include tasks created by user
+            query = query.filter(visibility_filter)
+        else:
+            # Exclude tasks created by user, only show assigned tasks
+            visibility_filter = or_(
+                TaskModel.assignment_type == AssignmentType.any,
+                TaskModel.assigned_to == user_id,
+            )
+            query = query.filter(visibility_filter)
 
     # Apply state filter if provided
     if state:
@@ -47,16 +74,31 @@ def get_tasks(
 
 
 def create_task(db: Session, task: TaskCreate) -> TaskModel:
+    from taskmanagement_app.db.models.task import AssignmentType
+
     db_task = TaskModel(
         title=task.title,
         description=task.description,
         state=task.state,
         due_date=task.due_date,
         reward=task.reward,
+        created_by=task.created_by,
+        assignment_type=task.assignment_type,
+        assigned_to=task.assigned_to,
     )
     db.add(db_task)
     db.commit()
     db.refresh(db_task)
+
+    # Handle assigned_users for "some" assignment type
+    if task.assignment_type == AssignmentType.some and task.assigned_user_ids:
+        from taskmanagement_app.db.models.user import User
+
+        users = db.query(User).filter(User.id.in_(task.assigned_user_ids)).all()
+        db_task.assigned_users = users
+        db.commit()
+        db.refresh(db_task)
+
     return db_task
 
 

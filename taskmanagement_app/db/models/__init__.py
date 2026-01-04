@@ -1,7 +1,13 @@
-from .task import TaskModel, TaskState
+from .task import AssignmentType, TaskModel, TaskState
 from .user import User
 
-__all__ = ["TaskModel", "TaskState", "User", "ensure_models_registered"]
+__all__ = [
+    "AssignmentType",
+    "TaskModel",
+    "TaskState",
+    "User",
+    "ensure_models_registered",
+]
 
 
 def ensure_models_registered() -> None:

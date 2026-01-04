@@ -13,6 +13,10 @@ class TaskBase(BaseModel):
     created_at: Optional[str] = None
     started_at: Optional[str] = None
     completed_at: Optional[str] = None
+    created_by: Optional[int] = None
+    assignment_type: Literal["any", "some", "one"] = "any"
+    assigned_to: Optional[int] = None
+    assigned_user_ids: Optional[list[int]] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -22,7 +26,7 @@ class Task(TaskBase):
 
 
 class TaskCreate(TaskBase):
-    pass
+    created_by: int
 
 
 class TaskUpdate(BaseModel):
@@ -31,6 +35,9 @@ class TaskUpdate(BaseModel):
     state: Optional[Literal["todo", "in_progress", "done", "archived"]] = None
     due_date: Optional[str] = None
     reward: Optional[str] = None
+    assignment_type: Optional[Literal["any", "some", "one"]] = None
+    assigned_to: Optional[int] = None
+    assigned_user_ids: Optional[list[int]] = None
 
     @field_validator("due_date")
     @classmethod
