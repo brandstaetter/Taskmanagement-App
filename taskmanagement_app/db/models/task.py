@@ -48,12 +48,14 @@ class TaskModel(Base):
     completed_at: Mapped[Optional[str]] = mapped_column(String, nullable=True)
 
     # Assignment and creator fields
-    created_by: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    created_by: Mapped[int] = mapped_column(
+        ForeignKey("users.id"), nullable=False, index=True
+    )
     assignment_type: Mapped[AssignmentType] = mapped_column(
         Enum(AssignmentType), default=AssignmentType.any
     )
     assigned_to: Mapped[Optional[int]] = mapped_column(
-        ForeignKey("users.id"), nullable=True
+        ForeignKey("users.id"), nullable=True, index=True
     )
 
     # Relationships
