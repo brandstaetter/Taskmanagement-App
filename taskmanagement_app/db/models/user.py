@@ -10,6 +10,8 @@ from taskmanagement_app.db.base import Base
 if TYPE_CHECKING:
     from .task import TaskModel
 
+from .task import task_assigned_users
+
 
 class User(Base):
     __tablename__ = "users"
@@ -38,5 +40,5 @@ class User(Base):
         "TaskModel", foreign_keys="TaskModel.created_by", back_populates="creator"
     )
     assigned_tasks: Mapped[list["TaskModel"]] = relationship(
-        "TaskModel", secondary="task_assigned_users", back_populates="assigned_users"
+        "TaskModel", secondary=task_assigned_users, back_populates="assigned_users"
     )
