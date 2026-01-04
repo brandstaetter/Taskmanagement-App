@@ -87,6 +87,14 @@ def create_user_token(subject: str, expires_delta: Optional[timedelta] = None) -
 
 
 def verify_access_token(token: str = Depends(oauth2_scheme)) -> dict[str, Any]:
+    """
+    Verify and decode JWT access token.
+
+    This check is intentionally synchronous: it performs only lightweight
+    JWT validation on the token payload and does not require any asynchronous
+    operations. FastAPI supports sync dependencies with Depends(), so keeping
+    this as a regular function keeps it simple and fast.
+    """
     try:
         payload: dict[str, Any] = jwt.decode(
             token,
@@ -120,6 +128,11 @@ def verify_admin(payload: dict[str, Any] = Depends(verify_access_token)) -> bool
     """
     Verify that the request is from an admin.
     Returns True if valid, raises HTTPException if not.
+
+    This check is intentionally synchronous: it performs only lightweight
+    role validation on the already-validated JWT payload and does not require
+    any asynchronous operations. FastAPI supports sync dependencies with
+    Depends(), so keeping this as a regular function keeps it simple and fast.
     """
     role: Optional[str] = payload.get("role")
     if role is None or role not in {"admin", "superadmin"}:
@@ -134,6 +147,15 @@ def verify_admin(payload: dict[str, Any] = Depends(verify_access_token)) -> bool
 def verify_superadmin(
     payload: dict[str, Any] = Depends(verify_access_token),
 ) -> bool:
+    """
+    Verify that the request is from a superadmin.
+    Returns True if valid, raises HTTPException if not.
+
+    This check is intentionally synchronous: it performs only lightweight
+    role validation on the already-validated JWT payload and does not require
+    any asynchronous operations. FastAPI supports sync dependencies with
+    Depends(), so keeping this as a regular function keeps it simple and fast.
+    """
     role: Optional[str] = payload.get("role")
     if role is None or role != "superadmin":
         raise HTTPException(
@@ -147,6 +169,15 @@ def verify_superadmin(
 def verify_admin_only(
     payload: dict[str, Any] = Depends(verify_access_token),
 ) -> bool:
+    """
+    Verify that the request is from an admin (not superadmin).
+    Returns True if valid, raises HTTPException if not.
+
+    This check is intentionally synchronous: it performs only lightweight
+    role validation on the already-validated JWT payload and does not require
+    any asynchronous operations. FastAPI supports sync dependencies with
+    Depends(), so keeping this as a regular function keeps it simple and fast.
+    """
     role: Optional[str] = payload.get("role")
     if role is None or role != "admin":
         raise HTTPException(
@@ -185,6 +216,15 @@ def get_current_user(
 def verify_not_superadmin(
     payload: dict[str, Any] = Depends(verify_access_token),
 ) -> dict[str, Any]:
+    """
+    Verify that the request is not from a superadmin.
+    Returns the payload if valid, raises HTTPException if not.
+
+    This check is intentionally synchronous: it performs only lightweight
+    role validation on the already-validated JWT payload and does not require
+    any asynchronous operations. FastAPI supports sync dependencies with
+    Depends(), so keeping this as a regular function keeps it simple and fast.
+    """
     role: Optional[str] = payload.get("role")
     if role is None or role == "superadmin":
         raise HTTPException(
