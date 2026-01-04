@@ -1,9 +1,10 @@
+import pytest
 from sqlalchemy.orm import Session
 
-from taskmanagement_app.crud.task import create_task, get_tasks
+from taskmanagement_app.crud.task import create_task, get_tasks, update_task
 from taskmanagement_app.db.models.task import AssignmentType
 from taskmanagement_app.db.models.user import User
-from taskmanagement_app.schemas.task import TaskCreate
+from taskmanagement_app.schemas.task import TaskCreate, TaskUpdate
 
 
 def test_create_task_with_assignment(db_session: Session, test_user: dict) -> None:
@@ -297,3 +298,371 @@ def test_get_tasks_multi_user_assignment_visibility(
     )
     admin_assigned_ids = {task.id for task in admin_assigned_only}
     assert created_task.id not in admin_assigned_ids
+
+
+def test_update_task_assignment_to_any(db_session: Session, test_user: dict) -> None:
+    """Test updating a task to 'any' assignment type clears assignment fields."""
+    # Create users
+    user = User(
+        email=f"user_update_any_{test_user['email']}",
+        hashed_password="hashed_password",
+        is_active=True,
+        is_admin=False,
+    )
+    admin_user = User(
+        email="admin_update_any@example.com",
+        hashed_password="hashed_password",
+        is_active=True,
+        is_admin=True,
+    )
+    db_session.add(user)
+    db_session.add(admin_user)
+    db_session.commit()
+    db_session.refresh(user)
+    db_session.refresh(admin_user)
+
+    # Create task initially assigned to one user
+    task_data = TaskCreate(
+        title="Task to Update",
+        description="Initial assignment",
+        created_by=admin_user.id,
+        assignment_type="one",
+        assigned_to=user.id,
+    )
+    task = create_task(db_session, task_data)
+    assert task.assignment_type == AssignmentType.one
+    assert task.assigned_to == user.id
+
+    # Update to 'any' assignment type
+    task_update = TaskUpdate(
+        assignment_type="any",
+        assigned_to=None,  # Should be cleared
+        assigned_user_ids=None,  # Should be cleared
+    )
+
+    updated_task = update_task(db_session, task.id, task_update)
+
+    assert updated_task is not None
+    assert updated_task.assignment_type == AssignmentType.any
+    assert updated_task.assigned_to is None
+    assert updated_task.assigned_user is None
+
+
+def test_update_task_assignment_to_one(db_session: Session, test_user: dict) -> None:
+    """Test updating a task to 'one' assignment type with assigned_to field."""
+    # Create users
+    user1 = User(
+        email=f"user_update_one1_{test_user['email']}",
+        hashed_password="hashed_password",
+        is_active=True,
+        is_admin=False,
+    )
+    user2 = User(
+        email=f"user_update_one2_{test_user['email']}",
+        hashed_password="hashed_password",
+        is_active=True,
+        is_admin=False,
+    )
+    admin_user = User(
+        email="admin_update_one@example.com",
+        hashed_password="hashed_password",
+        is_active=True,
+        is_admin=True,
+    )
+    db_session.add_all([user1, user2, admin_user])
+    db_session.commit()
+    for u in [user1, user2, admin_user]:
+        db_session.refresh(u)
+
+    # Create task initially with 'any' assignment
+    task_data = TaskCreate(
+        title="Task to Update to One",
+        description="Initial any assignment",
+        created_by=admin_user.id,
+        assignment_type="any",
+    )
+    task = create_task(db_session, task_data)
+    assert task.assignment_type == AssignmentType.any
+    assert task.assigned_to is None
+
+    # Update to 'one' assignment type
+    task_update = TaskUpdate(
+        assignment_type="one",
+        assigned_to=user1.id,
+    )
+
+    updated_task = update_task(db_session, task.id, task_update)
+
+    assert updated_task is not None
+    assert updated_task.assignment_type == AssignmentType.one
+    assert updated_task.assigned_to == user1.id
+    assert updated_task.assigned_user is not None
+    assert updated_task.assigned_user.id == user1.id
+
+
+def test_update_task_assignment_to_some(db_session: Session, test_user: dict) -> None:
+    """Test updating a task to 'some' assignment type with assigned_user_ids field."""
+    # Create users
+    user1 = User(
+        email=f"user_update_some1_{test_user['email']}",
+        hashed_password="hashed_password",
+        is_active=True,
+        is_admin=False,
+    )
+    user2 = User(
+        email=f"user_update_some2_{test_user['email']}",
+        hashed_password="hashed_password",
+        is_active=True,
+        is_admin=False,
+    )
+    user3 = User(
+        email=f"user_update_some3_{test_user['email']}",
+        hashed_password="hashed_password",
+        is_active=True,
+        is_admin=False,
+    )
+    admin_user = User(
+        email="admin_update_some@example.com",
+        hashed_password="hashed_password",
+        is_active=True,
+        is_admin=True,
+    )
+    db_session.add_all([user1, user2, user3, admin_user])
+    db_session.commit()
+    for u in [user1, user2, user3, admin_user]:
+        db_session.refresh(u)
+
+    # Create task initially assigned to one user
+    task_data = TaskCreate(
+        title="Task to Update to Some",
+        description="Initial one assignment",
+        created_by=admin_user.id,
+        assignment_type="one",
+        assigned_to=user1.id,
+    )
+    task = create_task(db_session, task_data)
+    assert task.assignment_type == AssignmentType.one
+    assert task.assigned_to == user1.id
+
+    # Update to 'some' assignment type
+    task_update = TaskUpdate(
+        assignment_type="some",
+        assigned_to=None,  # Should be cleared
+        assigned_user_ids=[user2.id, user3.id],
+    )
+
+    updated_task = update_task(db_session, task.id, task_update)
+
+    assert updated_task is not None
+    assert updated_task.assignment_type == AssignmentType.some
+    assert updated_task.assigned_to is None
+    # Verify assigned_users relationship is properly updated
+    assert len(updated_task.assigned_users) == 2
+    assigned_user_ids = {user.id for user in updated_task.assigned_users}
+    assert user2.id in assigned_user_ids
+    assert user3.id in assigned_user_ids
+    assert user1.id not in assigned_user_ids
+
+
+def test_update_task_assignment_validation_errors(
+    db_session: Session, test_user: dict
+) -> None:
+    """Test that assignment field validation works correctly during updates."""
+    # Create users
+    user1 = User(
+        email=f"user_update_val1_{test_user['email']}",
+        hashed_password="hashed_password",
+        is_active=True,
+        is_admin=False,
+    )
+    user2 = User(
+        email=f"user_update_val2_{test_user['email']}",
+        hashed_password="hashed_password",
+        is_active=True,
+        is_admin=False,
+    )
+    admin_user = User(
+        email="admin_update_val@example.com",
+        hashed_password="hashed_password",
+        is_active=True,
+        is_admin=True,
+    )
+    db_session.add_all([user1, user2, admin_user])
+    db_session.commit()
+    for u in [user1, user2, admin_user]:
+        db_session.refresh(u)
+
+    # Create task with 'any' assignment
+    task_data = TaskCreate(
+        title="Task for Validation Tests",
+        description="Testing validation",
+        created_by=admin_user.id,
+        assignment_type="any",
+    )
+    task = create_task(db_session, task_data)
+
+    # Test 1: 'one' assignment type without assigned_to should fail
+    with pytest.raises(
+        ValueError, match="assigned_to must be specified when assignment_type is 'one'"
+    ):
+        task_update = TaskUpdate(
+            assignment_type="one",
+            assigned_to=None,
+        )
+        update_task(db_session, task.id, task_update)
+
+    # Test 2: 'one' assignment type with assigned_user_ids should fail
+    with pytest.raises(
+        ValueError,
+        match="assigned_user_ids must be None or empty when assignment_type is 'one'",
+    ):
+        task_update = TaskUpdate(
+            assignment_type="one",
+            assigned_to=user1.id,
+            assigned_user_ids=[user1.id, user2.id],
+        )
+        update_task(db_session, task.id, task_update)
+
+    # Test 3: 'some' assignment type without assigned_user_ids should fail
+    with pytest.raises(
+        ValueError,
+        match="assigned_user_ids must be specified when assignment_type is 'some'",
+    ):
+        task_update = TaskUpdate(
+            assignment_type="some",
+            assigned_user_ids=None,
+        )
+        update_task(db_session, task.id, task_update)
+
+    # Test 4: 'some' assignment type with assigned_to should fail
+    with pytest.raises(
+        ValueError, match="assigned_to must be None when assignment_type is 'some'"
+    ):
+        task_update = TaskUpdate(
+            assignment_type="some",
+            assigned_to=user1.id,
+            assigned_user_ids=[user1.id, user2.id],
+        )
+        update_task(db_session, task.id, task_update)
+
+    # Test 5: 'any' assignment type with assigned_to should fail
+    with pytest.raises(
+        ValueError, match="assigned_to must be None when assignment_type is 'any'"
+    ):
+        task_update = TaskUpdate(
+            assignment_type="any",
+            assigned_to=user1.id,
+        )
+        update_task(db_session, task.id, task_update)
+
+    # Test 6: 'any' assignment type with assigned_user_ids should fail
+    with pytest.raises(
+        ValueError,
+        match="assigned_user_ids must be None or empty when assignment_type is 'any'",
+    ):
+        task_update = TaskUpdate(
+            assignment_type="any",
+            assigned_user_ids=[user1.id, user2.id],
+        )
+        update_task(db_session, task.id, task_update)
+
+
+def test_update_task_assignment_partial_updates(
+    db_session: Session, test_user: dict
+) -> None:
+    """Test updating only assignment fields without changing assignment_type."""
+    # Create users
+    user1 = User(
+        email=f"user_update_partial1_{test_user['email']}",
+        hashed_password="hashed_password",
+        is_active=True,
+        is_admin=False,
+    )
+    user2 = User(
+        email=f"user_update_partial2_{test_user['email']}",
+        hashed_password="hashed_password",
+        is_active=True,
+        is_admin=False,
+    )
+    admin_user = User(
+        email="admin_update_partial@example.com",
+        hashed_password="hashed_password",
+        is_active=True,
+        is_admin=True,
+    )
+    db_session.add_all([user1, user2, admin_user])
+    db_session.commit()
+    for u in [user1, user2, admin_user]:
+        db_session.refresh(u)
+
+    # Create task with 'one' assignment
+    task_data = TaskCreate(
+        title="Task for Partial Updates",
+        description="Testing partial updates",
+        created_by=admin_user.id,
+        assignment_type="one",
+        assigned_to=user1.id,
+    )
+    task = create_task(db_session, task_data)
+    assert task.assigned_to == user1.id
+
+    # Update only the assigned_to field (keep same assignment_type)
+    task_update = TaskUpdate(
+        assigned_to=user2.id,
+    )
+
+    updated_task = update_task(db_session, task.id, task_update)
+
+    assert updated_task is not None
+    assert updated_task.assignment_type == AssignmentType.one  # Should remain unchanged
+    assert updated_task.assigned_to == user2.id  # Should be updated
+    assert updated_task.assigned_user is not None
+    assert updated_task.assigned_user.id == user2.id
+
+
+def test_update_task_assignment_with_invalid_user_ids(
+    db_session: Session, test_user: dict
+) -> None:
+    """Test that updating assignment fields with invalid user IDs fails properly."""
+    # Create user
+    user = User(
+        email=f"user_update_invalid_{test_user['email']}",
+        hashed_password="hashed_password",
+        is_active=True,
+        is_admin=False,
+    )
+    admin_user = User(
+        email="admin_update_invalid@example.com",
+        hashed_password="hashed_password",
+        is_active=True,
+        is_admin=True,
+    )
+    db_session.add_all([user, admin_user])
+    db_session.commit()
+    for u in [user, admin_user]:
+        db_session.refresh(u)
+
+    # Create task with 'any' assignment
+    task_data = TaskCreate(
+        title="Task for Invalid User Tests",
+        description="Testing invalid user references",
+        created_by=admin_user.id,
+        assignment_type="any",
+    )
+    task = create_task(db_session, task_data)
+
+    # Test updating with invalid assigned_to
+    with pytest.raises(ValueError, match="User with ID 99999 does not exist"):
+        task_update = TaskUpdate(
+            assignment_type="one",
+            assigned_to=99999,  # Non-existent user ID
+        )
+        update_task(db_session, task.id, task_update)
+
+    # Test updating with invalid assigned_user_ids
+    with pytest.raises(ValueError, match="User with ID 88888 does not exist"):
+        task_update = TaskUpdate(
+            assignment_type="some",
+            assigned_user_ids=[user.id, 88888],  # One valid, one invalid
+        )
+        update_task(db_session, task.id, task_update)

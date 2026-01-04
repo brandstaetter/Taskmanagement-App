@@ -290,6 +290,8 @@ def update_task(
     Returns:
         Updated task or None if task not found
     """
+    from taskmanagement_app.db.models.task import AssignmentType
+
     db_task = get_task(db, task_id)
     if db_task is None:
         return None
@@ -302,6 +304,31 @@ def update_task(
     # Validate user references before updating task
     if update_data:
         validate_user_references(db, update_data)
+
+    # Handle assigned_users for "some" assignment type
+    if "assignment_type" in update_data or "assigned_user_ids" in update_data:
+        # Get the final assignment_type (either from update or current task)
+        new_assignment_type = update_data.get(
+            "assignment_type", db_task.assignment_type
+        )
+
+        if new_assignment_type == AssignmentType.some:
+            # Clear existing assigned_users relationship
+            db_task.assigned_users.clear()
+
+            # Add new assigned_users if provided
+            if "assigned_user_ids" in update_data and update_data["assigned_user_ids"]:
+                from taskmanagement_app.db.models.user import User
+
+                users = (
+                    db.query(User)
+                    .filter(User.id.in_(update_data["assigned_user_ids"]))
+                    .all()
+                )
+                db_task.assigned_users = users
+        else:
+            # Clear assigned_users for non-"some" assignment types
+            db_task.assigned_users.clear()
 
     # Update task attributes
     for key, value in update_data.items():
