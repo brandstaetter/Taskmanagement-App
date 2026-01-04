@@ -1,4 +1,5 @@
 """Test to verify the race condition fix for task creation with assigned users."""
+
 from sqlalchemy.orm import Session
 
 from taskmanagement_app.crud.task import create_task, get_task
@@ -32,7 +33,7 @@ def test_task_creation_with_assigned_users_is_atomic(db_session: Session) -> Non
         assignment_type="some",
         assigned_user_ids=[user1.id, user2.id],
     )
-    
+
     # Create task - this should be atomic now
     created_task = create_task(db_session, task_data)
 
@@ -40,7 +41,7 @@ def test_task_creation_with_assigned_users_is_atomic(db_session: Session) -> Non
     assert created_task is not None
     assert created_task.assignment_type == "some"
     assert len(created_task.assigned_users) == 2
-    
+
     # Verify both users are assigned
     assigned_user_ids = {user.id for user in created_task.assigned_users}
     assert user1.id in assigned_user_ids
