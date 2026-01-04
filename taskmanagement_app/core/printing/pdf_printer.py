@@ -5,7 +5,7 @@ import shutil
 import tempfile
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, List, Optional
 
 import qrcode
 from fastapi import Response
@@ -86,7 +86,7 @@ class DottedLine(Flowable):
 class PDFPrinter(BasePrinter):
     """PDF printer implementation that creates receipt-like PDF files."""
 
-    def __init__(self, config: Dict[str, Any]) -> None:
+    def __init__(self, config: dict[str, Any]) -> None:
         """Initialize the PDF printer with output directory and logger."""
         super().__init__(config)
         self.logger = logging.getLogger(__name__)
@@ -115,7 +115,7 @@ class PDFPrinter(BasePrinter):
             self.logger.warning("Failed to parse datetime %s: %s", dt_str, str(e))
             return None
 
-    def _create_document_styles(self) -> Dict[str, ParagraphStyle]:
+    def _create_document_styles(self) -> dict[str, ParagraphStyle]:
         """Create and return the document styles."""
         styles = getSampleStyleSheet()
 
@@ -164,7 +164,7 @@ class PDFPrinter(BasePrinter):
         self,
         elements: List[Flowable],
         task: Task,
-        styles: Dict[str, ParagraphStyle],
+        styles: dict[str, ParagraphStyle],
         doc_width: float,
     ) -> None:
         """Add task header elements."""
@@ -173,7 +173,7 @@ class PDFPrinter(BasePrinter):
         elements.append(Spacer(1, 2 * mm))
 
     def _add_task_details(
-        self, elements: List[Flowable], task: Task, styles: Dict[str, ParagraphStyle]
+        self, elements: List[Flowable], task: Task, styles: dict[str, ParagraphStyle]
     ) -> None:
         """Add task details like description and reward."""
         if task.description:
@@ -196,7 +196,7 @@ class PDFPrinter(BasePrinter):
             elements.append(Spacer(1, 2 * mm))
 
     def _add_task_dates(
-        self, elements: List[Flowable], task: Task, styles: Dict[str, ParagraphStyle]
+        self, elements: List[Flowable], task: Task, styles: dict[str, ParagraphStyle]
     ) -> None:
         """Add task dates (created, started, completed)."""
         elements.append(Spacer(1, 4 * mm))

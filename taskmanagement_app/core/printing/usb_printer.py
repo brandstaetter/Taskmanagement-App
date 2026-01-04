@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any
 
 from escpos.printer import Usb
 from fastapi import Response
@@ -30,7 +30,7 @@ label_dict = {
 class USBPrinter(BasePrinter):
     """USB printer implementation."""
 
-    def __init__(self, config: Dict[str, Any]) -> None:
+    def __init__(self, config: dict[str, Any]) -> None:
         """Initialize USB printer with vendor and product IDs.
 
         Args:

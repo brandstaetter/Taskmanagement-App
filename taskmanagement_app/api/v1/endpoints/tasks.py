@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Any, List, Optional
+from typing import TYPE_CHECKING, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy.orm import Session
@@ -25,6 +25,7 @@ from taskmanagement_app.crud.task import (
 )
 from taskmanagement_app.db.models.task import TaskState
 from taskmanagement_app.db.session import get_db
+from taskmanagement_app.schemas.common import MaintenanceResponse
 from taskmanagement_app.schemas.task import Task, TaskCreate, TaskUpdate
 
 if TYPE_CHECKING:
@@ -251,7 +252,7 @@ def delete_task_endpoint(task_id: int, db: Session = Depends(get_db)) -> Task:
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.post("/{task_id}/print")
+@router.post("/{task_id}/print", response_model=None)
 async def print_task(
     task_id: int,
     printer_type: Optional[str] = Query(None, description="Type of printer to use"),
@@ -275,8 +276,8 @@ async def print_task(
         )
 
 
-@router.post("/maintenance")
-async def trigger_maintenance(db: Session = Depends(get_db)) -> dict:
+@router.post("/maintenance", response_model=MaintenanceResponse)
+async def trigger_maintenance(db: Session = Depends(get_db)) -> MaintenanceResponse:
     """
     Manually trigger the task maintenance job.
     This will process due tasks and clean up old ones.
@@ -285,7 +286,7 @@ async def trigger_maintenance(db: Session = Depends(get_db)) -> dict:
 
     try:
         run_maintenance()
-        return {"message": "Maintenance job completed successfully"}
+        return MaintenanceResponse(message="Maintenance job completed successfully")
     except Exception as e:
         raise HTTPException(
             status_code=500,
@@ -294,7 +295,7 @@ async def trigger_maintenance(db: Session = Depends(get_db)) -> dict:
 
 
 @router.patch("/{task_id}/reset-to-todo", response_model=Task)
-def reset_task_to_todo_endpoint(task_id: int, db: Session = Depends(get_db)) -> Any:
+def reset_task_to_todo_endpoint(task_id: int, db: Session = Depends(get_db)) -> Task:
     """Reset a task to todo state and clear its progress timestamps."""
     try:
         return reset_task_to_todo(db=db, task_id=task_id)
