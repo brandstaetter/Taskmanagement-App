@@ -185,3 +185,75 @@ def test_create_task_with_some_assignment_type(
     assigned_user_ids = {user.id for user in task.assigned_users}
     assert user.id in assigned_user_ids
     assert admin_user.id in assigned_user_ids
+
+
+def test_get_tasks_multi_user_assignment_visibility(
+    db_session: Session, test_user: dict
+) -> None:
+    """Test that multi-user assigned tasks are visible to all assigned users."""
+    # Create users in the database with unique emails
+    user1 = User(
+        email=f"user_multi1_{test_user['email']}",
+        hashed_password="hashed_password",
+        is_active=True,
+        is_admin=False,
+    )
+    user2 = User(
+        email=f"user_multi2_{test_user['email']}",
+        hashed_password="hashed_password",
+        is_active=True,
+        is_admin=False,
+    )
+    user3 = User(
+        email=f"user_multi3_{test_user['email']}",
+        hashed_password="hashed_password",
+        is_active=True,
+        is_admin=False,
+    )
+    admin_user = User(
+        email="admin_multi@example.com",
+        hashed_password="hashed_password",
+        is_active=True,
+        is_admin=True,
+    )
+    db_session.add_all([user1, user2, user3, admin_user])
+    db_session.commit()
+    for user in [user1, user2, user3, admin_user]:
+        db_session.refresh(user)
+
+    # Create task assigned to user1 and user2 (but not user3)
+    task_multi = TaskCreate(
+        title="Multi-user Assignment Task",
+        description="Assigned to user1 and user2",
+        created_by=admin_user.id,
+        assignment_type="some",
+        assigned_user_ids=[user1.id, user2.id],
+    )
+    created_task = create_task(db_session, task_multi)
+
+    # Test that user1 can see the task
+    user1_tasks = get_tasks(db_session, user_id=user1.id, include_created=False)
+    user1_task_ids = {task.id for task in user1_tasks}
+    assert created_task.id in user1_task_ids
+
+    # Test that user2 can see the task
+    user2_tasks = get_tasks(db_session, user_id=user2.id, include_created=False)
+    user2_task_ids = {task.id for task in user2_tasks}
+    assert created_task.id in user2_task_ids
+
+    # Test that user3 CANNOT see the task (not assigned)
+    user3_tasks = get_tasks(db_session, user_id=user3.id, include_created=False)
+    user3_task_ids = {task.id for task in user3_tasks}
+    assert created_task.id not in user3_task_ids
+
+    # Test that admin can see the task (created by them)
+    admin_tasks = get_tasks(db_session, user_id=admin_user.id, include_created=True)
+    admin_task_ids = {task.id for task in admin_tasks}
+    assert created_task.id in admin_task_ids
+
+    # Test that admin cannot see the task when include_created=False
+    admin_assigned_only = get_tasks(
+        db_session, user_id=admin_user.id, include_created=False
+    )
+    admin_assigned_ids = {task.id for task in admin_assigned_only}
+    assert created_task.id not in admin_assigned_ids

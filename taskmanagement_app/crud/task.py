@@ -41,10 +41,15 @@ def get_tasks(
     if user_id is not None:
         from sqlalchemy import or_
 
+        # Include tasks where user is in the assigned_users many-to-many relationship
+        # This requires joining with the association table
+        user_assigned_filter = TaskModel.assigned_users.any(id=user_id)
+
         visibility_filter = or_(
             TaskModel.assignment_type == AssignmentType.any,
             TaskModel.assigned_to == user_id,
             TaskModel.created_by == user_id,
+            user_assigned_filter,
         )
 
         if include_created:
@@ -55,6 +60,7 @@ def get_tasks(
             visibility_filter = or_(
                 TaskModel.assignment_type == AssignmentType.any,
                 TaskModel.assigned_to == user_id,
+                user_assigned_filter,
             )
             query = query.filter(visibility_filter)
 
