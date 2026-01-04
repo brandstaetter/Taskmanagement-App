@@ -149,8 +149,6 @@ def create_task(db: Session, task: TaskCreate) -> TaskModel:
         assigned_to=task.assigned_to,
     )
     db.add(db_task)
-    db.commit()
-    db.refresh(db_task)
 
     # Handle assigned_users for "some" assignment type
     if task.assignment_type == AssignmentType.some and task.assigned_user_ids:
@@ -158,8 +156,10 @@ def create_task(db: Session, task: TaskCreate) -> TaskModel:
 
         users = db.query(User).filter(User.id.in_(task.assigned_user_ids)).all()
         db_task.assigned_users = users
-        db.commit()
-        db.refresh(db_task)
+
+    # Single commit for both task creation and user assignment
+    db.commit()
+    db.refresh(db_task)
 
     return db_task
 
