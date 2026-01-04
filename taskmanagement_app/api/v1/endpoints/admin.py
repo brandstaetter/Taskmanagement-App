@@ -19,6 +19,11 @@ from taskmanagement_app.crud.user import (
 )
 from taskmanagement_app.db.base import Base, engine
 from taskmanagement_app.db.session import get_db
+from taskmanagement_app.schemas.common import (
+    DbOperationResponse,
+    MigrationResponse,
+    PasswordResetResponse,
+)
 from taskmanagement_app.schemas.user import AdminUserCreate
 from taskmanagement_app.schemas.user import User as UserSchema
 
@@ -49,8 +54,8 @@ def _get_db_location_for_log() -> str:
 router = APIRouter()
 
 
-@router.post("/db/init")
-async def init_db(authorized: bool = Depends(verify_superadmin)) -> dict:
+@router.post("/db/init", response_model=DbOperationResponse)
+async def init_db(authorized: bool = Depends(verify_superadmin)) -> DbOperationResponse:
     """
     Initialize database by creating all tables.
     Requires superadmin authentication.
@@ -60,7 +65,7 @@ async def init_db(authorized: bool = Depends(verify_superadmin)) -> dict:
 
         ensure_models_registered()
         Base.metadata.create_all(bind=engine)
-        return {"message": "Database initialized successfully"}
+        return DbOperationResponse(message="Database initialized successfully")
     except Exception as e:
         logger.exception(
             "Failed to initialize database (db=%s)",
@@ -71,8 +76,8 @@ async def init_db(authorized: bool = Depends(verify_superadmin)) -> dict:
         )
 
 
-@router.post("/db/migrate")
-async def run_migrations(authorized: bool = Depends(verify_admin)) -> dict:
+@router.post("/db/migrate", response_model=MigrationResponse)
+async def run_migrations(authorized: bool = Depends(verify_admin)) -> MigrationResponse:
     """
     Run all pending Alembic migrations.
     Requires admin authentication.
@@ -100,10 +105,10 @@ async def run_migrations(authorized: bool = Depends(verify_admin)) -> dict:
                 status_code=500, detail=f"Migration failed: {result.stderr}"
             )
 
-        return {
-            "message": "Migrations completed successfully",
-            "details": result.stdout,
-        }
+        return MigrationResponse(
+            message="Migrations completed successfully",
+            details=result.stdout,
+        )
     except HTTPException:
         raise
     except Exception as e:
@@ -125,16 +130,16 @@ def create_new_user(
     return UserSchema.model_validate(created)
 
 
-@router.post("/users/{user_id}/reset-password")
+@router.post("/users/{user_id}/reset-password", response_model=PasswordResetResponse)
 def reset_password(
     user_id: int,
     db: Session = Depends(get_db),
     _: bool = Depends(verify_admin_only),
-) -> dict:
+) -> PasswordResetResponse:
     if get_user(db, user_id=user_id) is None:
         raise HTTPException(status_code=404, detail="User not found")
 
     user, new_password = reset_user_password(db, user_id=user_id)
     if user is None or new_password is None:
         raise HTTPException(status_code=404, detail="User not found")
-    return {"email": user.email, "new_password": new_password}
+    return PasswordResetResponse(email=user.email, new_password=new_password)

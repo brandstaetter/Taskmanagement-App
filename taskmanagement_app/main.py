@@ -9,6 +9,7 @@ from taskmanagement_app.api.v1.api import api_router
 from taskmanagement_app.core.config import get_settings
 from taskmanagement_app.core.logging import setup_logging
 from taskmanagement_app.jobs.scheduler import start_scheduler, stop_scheduler
+from taskmanagement_app.schemas.common import RootResponse
 
 # Set up logging first
 logger = setup_logging()
@@ -60,7 +61,7 @@ if origins:
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
 
-@app.get("/")
-async def root() -> dict:
+@app.get("/", response_model=RootResponse)
+async def root() -> RootResponse:
     """Root endpoint."""
-    return {"message": "Task Management API"}
+    return RootResponse(message="Task Management API")

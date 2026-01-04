@@ -20,7 +20,7 @@ class PrintRequest(BaseModel):
     printer_type: Optional[str] = None
 
 
-@router.post("/")
+@router.post("/", response_model=None)
 async def print_data(request: PrintRequest) -> Response:
     """
     Print data using the configured printer.
