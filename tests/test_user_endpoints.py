@@ -26,6 +26,65 @@ def create_and_login_user(
     return email, access_token
 
 
+def test_get_current_user_info(client: TestClient, db_session: Session) -> None:
+    email, access_token = create_and_login_user(client, db_session, "Str0ng!Pass1")
+
+    response = client.get(
+        "/api/v1/users/me",
+        headers={"Authorization": f"Bearer {access_token}"},
+    )
+
+    assert response.status_code == 200
+    user_data = response.json()
+    assert user_data["email"] == email
+    assert user_data["is_active"] is True
+    assert user_data["is_admin"] is False
+    assert "id" in user_data
+    assert "created_at" in user_data
+    assert "updated_at" in user_data
+
+
+def test_get_current_user_info_requires_authentication(
+    client: TestClient, db_session: Session
+) -> None:
+    email = f"user_{uuid4()}@example.com"
+    user_data = UserCreate(email=email, password="Str0ng!Pass1")
+    response = client.post("/api/v1/admin/users", json=user_data.model_dump())
+    assert response.status_code == 200
+
+    existing_auth = client.headers.pop("Authorization", None)
+    try:
+        response = client.get("/api/v1/users/me")
+    finally:
+        if existing_auth is not None:
+            client.headers["Authorization"] = existing_auth
+
+    assert response.status_code == 401
+
+
+def test_get_current_user_info_inactive_user_forbidden(
+    client: TestClient, db_session: Session
+) -> None:
+    email = f"inactive_{uuid4()}@example.com"
+    user_data = UserCreate(email=email, password="Str0ng!Pass1")
+    response = client.post("/api/v1/admin/users", json=user_data.model_dump())
+    assert response.status_code == 200
+
+    db_user = get_user_by_email(db_session, email=email)
+    assert db_user is not None
+    db_user.is_active = False
+    db_session.commit()
+
+    token = create_user_token(subject=email)
+    response = client.get(
+        "/api/v1/users/me",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "User account is inactive"
+
+
 def test_change_password_success(client: TestClient, db_session: Session) -> None:
     email, access_token = create_and_login_user(client, db_session, "Str0ng!Pass1")
 

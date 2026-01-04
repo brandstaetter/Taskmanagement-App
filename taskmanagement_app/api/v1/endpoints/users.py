@@ -43,6 +43,14 @@ def get_current_user(
     return user
 
 
+@router.get("/me", response_model=UserSchema)
+def get_current_user_info(
+    current_user: User = Depends(get_current_user),
+) -> UserSchema:
+    """Get the current user's information."""
+    return UserSchema.model_validate(current_user)
+
+
 @router.put("/me/password", response_model=UserSchema)
 def change_password(
     password_data: UserPasswordChange,
