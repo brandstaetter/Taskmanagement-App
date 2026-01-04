@@ -63,6 +63,7 @@ def get_tasks(
     state: Optional[str] = None,
     user_id: Optional[int] = None,
     include_created: bool = True,
+    search: Optional[str] = None,
 ) -> Sequence[TaskModel]:
     """Get a list of tasks.
 
@@ -74,6 +75,7 @@ def get_tasks(
         state: Optional state to filter by
         user_id: Optional user ID to filter tasks by visibility/assignment
         include_created: Whether to include tasks created by the user
+        search: Optional search term to filter by title/description (case-insensitive)
 
     Returns:
         List of tasks
@@ -122,6 +124,18 @@ def get_tasks(
     # Otherwise apply archived filter
     elif not include_archived:
         query = query.filter(TaskModel.state != TaskState.archived)
+
+    # Apply search filter if provided
+    if search:
+        from sqlalchemy import or_
+
+        search_pattern = f"%{search}%"
+        query = query.filter(
+            or_(
+                TaskModel.title.ilike(search_pattern),
+                TaskModel.description.ilike(search_pattern),
+            )
+        )
 
     return (
         query.order_by(TaskModel.due_date.asc().nulls_last())

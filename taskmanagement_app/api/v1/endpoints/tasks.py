@@ -163,23 +163,17 @@ def search_tasks(
     user_id = current_user.id if current_user else None
     # For admin users (current_user is None), show all tasks
     # For regular users, show only their assigned/created tasks
+    # Search filtering is now performed at the database level for better performance
     db_tasks = get_tasks(
-        db, include_archived=include_archived, user_id=user_id
-    )  # Apply visibility filtering
-
-    # Filter by search query
-    search_pattern = f"%{q}%".lower()
-    filtered_tasks = []
-    for task in db_tasks:
-        if (
-            search_pattern in task.title.lower()
-            or search_pattern in task.description.lower()
-        ):
-            filtered_tasks.append(task)
+        db,
+        include_archived=include_archived,
+        user_id=user_id,
+        search=q,
+    )
 
     # Log results and convert to response models
-    logger.debug("Found %d tasks matching query '%s'", len(filtered_tasks), q)
-    return [Task.model_validate(task) for task in filtered_tasks]
+    logger.debug("Found %d tasks matching query '%s'", len(db_tasks), q)
+    return [Task.model_validate(task) for task in db_tasks]
 
 
 @router.get("/{task_id}", response_model=Task)
