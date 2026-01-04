@@ -22,7 +22,7 @@ from tests.test_utils import TestUserFactory
 def create_test_user(db_session: Session, email_prefix: str = "test_user") -> int:
     """Create a test user and return their ID."""
     user = TestUserFactory.create_test_user(db_session, email_prefix)
-    return user["id"]
+    return int(user["id"])
 
 
 def test_create_task(db_session: Session) -> None:

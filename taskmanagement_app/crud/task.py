@@ -86,9 +86,17 @@ def get_tasks(
     if user_id is not None:
         from sqlalchemy import or_
 
-        # Include tasks where user is in the assigned_users many-to-many relationship
-        # This requires joining with the association table
-        user_assigned_filter = TaskModel.assigned_users.any(id=user_id)
+        # Use explicit join with association table instead of .any()
+        # to avoid N+1 queries
+        from taskmanagement_app.db.models.task import task_assigned_users
+
+        # Join with the association table to check user assignment efficiently
+        user_assigned_filter = TaskModel.id.in_(
+            db.query(task_assigned_users.c.task_id)
+            .filter(task_assigned_users.c.user_id == user_id)
+            .subquery()
+            .select()
+        )
 
         visibility_filter = or_(
             TaskModel.assignment_type == AssignmentType.any,
