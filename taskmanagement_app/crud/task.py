@@ -312,18 +312,24 @@ def update_task(
         )
 
         if new_assignment_type == AssignmentType.some:
+            # When assignment_type is "some", we require a non-empty assigned_user_ids
+            assigned_user_ids = update_data.get("assigned_user_ids")
+            # Invalid if assignment_type is explicitly set to "some" without any users,
+            # or if an empty list of users is provided while type is "some".
+            if ("assignment_type" in update_data and not assigned_user_ids) or (
+                "assigned_user_ids" in update_data and not assigned_user_ids
+            ):
+                raise ValueError(
+                    "assigned_user_ids must be provided and non-empty when "
+                    "assignment_type is 'some'."
+                )
             # Clear existing assigned_users relationship
             db_task.assigned_users.clear()
-
             # Add new assigned_users if provided
-            if "assigned_user_ids" in update_data and update_data["assigned_user_ids"]:
+            if assigned_user_ids:
                 from taskmanagement_app.db.models.user import User
 
-                users = (
-                    db.query(User)
-                    .filter(User.id.in_(update_data["assigned_user_ids"]))
-                    .all()
-                )
+                users = db.query(User).filter(User.id.in_(assigned_user_ids)).all()
                 db_task.assigned_users = users
         else:
             # Clear assigned_users for non-"some" assignment types

@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-from typing import Any
+from typing import Any, Dict
 
 import pytest
 from sqlalchemy.orm import Session
@@ -16,6 +16,7 @@ from taskmanagement_app.crud.task import (
     update_task,
     validate_user_references,
 )
+from taskmanagement_app.db.models.task import AssignmentType
 from taskmanagement_app.schemas.task import TaskCreate, TaskUpdate
 from tests.test_utils import TestUserFactory
 
@@ -431,3 +432,55 @@ def test_validate_user_references_with_empty_list(db_session: Session) -> None:
     task_update = TaskUpdate(assigned_user_ids=[])
     # Should not raise an exception
     validate_user_references(db=db_session, task_data=task_update)
+
+
+def test_update_task_assignment_type_some_requires_assigned_user_ids(
+    db_session: Session,
+) -> None:
+    """Test that setting assignment_type to 'some' requires non-empty assigned_user_ids."""
+    user_id = create_test_user(db_session, "test_assignment_validation")
+
+    # Create a task with 'one' assignment type
+    task_in = TaskCreate(
+        title="Test Task",
+        description="Test Description",
+        due_date=(datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
+        state="todo",
+        created_by=user_id,
+        assignment_type="one",
+        assigned_to=user_id,
+    )
+    task = create_task(db=db_session, task=task_in)
+
+    # Test 1: Try to set assignment_type to 'some' without assigned_user_ids
+    # This should fail at Pydantic validation level
+    with pytest.raises(
+        ValueError,
+        match="assigned_user_ids must be specified when assignment_type is 'some'",
+    ):
+        TaskUpdate(assignment_type="some")
+
+    # Test 2: Try to set assignment_type to 'some' with empty assigned_user_ids
+    # This should also fail at Pydantic validation level
+    with pytest.raises(
+        ValueError,
+        match="assigned_user_ids must be specified when assignment_type is 'some'",
+    ):
+        TaskUpdate(assignment_type="some", assigned_user_ids=[])
+
+    # Test 3: Try to provide empty assigned_user_ids while keeping assignment_type as 'some'
+    # First set it to 'some' with valid users
+    task_update_valid = TaskUpdate(assignment_type="some", assigned_user_ids=[user_id])
+    updated_task = update_task(db=db_session, task_id=task.id, task=task_update_valid)
+    assert updated_task is not None
+    assert updated_task.assignment_type == AssignmentType.some
+    assert len(updated_task.assigned_users) == 1
+
+    # Then try to update with empty assigned_user_ids - this should fail at CRUD validation
+    # Use dict to bypass Pydantic validation and test our CRUD validation
+    task_update_empty_only: Dict[str, Any] = {"assigned_user_ids": []}
+    with pytest.raises(
+        ValueError,
+        match="assigned_user_ids must be provided and non-empty when assignment_type is 'some'",
+    ):
+        update_task(db=db_session, task_id=task.id, task=task_update_empty_only)
