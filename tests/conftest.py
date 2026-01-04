@@ -53,7 +53,11 @@ def db_engine() -> Generator[Engine, None, None]:
         if os.path.exists(test_db_path):
             os.remove(test_db_path)
     except PermissionError:
-        print("Warning: Could not remove test.db file - it may still be in use")
+        # Log warning but don't fail the test setup
+        import logging
+
+        logger = logging.getLogger(__name__)
+        logger.warning("Could not remove test.db file - it may still be in use")
 
 
 @pytest.fixture(scope="function")
@@ -98,4 +102,16 @@ def test_user() -> Dict[str, Any]:
         "username": "testuser",
         "email": "test@example.com",
         "password": "testpassword123",
+    }
+
+
+@pytest.fixture(scope="function")
+def test_db_user(db_session: Session) -> Dict[str, Any]:
+    """Create a test user in the database."""
+    from tests.test_utils import TestUserFactory
+
+    user = TestUserFactory.create_test_user(db_session, "test_db_user")
+    return {
+        "id": user["id"],
+        "email": user["email"],
     }

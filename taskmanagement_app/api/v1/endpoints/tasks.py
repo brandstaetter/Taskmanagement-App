@@ -1,11 +1,11 @@
 import logging
 from datetime import datetime, timezone
-from typing import Any, List, Optional
+from typing import TYPE_CHECKING, Any, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy.orm import Session
 
-from taskmanagement_app.core.auth import verify_not_superadmin
+from taskmanagement_app.core.auth import get_current_user, verify_not_superadmin
 from taskmanagement_app.core.exceptions import TaskNotFoundError, TaskStatusError
 from taskmanagement_app.core.printing.printer_factory import PrinterFactory
 from taskmanagement_app.crud.task import (
@@ -16,16 +16,19 @@ from taskmanagement_app.crud.task import (
     create_task,
     get_task,
     get_tasks,
-    read_random_task,
     reset_task_to_todo,
 )
 from taskmanagement_app.crud.task import start_task as start_task_crud
 from taskmanagement_app.crud.task import (
     update_task,
+    weighted_random_choice,
 )
-from taskmanagement_app.db.models.task import TaskModel, TaskState
+from taskmanagement_app.db.models.task import TaskState
 from taskmanagement_app.db.session import get_db
 from taskmanagement_app.schemas.task import Task, TaskCreate, TaskUpdate
+
+if TYPE_CHECKING:
+    from taskmanagement_app.db.models.user import User
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +41,11 @@ def read_tasks(
     limit: int = 100,
     include_archived: bool = False,
     state: Optional[str] = Query(None, description="Filter tasks by state"),
+    include_created: bool = Query(
+        True, description="Include tasks created by the user"
+    ),
     db: Session = Depends(get_db),
+    current_user: Optional["User"] = Depends(get_current_user),
 ) -> List[Task]:
     """
     Retrieve tasks.
@@ -48,14 +55,21 @@ def read_tasks(
         limit: Maximum number of records to return
         include_archived: Whether to include archived tasks in the result
         state: Optional state to filter tasks by (todo, in_progress, done, archived)
+        include_created: Whether to include tasks created by the current user
         db: Database session
+        current_user: Current authenticated user
     """
+    user_id = current_user.id if current_user else None
+    # For admin users (current_user is None), show all tasks
+    # For regular users, show only their assigned/created tasks
     db_tasks = get_tasks(
         db,
         skip=skip,
         limit=limit,
         include_archived=include_archived,
         state=state,
+        user_id=user_id,
+        include_created=include_created,
     )
     return [Task.model_validate(task) for task in db_tasks]
 
@@ -68,17 +82,28 @@ def create_new_task(
     """
     Create new task.
     """
-    db_task = create_task(db=db, task=task)
-    return Task.model_validate(db_task)
+    try:
+        db_task = create_task(db=db, task=task)
+        return Task.model_validate(db_task)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.get("/due/", response_model=List[Task])
-def read_due_tasks(db: Session = Depends(get_db)) -> List[Task]:
+def read_due_tasks(
+    db: Session = Depends(get_db),
+    current_user: Optional["User"] = Depends(get_current_user),
+) -> List[Task]:
     """
     Retrieve all tasks that are due within the next 24 hours.
     """
     now = datetime.now(timezone.utc)
-    db_tasks = get_tasks(db, include_archived=False)  # Exclude archived tasks
+    user_id = current_user.id if current_user else None
+    # For admin users (current_user is None), show all tasks
+    # For regular users, show only their assigned/created tasks
+    db_tasks = get_tasks(
+        db, include_archived=False, user_id=user_id
+    )  # Exclude archived tasks and apply visibility filtering
     due_tasks = []
     for task in db_tasks:
         if task.due_date:
@@ -91,6 +116,7 @@ def read_due_tasks(db: Session = Depends(get_db)) -> List[Task]:
 @router.get("/random/", response_model=Task)
 def get_random_task(
     db: Session = Depends(get_db),
+    current_user: Optional["User"] = Depends(get_current_user),
 ) -> Task:
     """
     Get a random task, prioritizing tasks that are:
@@ -100,10 +126,22 @@ def get_random_task(
 
     Note: Archived tasks are excluded.
     """
-    db_task = read_random_task(db)  # read_random_task already excludes archived tasks
-    if not db_task:
+    user_id = current_user.id if current_user else None
+    # For admin users (current_user is None), show all tasks
+    # For regular users, show only their assigned/created tasks
+    db_tasks = get_tasks(
+        db, include_archived=False, user_id=user_id
+    )  # Exclude archived tasks and apply visibility filtering
+
+    if not db_tasks:
         raise HTTPException(status_code=404, detail="No tasks found")
-    return Task.model_validate(db_task)
+
+    # Use weighted random selection from the filtered tasks
+    selected_task = weighted_random_choice(db_tasks)
+    if not selected_task:
+        raise HTTPException(status_code=404, detail="No tasks found")
+
+    return Task.model_validate(selected_task)
 
 
 @router.get("/search/", response_model=List[Task])
@@ -111,6 +149,7 @@ def search_tasks(
     q: str = Query(..., description="Search query"),
     include_archived: bool = False,
     db: Session = Depends(get_db),
+    current_user: Optional["User"] = Depends(get_current_user),
 ) -> List[Task]:
     """
     Search tasks by title or description.
@@ -119,27 +158,22 @@ def search_tasks(
         q: Search query
         include_archived: Whether to include archived tasks in the result
         db: Database session
+        current_user: Current authenticated user
     """
-    # Create base query
-    query = db.query(TaskModel)
-
-    # Apply archived filter if needed
-    if not include_archived:
-        query = query.filter(TaskModel.state != TaskState.archived)
-
-    # Apply search filter using SQLite's LIKE operator (case-insensitive by default)
-    search_pattern = f"%{q}%"
-    query = query.filter(
-        TaskModel.title.like(search_pattern)
-        | TaskModel.description.like(search_pattern)
+    user_id = current_user.id if current_user else None
+    # For admin users (current_user is None), show all tasks
+    # For regular users, show only their assigned/created tasks
+    # Search filtering is now performed at the database level for better performance
+    db_tasks = get_tasks(
+        db,
+        include_archived=include_archived,
+        user_id=user_id,
+        search=q,
     )
 
-    # Execute query and log results
-    tasks = query.all()
-    logger.debug("Found %d tasks matching query '%s'", len(tasks), q)
-
-    # Convert to response models
-    return [Task.model_validate(task) for task in tasks]
+    # Log results and convert to response models
+    logger.debug("Found %d tasks matching query '%s'", len(db_tasks), q)
+    return [Task.model_validate(task) for task in db_tasks]
 
 
 @router.get("/{task_id}", response_model=Task)
@@ -300,5 +334,8 @@ def update_task_endpoint(
     if not db_task:
         raise HTTPException(status_code=404, detail="Task not found")
 
-    updated_task = update_task(db, task_id, task)
-    return Task.model_validate(updated_task)
+    try:
+        updated_task = update_task(db, task_id, task)
+        return Task.model_validate(updated_task)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))

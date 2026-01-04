@@ -28,6 +28,7 @@ def create_test_task(
         description="Test Description",
         due_date=(datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
         state=state,
+        created_by=1,
     )
     task = create_task(db=db, task=task_in)
     if completed_at:

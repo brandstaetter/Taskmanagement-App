@@ -13,6 +13,7 @@ Goal: maximize correctness, reduce hallucinations, and keep changes small & veri
 
 - Start by restating the intent and a short plan (2-5 milestones) for non-trivial tasks.
 - Make the smallest change that solves the task.
+- Only add comments when explicitly requested or to explain complexnon-obvious logic.
 - If requirements are ambiguous, ask targeted questions before implementing.
 - Never fabricate:
   - file paths, module names, functions, endpoints, config keys, or CLI commands.

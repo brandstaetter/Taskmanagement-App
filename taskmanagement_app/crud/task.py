@@ -6,8 +6,53 @@ from typing import Any, Dict, List, Optional, Sequence, Union
 from sqlalchemy.orm import Session
 
 from taskmanagement_app.core.exceptions import TaskNotFoundError, TaskStatusError
+from taskmanagement_app.crud.user import get_user
 from taskmanagement_app.db.models.task import TaskModel, TaskState
 from taskmanagement_app.schemas.task import TaskCreate, TaskUpdate
+
+
+def validate_user_references(
+    db: Session, task_data: Union[TaskCreate, TaskUpdate, Dict[str, Any]]
+) -> None:
+    """
+    Validate that all referenced user IDs exist in the database.
+
+    Args:
+        db: Database session
+        task_data: Task data containing user references
+
+    Raises:
+        ValueError: If any referenced user ID does not exist
+    """
+    # Convert to dict if needed
+    if isinstance(task_data, dict):
+        data = task_data
+    else:
+        data = (
+            task_data.model_dump(exclude_unset=True)
+            if hasattr(task_data, "model_dump")
+            else task_data.dict(exclude_unset=True)
+        )
+
+    user_ids_to_check = []
+
+    # Check created_by
+    if "created_by" in data and data["created_by"] is not None:
+        user_ids_to_check.append(data["created_by"])
+
+    # Check assigned_to
+    if "assigned_to" in data and data["assigned_to"] is not None:
+        user_ids_to_check.append(data["assigned_to"])
+
+    # Check assigned_user_ids
+    if "assigned_user_ids" in data and data["assigned_user_ids"] is not None:
+        user_ids_to_check.extend(data["assigned_user_ids"])
+
+    # Validate each user ID exists
+    for user_id in user_ids_to_check:
+        user = get_user(db, user_id)
+        if user is None:
+            raise ValueError(f"User with ID {user_id} does not exist")
 
 
 def get_tasks(
@@ -16,6 +61,9 @@ def get_tasks(
     limit: int = 100,
     include_archived: bool = False,
     state: Optional[str] = None,
+    user_id: Optional[int] = None,
+    include_created: bool = True,
+    search: Optional[str] = None,
 ) -> Sequence[TaskModel]:
     """Get a list of tasks.
 
@@ -25,11 +73,50 @@ def get_tasks(
         limit: Maximum number of records to return
         include_archived: Whether to include archived tasks in the result
         state: Optional state to filter by
+        user_id: Optional user ID to filter tasks by visibility/assignment
+        include_created: Whether to include tasks created by the user
+        search: Optional search term to filter by title/description (case-insensitive)
 
     Returns:
         List of tasks
     """
+    from taskmanagement_app.db.models.task import AssignmentType
+
     query = db.query(TaskModel)
+
+    # Apply user visibility filter if user_id is provided
+    if user_id is not None:
+        from sqlalchemy import or_
+
+        # Use explicit join with association table instead of .any()
+        # to avoid N+1 queries
+        from taskmanagement_app.db.models.task import task_assigned_users
+
+        # Join with the association table to check user assignment efficiently
+        user_assigned_filter = TaskModel.id.in_(
+            db.query(task_assigned_users.c.task_id)
+            .filter(task_assigned_users.c.user_id == user_id)
+            .subquery()
+            .select()
+        )
+
+        # Create base visibility filter (tasks visible to user regardless of creator)
+        base_visibility_filter = or_(
+            TaskModel.assignment_type == AssignmentType.any,
+            TaskModel.assigned_to == user_id,
+            user_assigned_filter,
+        )
+
+        if include_created:
+            # Include tasks created by user
+            visibility_filter = or_(
+                base_visibility_filter, TaskModel.created_by == user_id
+            )
+        else:
+            # Exclude tasks created by user, only show assigned tasks
+            visibility_filter = base_visibility_filter
+
+        query = query.filter(visibility_filter)
 
     # Apply state filter if provided
     if state:
@@ -37,6 +124,18 @@ def get_tasks(
     # Otherwise apply archived filter
     elif not include_archived:
         query = query.filter(TaskModel.state != TaskState.archived)
+
+    # Apply search filter if provided
+    if search:
+        from sqlalchemy import or_
+
+        search_pattern = f"%{search}%"
+        query = query.filter(
+            or_(
+                TaskModel.title.ilike(search_pattern),
+                TaskModel.description.ilike(search_pattern),
+            )
+        )
 
     return (
         query.order_by(TaskModel.due_date.asc().nulls_last())
@@ -47,16 +146,34 @@ def get_tasks(
 
 
 def create_task(db: Session, task: TaskCreate) -> TaskModel:
+    from taskmanagement_app.db.models.task import AssignmentType
+
+    # Validate user references before creating task
+    validate_user_references(db, task)
+
     db_task = TaskModel(
         title=task.title,
         description=task.description,
         state=task.state,
         due_date=task.due_date,
         reward=task.reward,
+        created_by=task.created_by,
+        assignment_type=task.assignment_type,
+        assigned_to=task.assigned_to,
     )
     db.add(db_task)
+
+    # Handle assigned_users for "some" assignment type
+    if task.assignment_type == AssignmentType.some and task.assigned_user_ids:
+        from taskmanagement_app.db.models.user import User
+
+        users = db.query(User).filter(User.id.in_(task.assigned_user_ids)).all()
+        db_task.assigned_users = users
+
+    # Single commit for both task creation and user assignment
     db.commit()
     db.refresh(db_task)
+
     return db_task
 
 
@@ -186,6 +303,8 @@ def update_task(
     Returns:
         Updated task or None if task not found
     """
+    from taskmanagement_app.db.models.task import AssignmentType
+
     db_task = get_task(db, task_id)
     if db_task is None:
         return None
@@ -195,8 +314,48 @@ def update_task(
         task if isinstance(task, dict) else task.model_dump(exclude_unset=True)
     )
 
+    # Validate user references before updating task
+    if update_data:
+        validate_user_references(db, update_data)
+
+    # Handle assigned_users for "some" assignment type
+    if "assignment_type" in update_data or "assigned_user_ids" in update_data:
+        # Get the final assignment_type (either from update or current task)
+        new_assignment_type = update_data.get(
+            "assignment_type", db_task.assignment_type
+        )
+
+        if new_assignment_type == AssignmentType.some:
+            # When assignment_type is "some", we require a non-empty assigned_user_ids
+            assigned_user_ids = update_data.get("assigned_user_ids")
+            # Invalid if assignment_type is explicitly set to "some" without any users,
+            # or if an empty list of users is provided while type is "some".
+            if ("assignment_type" in update_data and not assigned_user_ids) or (
+                "assigned_user_ids" in update_data and not assigned_user_ids
+            ):
+                raise ValueError(
+                    "assigned_user_ids must be provided and non-empty when "
+                    "assignment_type is 'some'."
+                )
+            # Clear existing assigned_users relationship
+            db_task.assigned_users.clear()
+            # Add new assigned_users if provided
+            if assigned_user_ids:
+                from taskmanagement_app.db.models.user import User
+
+                users = db.query(User).filter(User.id.in_(assigned_user_ids)).all()
+                db_task.assigned_users = users
+        else:
+            # Clear assigned_users for non-"some" assignment types
+            db_task.assigned_users.clear()
+
+    # Remove assigned_user_ids from update_data since it's handled above
+    update_data_for_attrs = {
+        k: v for k, v in update_data.items() if k != "assigned_user_ids"
+    }
+
     # Update task attributes
-    for key, value in update_data.items():
+    for key, value in update_data_for_attrs.items():
         setattr(db_task, key, value)
 
     db.commit()

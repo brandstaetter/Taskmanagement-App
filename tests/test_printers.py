@@ -38,6 +38,7 @@ def create_test_task(db: Session) -> TaskModel:
         title="Test Task",
         description="Test Description",
         due_date=(datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
+        created_by=1,
     )
     task = create_task(db=db, task=task_in)
     return task
