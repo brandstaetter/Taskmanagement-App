@@ -103,3 +103,15 @@ def test_user() -> Dict[str, Any]:
         "email": "test@example.com",
         "password": "testpassword123",
     }
+
+
+@pytest.fixture(scope="function")
+def test_db_user(db_session: Session) -> Dict[str, Any]:
+    """Create a test user in the database."""
+    from tests.test_utils import TestUserFactory
+
+    user = TestUserFactory.create_test_user(db_session, "test_db_user")
+    return {
+        "id": user["id"],
+        "email": user["email"],
+    }

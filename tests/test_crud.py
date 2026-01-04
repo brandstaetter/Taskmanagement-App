@@ -8,24 +8,32 @@ from taskmanagement_app.crud.task import (
     complete_task,
     create_task,
     get_due_tasks,
+    get_random_task,
     get_task,
     get_tasks,
     start_task,
     update_task,
     validate_user_references,
 )
-from taskmanagement_app.crud.user import create_user
 from taskmanagement_app.schemas.task import TaskCreate, TaskUpdate
-from taskmanagement_app.schemas.user import UserCreate
+from tests.test_utils import TestUserFactory
+
+
+def create_test_user(db_session: Session, email_prefix: str = "test_user") -> int:
+    """Create a test user and return their ID."""
+    user = TestUserFactory.create_test_user(db_session, email_prefix)
+    return user["id"]
 
 
 def test_create_task(db_session: Session) -> None:
+    user_id = create_test_user(db_session, "test_create_task")
+
     task_in = TaskCreate(
         title="Test Task",
         description="Test Description",
         due_date=(datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
         state="todo",
-        created_by=1,  # Add required created_by field
+        created_by=user_id,
     )
     task = create_task(db=db_session, task=task_in)
     assert task.title == task_in.title
@@ -34,12 +42,13 @@ def test_create_task(db_session: Session) -> None:
 
 
 def test_get_task(db_session: Session) -> None:
+    user_id = create_test_user(db_session, "test_get_task")
     task_in = TaskCreate(
         title="Test Task",
         description="Test Description",
         due_date=(datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
         state="todo",
-        created_by=1,
+        created_by=user_id,
     )
     task = create_task(db=db_session, task=task_in)
     stored_task = get_task(db=db_session, task_id=task.id)
@@ -50,19 +59,20 @@ def test_get_task(db_session: Session) -> None:
 
 
 def test_get_tasks(db_session: Session) -> None:
+    user_id = create_test_user(db_session, "test_get_tasks")
     task_in1 = TaskCreate(
         title="Test Task 1",
         description="Test Description 1",
         due_date=(datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
         state="todo",
-        created_by=1,
+        created_by=user_id,
     )
     task_in2 = TaskCreate(
         title="Test Task 2",
         description="Test Description 2",
         due_date=(datetime.now(timezone.utc) + timedelta(days=2)).isoformat(),
         state="todo",
-        created_by=1,
+        created_by=user_id,
     )
     task1 = create_task(db=db_session, task=task_in1)
     task2 = create_task(db=db_session, task=task_in2)
@@ -73,12 +83,13 @@ def test_get_tasks(db_session: Session) -> None:
 
 
 def test_update_task(db_session: Session) -> None:
+    user_id = create_test_user(db_session, "test_update_task")
     task_in = TaskCreate(
         title="Test Task",
         description="Test Description",
         due_date=(datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
         state="todo",
-        created_by=1,
+        created_by=user_id,
     )
     task = create_task(db=db_session, task=task_in)
 
@@ -93,12 +104,13 @@ def test_update_task(db_session: Session) -> None:
 
 
 def test_archive_task(db_session: Session) -> None:
+    user_id = create_test_user(db_session, "test_archive_task")
     task_in = TaskCreate(
         title="Test Task",
         description="Test Description",
         due_date=(datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
         state="done",
-        created_by=1,
+        created_by=user_id,
     )
     task = create_task(db=db_session, task=task_in)
     archived_task = archive_task(db=db_session, task_id=task.id)
@@ -111,12 +123,13 @@ def test_archive_task(db_session: Session) -> None:
 
 
 def test_task_state_transitions(db_session: Session) -> None:
+    user_id = create_test_user(db_session, "test_task_state_transitions")
     task_in = TaskCreate(
         title="Test Task",
         description="Test Description",
         due_date=(datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
         state="todo",
-        created_by=1,
+        created_by=user_id,
     )
     task = create_task(db=db_session, task=task_in)
 
@@ -133,13 +146,13 @@ def test_task_state_transitions(db_session: Session) -> None:
 
 def test_task_state_archived(db_session: Session) -> None:
     """Test task archival functionality."""
-    # Create a task
+    user_id = create_test_user(db_session, "test_task_state_archived")
     task_in = TaskCreate(
         title="Test Task",
         description="Test Description",
         due_date=(datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
         state="todo",
-        created_by=1,
+        created_by=user_id,
     )
     task = create_task(db=db_session, task=task_in)
 
@@ -173,12 +186,12 @@ def test_task_state_archived(db_session: Session) -> None:
 
 def test_get_tasks_with_invalid_dates(db_session: Session) -> None:
     """Test that tasks with invalid dates are handled correctly."""
-    # Create a task with invalid due date
+    user_id = create_test_user(db_session, "test_get_tasks_with_invalid_dates")
     task_in = TaskCreate(
         title="Test Task",
         description="Test Description",
         state="todo",
-        created_by=1,
+        created_by=user_id,
     )
     task = create_task(db=db_session, task=task_in)
     task.due_date = "invalid-date"
@@ -189,16 +202,12 @@ def test_get_tasks_with_invalid_dates(db_session: Session) -> None:
     assert any(t.id == task.id for t in tasks)
 
     # Test get_due_tasks handles invalid date
-    from taskmanagement_app.crud.task import get_due_tasks
-
     due_tasks = get_due_tasks(db=db_session)
     assert not any(t.id == task.id for t in due_tasks)
 
 
 def test_get_random_task(db_session: Session) -> None:
-    """Test random task selection functionality."""
-    from taskmanagement_app.crud.task import get_random_task
-
+    user_id = create_test_user(db_session, "test_get_random_task")
     # Create multiple tasks
     tasks = []
     for i in range(5):
@@ -207,7 +216,7 @@ def test_get_random_task(db_session: Session) -> None:
             description=f"Description {i}",
             due_date=(datetime.now(timezone.utc) + timedelta(days=i + 1)).isoformat(),
             state="todo",
-            created_by=1,
+            created_by=user_id,
         )
         tasks.append(create_task(db=db_session, task=task_in))
 
@@ -237,13 +246,8 @@ def test_get_random_task(db_session: Session) -> None:
 
 def test_get_random_due_task(db_session: Session) -> None:
     """Test random due task selection functionality."""
-    from taskmanagement_app.crud.task import get_random_task
-
     # Create a user first for the tasks
-    user_in = UserCreate(
-        email="test-random-task@example.com", password="TestPassword123!"
-    )
-    user = create_user(db=db_session, user=user_in)
+    user_id = create_test_user(db_session, "test_get_random_due_task")
 
     # Create tasks with different due dates
     tasks = []
@@ -253,7 +257,7 @@ def test_get_random_due_task(db_session: Session) -> None:
             description=f"Description {i}",
             due_date=(datetime.now(timezone.utc) + timedelta(hours=i)).isoformat(),
             state="todo",
-            created_by=user.id,
+            created_by=user_id,
         )
         tasks.append(create_task(db=db_session, task=task_in))
 
@@ -263,7 +267,7 @@ def test_get_random_due_task(db_session: Session) -> None:
         description="Due in far future",
         due_date=(datetime.now(timezone.utc) + timedelta(days=30)).isoformat(),
         state="todo",
-        created_by=user.id,
+        created_by=user_id,
     )
     future_task = create_task(db=db_session, task=future_task_in)
 
@@ -291,28 +295,26 @@ def test_get_random_due_task(db_session: Session) -> None:
 
 def test_validate_user_references_with_valid_users(db_session: Session) -> None:
     """Test validation passes when all user references exist."""
-    # Create a test user first
-    user_in = UserCreate(
-        email="test-validation@example.com", password="TestPassword123!"
+    user_id = create_test_user(
+        db_session, "test_validate_user_references_with_valid_users"
     )
-    user = create_user(db=db_session, user=user_in)
 
     # Test TaskCreate with valid user
     task_in = TaskCreate(
         title="Test Task",
         description="Test Description",
-        created_by=user.id,
+        created_by=user_id,
     )
     # Should not raise an exception
     validate_user_references(db=db_session, task_data=task_in)
 
     # Test TaskUpdate with valid user
-    task_update = TaskUpdate(assigned_to=user.id)
+    task_update = TaskUpdate(assigned_to=user_id)
     # Should not raise an exception
     validate_user_references(db=db_session, task_data=task_update)
 
     # Test dict with valid users
-    task_dict = {"created_by": user.id, "assigned_to": user.id}
+    task_dict = {"created_by": user_id, "assigned_to": user_id}
     # Should not raise an exception
     validate_user_references(db=db_session, task_data=task_dict)
 
@@ -361,16 +363,14 @@ def test_create_task_with_invalid_user_reference(db_session: Session) -> None:
 
 def test_update_task_with_invalid_user_reference(db_session: Session) -> None:
     """Test update_task fails when user references don't exist."""
-    # First create a task with a valid user
-    user_in = UserCreate(
-        email="test-update-invalid@example.com", password="TestPassword123!"
+    user_id = create_test_user(
+        db_session, "test_update_task_with_invalid_user_reference"
     )
-    user = create_user(db=db_session, user=user_in)
 
     task_in = TaskCreate(
         title="Test Task",
         description="Test Description",
-        created_by=user.id,
+        created_by=user_id,
     )
     task = create_task(db=db_session, task=task_in)
 
@@ -383,11 +383,14 @@ def test_update_task_with_invalid_user_reference(db_session: Session) -> None:
 
 def test_validate_user_references_with_none_values(db_session: Session) -> None:
     """Test validation passes when user reference fields are None."""
-    # Test TaskCreate with None values
+    user_id = create_test_user(
+        db_session, "test_validate_user_references_with_none_values"
+    )
+
     task_in = TaskCreate(
         title="Test Task",
         description="Test Description",
-        created_by=1,  # Valid user (assuming user 1 exists from fixtures)
+        created_by=user_id,  # Valid user
         assigned_to=None,
         assigned_user_ids=None,
     )
