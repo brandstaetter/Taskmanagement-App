@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict
+from typing import Any
 
 from fastapi import Response
 
@@ -9,7 +9,7 @@ from taskmanagement_app.schemas.task import Task
 class BasePrinter(ABC):
     """Base class for all printer implementations."""
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: dict[str, Any]):
         self.config = config
 
     @abstractmethod

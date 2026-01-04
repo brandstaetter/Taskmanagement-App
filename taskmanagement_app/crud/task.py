@@ -1,7 +1,7 @@
 import logging
 import random
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional, Sequence, Union
+from typing import Any, List, Optional, Sequence, Union
 
 from sqlalchemy.orm import Session
 
@@ -12,7 +12,7 @@ from taskmanagement_app.schemas.task import TaskCreate, TaskUpdate
 
 
 def validate_user_references(
-    db: Session, task_data: Union[TaskCreate, TaskUpdate, Dict[str, Any]]
+    db: Session, task_data: Union[TaskCreate, TaskUpdate, dict[str, Any]]
 ) -> None:
     """
     Validate that all referenced user IDs exist in the database.
@@ -290,7 +290,7 @@ def get_task(db: Session, task_id: int) -> Optional[TaskModel]:
 
 
 def update_task(
-    db: Session, task_id: int, task: Union[TaskUpdate, Dict[str, Any]]
+    db: Session, task_id: int, task: Union[TaskUpdate, dict[str, Any]]
 ) -> Optional[TaskModel]:
     """
     Update a task with new values.

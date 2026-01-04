@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel
@@ -16,7 +16,7 @@ class PrintRequest(BaseModel):
     """Model for print requests."""
 
     title: str
-    content: List[Dict[str, Any]]
+    content: List[dict[str, Any]]
     printer_type: Optional[str] = None
 
 

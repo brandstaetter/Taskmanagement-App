@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel
 
@@ -39,7 +39,7 @@ class RootResponse(BaseModel):
 class GenericDictResponse(BaseModel):
     """Generic response for endpoints returning dict-like data."""
 
-    data: Dict[str, Any]
+    data: dict[str, Any]
 
 
 __all__ = [

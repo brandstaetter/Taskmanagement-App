@@ -1,7 +1,7 @@
 import configparser
 import logging
 from pathlib import Path
-from typing import Any, Dict, Optional, Type, Union
+from typing import Any, Optional, Type, Union
 
 from taskmanagement_app.core.exceptions import PrinterError
 from taskmanagement_app.core.printing.base_printer import BasePrinter
@@ -14,14 +14,14 @@ logger = logging.getLogger(__name__)
 class PrinterFactory:
     """Factory class for creating printer instances."""
 
-    _printer_classes: Dict[str, Type[BasePrinter]] = {
+    _printer_classes: dict[str, Type[BasePrinter]] = {
         "pdf": PDFPrinter,
         "usb": USBPrinter,
     }
 
     @classmethod
     def create_printer(
-        cls, printer_type: Optional[Union[str, Dict[str, Any]]] = None
+        cls, printer_type: Optional[Union[str, dict[str, Any]]] = None
     ) -> BasePrinter:
         """
         Create a printer instance based on the configuration.
