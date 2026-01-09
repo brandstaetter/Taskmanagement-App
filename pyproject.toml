@@ -13,7 +13,7 @@ packages = [{include = "taskmanagement_app"}]
 
 [tool.poetry.dependencies]
 python = ">=3.11,<3.14"
-alembic = "1.17.2"
+alembic = "1.18.0"
 annotated-types = "0.7.0"
 anyio = "4.12.1"
 appdirs = "1.4.4"
