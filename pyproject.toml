@@ -28,7 +28,7 @@ uvicorn = {version = "0.40.0", extras = ["standard"]}
 sqlalchemy = "2.0.45"
 pydantic = "2.12.5"
 "pydantic-settings" = "2.13.1"
-"python-dotenv" = "1.2.1"
+"python-dotenv" = "1.2.2"
 "python-jose" = {version = "3.5.0", extras = ["cryptography"]}
 "python-multipart" = "0.0.21"
 httpx = "0.28.1"
