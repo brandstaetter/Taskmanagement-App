@@ -1,6 +1,6 @@
 [[package]]
 name = "alembic"
-version = "1.18.0"
+version = "1.18.4"
 description = "A database migration tool for SQLAlchemy."
 category = "main"
 optional = false
@@ -8,7 +8,7 @@ python-versions = ">=3.10"
 
 [package.dependencies]
 Mako = "*"
-SQLAlchemy = ">=1.4.0"
+SQLAlchemy = ">=1.4.23"
 typing-extensions = ">=4.12"
 
 [package.extras]
@@ -1054,12 +1054,12 @@ python-versions = ">=3.10"
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.11,<3.14"
-content-hash = "0bcad2d3df560673fe58c600da43e08cbf4f6f809626ed2f9907e314fe1c23a8"
+content-hash = "24adda117d9ff004f7614aecb1b8b2b834f5fc66a9f663c3c7036e112b9edd19"
 
 [metadata.files]
 alembic = [
-    {file = "alembic-1.18.0-py3-none-any.whl", hash = "sha256:3993fcfbc371aa80cdcf13f928b7da21b1c9f783c914f03c3c6375f58efd9250"},
-    {file = "alembic-1.18.0.tar.gz", hash = "sha256:0c4c03c927dc54d4c56821bdcc988652f4f63bf7b9017fd9d78d63f09fd22b48"},
+    {file = "alembic-1.18.4-py3-none-any.whl", hash = "sha256:a5ed4adcf6d8a4cb575f3d759f071b03cd6e5c7618eb796cb52497be25bfe19a"},
+    {file = "alembic-1.18.4.tar.gz", hash = "sha256:cb6e1fd84b6174ab8dbb2329f86d631ba9559dd78df550b57804d607672cedbc"},
 ]
 annotated-doc = [
     {file = "annotated_doc-0.0.4-py3-none-any.whl", hash = "sha256:571ac1dc6991c450b25a9c2d84a3705e2ae7a53467b5d111c24fa8baabbed320"},
