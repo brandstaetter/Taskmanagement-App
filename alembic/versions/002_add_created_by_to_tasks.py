@@ -7,6 +7,7 @@ Create Date: 2026-03-15 00:00:00.000000
 """
 
 import sqlalchemy as sa
+from sqlalchemy import inspect
 
 from alembic import op
 
@@ -18,6 +19,14 @@ depends_on = None
 
 
 def upgrade() -> None:
+    # Guard: skip if the column already exists (e.g. on DBs migrated from 001_initial
+    # which already created created_by as part of the initial schema).
+    bind = op.get_bind()
+    inspector = inspect(bind)
+    existing_columns = [col["name"] for col in inspector.get_columns("tasks")]
+    if "created_by" in existing_columns:
+        return
+
     # Add created_by as nullable first so existing rows don't violate the constraint
     with op.batch_alter_table("tasks") as batch_op:
         batch_op.add_column(sa.Column("created_by", sa.INTEGER(), nullable=True))
@@ -34,6 +43,12 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    bind = op.get_bind()
+    inspector = inspect(bind)
+    existing_columns = [col["name"] for col in inspector.get_columns("tasks")]
+    if "created_by" not in existing_columns:
+        return
+
     op.drop_index("ix_tasks_created_by_fk", table_name="tasks")
     with op.batch_alter_table("tasks") as batch_op:
         batch_op.drop_column("created_by")
