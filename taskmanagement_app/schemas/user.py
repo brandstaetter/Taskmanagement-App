@@ -60,6 +60,10 @@ class UserAvatarUpdate(BaseModel):
     avatar_url: HttpUrl
 
 
+class AdminUserRoleUpdate(BaseModel):
+    is_admin: bool
+
+
 class User(UserBase):
     id: int
     is_active: bool

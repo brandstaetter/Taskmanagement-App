@@ -13,9 +13,12 @@ from taskmanagement_app.core.auth import (
 )
 from taskmanagement_app.crud.user import (
     admin_create_user,
+    delete_user,
+    get_all_users,
     get_user,
     get_user_by_email,
     reset_user_password,
+    update_user_role,
 )
 from taskmanagement_app.db.base import Base, engine
 from taskmanagement_app.db.session import get_db
@@ -24,7 +27,7 @@ from taskmanagement_app.schemas.common import (
     MigrationResponse,
     PasswordResetResponse,
 )
-from taskmanagement_app.schemas.user import AdminUserCreate
+from taskmanagement_app.schemas.user import AdminUserCreate, AdminUserRoleUpdate
 from taskmanagement_app.schemas.user import User as UserSchema
 
 logger = logging.getLogger(__name__)
@@ -143,3 +146,37 @@ def reset_password(
     if user is None or new_password is None:
         raise HTTPException(status_code=404, detail="User not found")
     return PasswordResetResponse(email=user.email, new_password=new_password)
+
+
+@router.get("/users", response_model=list[UserSchema])
+def list_users(
+    db: Session = Depends(get_db),
+    _: bool = Depends(verify_admin),
+) -> list[UserSchema]:
+    users = get_all_users(db)
+    return [UserSchema.model_validate(u) for u in users]
+
+
+@router.delete("/users/{user_id}", response_model=UserSchema)
+def remove_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    _: bool = Depends(verify_admin),
+) -> UserSchema:
+    deleted = delete_user(db, user_id=user_id)
+    if deleted is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    return UserSchema.model_validate(deleted)
+
+
+@router.patch("/users/{user_id}/role", response_model=UserSchema)
+def update_role(
+    user_id: int,
+    role_update: AdminUserRoleUpdate,
+    db: Session = Depends(get_db),
+    _: bool = Depends(verify_admin),
+) -> UserSchema:
+    updated = update_user_role(db, user_id=user_id, is_admin=role_update.is_admin)
+    if updated is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    return UserSchema.model_validate(updated)

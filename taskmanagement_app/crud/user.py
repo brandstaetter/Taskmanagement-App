@@ -130,3 +130,22 @@ def update_last_login(db: Session, user_id: int) -> Optional[User]:
 
 def get_all_users(db: Session, skip: int = 0, limit: int = 100) -> List[User]:
     return db.query(User).offset(skip).limit(limit).all()
+
+
+def delete_user(db: Session, user_id: int) -> Optional[User]:
+    db_user = get_user(db, user_id)
+    if not db_user:
+        return None
+    db.delete(db_user)
+    db.commit()
+    return db_user
+
+
+def update_user_role(db: Session, user_id: int, is_admin: bool) -> Optional[User]:
+    db_user = get_user(db, user_id)
+    if not db_user:
+        return None
+    db_user.is_admin = is_admin
+    db.commit()
+    db.refresh(db_user)
+    return db_user
