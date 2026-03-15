@@ -67,6 +67,7 @@ async def init_db(authorized: bool = Depends(verify_superadmin)) -> DbOperationR
         from taskmanagement_app.db.models import ensure_models_registered
 
         ensure_models_registered()
+        Base.metadata.drop_all(bind=engine)
         Base.metadata.create_all(bind=engine)
         return DbOperationResponse(message="Database initialized successfully")
     except Exception as e:
@@ -93,6 +94,32 @@ async def run_migrations(authorized: bool = Depends(verify_admin)) -> MigrationR
         alembic_ini_path = project_root / "alembic.ini"
         if not alembic_ini_path.exists():
             raise HTTPException(status_code=500, detail="alembic.ini not found")
+
+        # Check if alembic_version table exists; if not, the DB was created outside
+        # of Alembic (e.g. via create_all). Stamp at 0996a25c0866 so Alembic skips
+        # the initial create-table migrations and only runs additive migrations.
+        current_result = subprocess.run(
+            [sys.executable, "-m", "alembic", "current"],
+            cwd=str(project_root),
+            capture_output=True,
+            text=True,
+        )
+        is_untracked = (
+            current_result.returncode != 0 or not current_result.stdout.strip()
+        )
+
+        if is_untracked:
+            stamp_result = subprocess.run(
+                [sys.executable, "-m", "alembic", "stamp", "0996a25c0866"],
+                cwd=str(project_root),
+                capture_output=True,
+                text=True,
+            )
+            if stamp_result.returncode != 0:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Failed to stamp database: {stamp_result.stderr}",
+                )
 
         # Run alembic upgrade using subprocess
         # We use subprocess because alembic.config.main() is not thread-safe

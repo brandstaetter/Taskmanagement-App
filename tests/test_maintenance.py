@@ -14,6 +14,7 @@ from taskmanagement_app.jobs.task_maintenance import (
     run_maintenance,
 )
 from taskmanagement_app.schemas.task import TaskCreate
+from tests.test_utils import create_test_user
 
 
 def create_test_task(
@@ -23,12 +24,13 @@ def create_test_task(
     state: Literal["todo", "in_progress", "done", "archived"],
     completed_at: str | None = None,
 ) -> TaskModel:
+    user = create_test_user(db, "maintenance")
     task_in = TaskCreate(
         title=title,
         description="Test Description",
         due_date=(datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
         state=state,
-        created_by=1,
+        created_by=user["id"],
     )
     task = create_task(db=db, task=task_in)
     if completed_at:

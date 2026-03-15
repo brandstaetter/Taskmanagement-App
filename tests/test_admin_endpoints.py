@@ -7,9 +7,12 @@ from taskmanagement_app.core.auth import create_superadmin_token
 
 
 def test_admin_db_init_failure_returns_500(client: TestClient) -> None:
-    with patch(
-        "taskmanagement_app.api.v1.endpoints.admin.Base.metadata.create_all",
-        side_effect=RuntimeError("db down"),
+    with (
+        patch("taskmanagement_app.api.v1.endpoints.admin.Base.metadata.drop_all"),
+        patch(
+            "taskmanagement_app.api.v1.endpoints.admin.Base.metadata.create_all",
+            side_effect=RuntimeError("db down"),
+        ),
     ):
         response = client.post(
             "/api/v1/admin/db/init",
@@ -45,14 +48,35 @@ def test_admin_db_migrate_missing_alembic_ini_returns_500(client: TestClient) ->
 
 
 def test_admin_db_migrate_failure_returns_500(client: TestClient) -> None:
+    # Simulate: alembic current succeeds (DB is tracked), but upgrade fails
+    def run_side_effect(cmd: list, **kwargs):  # type: ignore[no-untyped-def]
+        if "current" in cmd:
+            return SimpleNamespace(returncode=0, stdout="001_initial (head)", stderr="")
+        return SimpleNamespace(returncode=1, stdout="", stderr="boom")
+
     with patch(
         "taskmanagement_app.api.v1.endpoints.admin.subprocess.run",
-        return_value=SimpleNamespace(returncode=1, stdout="", stderr="boom"),
+        side_effect=run_side_effect,
     ):
         response = client.post("/api/v1/admin/db/migrate")
 
     assert response.status_code == 500
     assert "Migration failed" in response.json()["detail"]
+
+
+def test_admin_db_migrate_stamp_failure_returns_500(client: TestClient) -> None:
+    # Simulate: DB is untracked (current returns nothing), stamp fails
+    def run_side_effect(cmd: list, **kwargs):  # type: ignore[no-untyped-def]
+        return SimpleNamespace(returncode=1, stdout="", stderr="boom")
+
+    with patch(
+        "taskmanagement_app.api.v1.endpoints.admin.subprocess.run",
+        side_effect=run_side_effect,
+    ):
+        response = client.post("/api/v1/admin/db/migrate")
+
+    assert response.status_code == 500
+    assert "Failed to stamp database" in response.json()["detail"]
 
 
 def test_admin_db_migrate_unexpected_exception_returns_500(client: TestClient) -> None:
