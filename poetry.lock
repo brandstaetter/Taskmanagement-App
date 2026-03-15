@@ -780,7 +780,7 @@ png = ["pypng"]
 
 [[package]]
 name = "reportlab"
-version = "4.4.7"
+version = "4.4.10"
 description = "The Reportlab Toolkit"
 category = "main"
 optional = false
@@ -1054,7 +1054,7 @@ python-versions = ">=3.10"
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.11,<3.14"
-content-hash = "0bcad2d3df560673fe58c600da43e08cbf4f6f809626ed2f9907e314fe1c23a8"
+content-hash = "c2c440cdd8c35d64ea887e5a12c0a9e19c9e33f734593f9a1ec579a7b9447844"
 
 [metadata.files]
 alembic = [
@@ -2354,8 +2354,8 @@ qrcode = [
     {file = "qrcode-8.2.tar.gz", hash = "sha256:35c3f2a4172b33136ab9f6b3ef1c00260dd2f66f858f24d88418a015f446506c"},
 ]
 reportlab = [
-    {file = "reportlab-4.4.7-py3-none-any.whl", hash = "sha256:8fa05cbf468e0e76745caf2029a4770276edb3c8e86a0b71e0398926baf50673"},
-    {file = "reportlab-4.4.7.tar.gz", hash = "sha256:41e8287af965e5996764933f3e75e7f363c3b6f252ba172f9429e81658d7b170"},
+    {file = "reportlab-4.4.10-py3-none-any.whl", hash = "sha256:5abc815746ae2bc44e7ff25db96814f921349ca814c992c7eac3c26029bf7c24"},
+    {file = "reportlab-4.4.10.tar.gz", hash = "sha256:5cbbb34ac3546039d0086deb2938cdec06b12da3cdb836e813258eb33cd28487"},
 ]
 rsa = [
     {file = "rsa-4.9.1-py3-none-any.whl", hash = "sha256:68635866661c6836b8d39430f97a996acbd61bfa49406748ea243539fe239762"},
