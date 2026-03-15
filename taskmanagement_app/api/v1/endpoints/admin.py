@@ -104,7 +104,9 @@ async def run_migrations(authorized: bool = Depends(verify_admin)) -> MigrationR
             capture_output=True,
             text=True,
         )
-        is_untracked = current_result.returncode != 0 or not current_result.stdout.strip()
+        is_untracked = (
+            current_result.returncode != 0 or not current_result.stdout.strip()
+        )
 
         if is_untracked:
             stamp_result = subprocess.run(
