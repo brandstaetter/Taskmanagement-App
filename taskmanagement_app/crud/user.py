@@ -3,6 +3,7 @@ import string
 from datetime import datetime, timezone
 from typing import List, Optional, Tuple
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from taskmanagement_app.core.security import (
@@ -137,7 +138,11 @@ def delete_user(db: Session, user_id: int) -> Optional[User]:
     if not db_user:
         return None
     db.delete(db_user)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise
     return db_user
 
 

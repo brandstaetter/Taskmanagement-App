@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.exc import IntegrityError as SQLAlchemyIntegrityError
 from sqlalchemy.orm import Session
 
 from taskmanagement_app.core.auth import (
@@ -150,10 +151,12 @@ def reset_password(
 
 @router.get("/users", response_model=list[UserSchema])
 def list_users(
+    skip: int = 0,
+    limit: int = 1000,
     db: Session = Depends(get_db),
     _: bool = Depends(verify_admin),
 ) -> list[UserSchema]:
-    users = get_all_users(db)
+    users = get_all_users(db, skip=skip, limit=limit)
     return [UserSchema.model_validate(u) for u in users]
 
 
@@ -163,7 +166,13 @@ def remove_user(
     db: Session = Depends(get_db),
     _: bool = Depends(verify_admin),
 ) -> UserSchema:
-    deleted = delete_user(db, user_id=user_id)
+    try:
+        deleted = delete_user(db, user_id=user_id)
+    except SQLAlchemyIntegrityError:
+        raise HTTPException(
+            status_code=409,
+            detail="Cannot delete user: they have associated tasks or other references",
+        )
     if deleted is None:
         raise HTTPException(status_code=404, detail="User not found")
     return UserSchema.model_validate(deleted)
