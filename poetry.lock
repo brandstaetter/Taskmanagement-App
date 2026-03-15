@@ -736,7 +736,7 @@ test = ["pytest", "pytest-cov"]
 
 [[package]]
 name = "python-multipart"
-version = "0.0.21"
+version = "0.0.22"
 description = "A streaming multipart parser for Python"
 category = "main"
 optional = false
@@ -1054,7 +1054,7 @@ python-versions = ">=3.10"
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.11,<3.14"
-content-hash = "0bcad2d3df560673fe58c600da43e08cbf4f6f809626ed2f9907e314fe1c23a8"
+content-hash = "f26b4dae5110eec959b0bcbc1a86728647227319fc0a32d53fc0cde0ddc4fc51"
 
 [metadata.files]
 alembic = [
@@ -2227,8 +2227,8 @@ python-jose = [
     {file = "python_jose-3.5.0.tar.gz", hash = "sha256:fb4eaa44dbeb1c26dcc69e4bd7ec54a1cb8dd64d3b4d81ef08d90ff453f2b01b"},
 ]
 python-multipart = [
-    {file = "python_multipart-0.0.21-py3-none-any.whl", hash = "sha256:cf7a6713e01c87aa35387f4774e812c4361150938d20d232800f75ffcf266090"},
-    {file = "python_multipart-0.0.21.tar.gz", hash = "sha256:7137ebd4d3bbf70ea1622998f902b97a29434a9e8dc40eb203bbcf7c2a2cba92"},
+    {file = "python_multipart-0.0.22-py3-none-any.whl", hash = "sha256:2b2cd894c83d21bf49d702499531c7bafd057d730c201782048f7945d82de155"},
+    {file = "python_multipart-0.0.22.tar.gz", hash = "sha256:7340bef99a7e0032613f56dc36027b959fd3b30a787ed62d310e951f7c3a3a58"},
 ]
 pytokens = [
     {file = "pytokens-0.4.1-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:2a44ed93ea23415c54f3face3b65ef2b844d96aeb3455b8a69b3df6beab6acc5"},
