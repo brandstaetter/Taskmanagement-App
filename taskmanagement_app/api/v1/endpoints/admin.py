@@ -9,7 +9,6 @@ from sqlalchemy.orm import Session
 
 from taskmanagement_app.core.auth import (
     verify_admin,
-    verify_admin_only,
     verify_superadmin,
 )
 from taskmanagement_app.crud.user import (
@@ -138,7 +137,7 @@ def create_new_user(
 def reset_password(
     user_id: int,
     db: Session = Depends(get_db),
-    _: bool = Depends(verify_admin_only),
+    _: bool = Depends(verify_admin),
 ) -> PasswordResetResponse:
     if get_user(db, user_id=user_id) is None:
         raise HTTPException(status_code=404, detail="User not found")
