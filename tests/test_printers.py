@@ -173,6 +173,30 @@ def test_printer_factory(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Non
     assert "Unsupported printer type" in str(exc_info.value)
 
 
+def test_printer_factory_usb_uses_settings(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """USB printer config from factory reflects Settings/env var values."""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("USB_PRINTER_VENDOR_ID", "0x1234")
+    monkeypatch.setenv("USB_PRINTER_PRODUCT_ID", "0x5678")
+    monkeypatch.setenv("USB_PRINTER_PROFILE", "TestProfile")
+
+    # Clear lru_cache so the new env vars are picked up
+    from taskmanagement_app.core.config import get_settings
+
+    get_settings.cache_clear()
+
+    try:
+        printer = PrinterFactory.create_printer("usb")
+        assert isinstance(printer, USBPrinter)
+        assert printer.vendor_id == 0x1234
+        assert printer.product_id == 0x5678
+        assert printer.profile == "TestProfile"
+    finally:
+        get_settings.cache_clear()
+
+
 class MockPrinter(BasePrinter):
     """Mock printer for testing."""
 
