@@ -29,6 +29,11 @@ class Settings(BaseSettings):
     ADMIN_USERNAME: str = "admin"
     ADMIN_PASSWORD: str = "admin"  # Change in production
 
+    # USB Printer Settings
+    USB_PRINTER_VENDOR_ID: str = "0x28E9"
+    USB_PRINTER_PRODUCT_ID: str = "0x0289"
+    USB_PRINTER_PROFILE: str = "ZJ-5870"
+
 
 @lru_cache()
 def get_settings() -> Settings:

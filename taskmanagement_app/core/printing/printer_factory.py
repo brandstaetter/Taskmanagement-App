@@ -3,6 +3,7 @@ import logging
 from pathlib import Path
 from typing import Any, Optional, Type, Union
 
+from taskmanagement_app.core.config import get_settings
 from taskmanagement_app.core.exceptions import PrinterError
 from taskmanagement_app.core.printing.base_printer import BasePrinter
 from taskmanagement_app.core.printing.pdf_printer import PDFPrinter
@@ -88,6 +89,14 @@ class PrinterFactory:
         # Get printer configuration from ini file if not provided in dict
         if not printer_config and printer_type in config:
             printer_config = dict(config[str(printer_type)])
+
+        # For USB printers, env/settings values override INI file values
+        if printer_type == "usb":
+            settings = get_settings()
+            printer_config["vendor_id"] = settings.USB_PRINTER_VENDOR_ID
+            printer_config["product_id"] = settings.USB_PRINTER_PRODUCT_ID
+            printer_config["profile"] = settings.USB_PRINTER_PROFILE
+
         logger.debug(f"Printer config for {printer_type}: {printer_config}")
 
         # Create and return printer instance
