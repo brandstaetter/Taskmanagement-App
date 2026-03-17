@@ -59,6 +59,8 @@ def downgrade() -> None:
     if "ix_tasks_created_by_fk" in existing_indexes:
         op.drop_index("ix_tasks_created_by_fk", table_name="tasks")
 
+    existing_fks = {fk["name"] for fk in inspector.get_foreign_keys("tasks")}
     with op.batch_alter_table("tasks") as batch_op:
-        batch_op.drop_constraint("fk_tasks_created_by_users", type_="foreignkey")
+        if "fk_tasks_created_by_users" in existing_fks:
+            batch_op.drop_constraint("fk_tasks_created_by_users", type_="foreignkey")
         batch_op.drop_column("created_by")
