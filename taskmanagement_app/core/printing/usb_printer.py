@@ -2,6 +2,7 @@ import logging
 from datetime import datetime
 from typing import Any
 
+import usb.core
 from escpos.printer import Usb
 from fastapi import Response
 from fastapi.responses import JSONResponse
@@ -68,6 +69,32 @@ class USBPrinter(BasePrinter):
             self.logger.error(error_msg)
             raise PrinterError(error_msg)
 
+    def _detach_kernel_driver(self) -> None:
+        """Detach the kernel driver from all interfaces of the USB device.
+
+        The Linux kernel's usblp driver claims the printer automatically,
+        which causes [Errno 16] Resource busy when python-escpos tries to
+        set the USB configuration. We must release it first.
+        """
+        raw = usb.core.find(idVendor=self.vendor_id, idProduct=self.product_id)
+        if raw is None:
+            return
+        for config in raw:
+            for interface in config:
+                iface_num = interface.bInterfaceNumber
+                try:
+                    if raw.is_kernel_driver_active(iface_num):
+                        raw.detach_kernel_driver(iface_num)
+                        self.logger.debug(
+                            "Detached kernel driver from interface %d", iface_num
+                        )
+                except usb.core.USBError as e:
+                    self.logger.warning(
+                        "Could not detach kernel driver from interface %d: %s",
+                        iface_num,
+                        e,
+                    )
+
     def connect(self) -> None:
         """Connect to the USB printer device.
 
@@ -80,8 +107,15 @@ class USBPrinter(BasePrinter):
                 return
 
             self.logger.debug("Initializing USB device...")
-            # Create USB printer instance
-            self.device = Usb(self.vendor_id, self.product_id, timeout=0)
+
+            # Release the kernel usblp driver so libusb can claim the device
+            self._detach_kernel_driver()
+
+            # Create USB printer instance, passing profile so paper width
+            # (media.width.pixel) is known and centering works correctly
+            self.device = Usb(
+                self.vendor_id, self.product_id, timeout=0, profile=self.profile
+            )
 
             # Open connection to device (required in python-escpos v3.1+)
             self.logger.debug("Opening connection to USB device...")
