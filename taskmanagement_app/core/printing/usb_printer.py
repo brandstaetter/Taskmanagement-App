@@ -10,10 +10,6 @@ from taskmanagement_app.core.exceptions import PrinterError
 from taskmanagement_app.core.printing.base_printer import BasePrinter
 from taskmanagement_app.schemas.task import Task
 
-# Constants for USB printer
-VENDOR_ID = 0x0456
-PRODUCT_ID = 0x0808
-
 # Labels for task fields
 label_dict = {
     "title": "Title: ",
@@ -131,6 +127,7 @@ class USBPrinter(BasePrinter):
             self.logger.info("Successfully connected to USB printer")
 
         except Exception as e:
+            self.device = None  # clear broken state so retries work
             error_msg = f"Failed to connect to USB printer: {str(e)}"
             self.logger.error(error_msg, exc_info=True)
             raise PrinterError(error_msg)
