@@ -96,7 +96,7 @@ module = "tests.*"
 disallow_untyped_defs = false
 
 [[tool.mypy.overrides]]
-module = ["pytest.*", "fastapi.*", "sqlalchemy.*", "escpos.*", "alembic.*", "reportlab.*", "jose.*", "pydantic_settings.*", "setuptools.*"]
+module = ["pytest.*", "fastapi.*", "sqlalchemy.*", "escpos.*", "alembic.*", "reportlab.*", "jose.*", "pydantic_settings.*", "setuptools.*", "usb", "usb.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
