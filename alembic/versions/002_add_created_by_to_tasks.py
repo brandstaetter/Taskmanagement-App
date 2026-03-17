@@ -34,9 +34,15 @@ def upgrade() -> None:
     # Default existing rows to user id=1 (the bootstrap admin)
     op.execute("UPDATE tasks SET created_by = 1 WHERE created_by IS NULL")
 
-    # Now enforce NOT NULL
+    # Enforce NOT NULL and add FK constraint + index (mirrors 001_initial schema)
     with op.batch_alter_table("tasks") as batch_op:
         batch_op.alter_column("created_by", nullable=False)
+        batch_op.create_foreign_key(
+            "fk_tasks_created_by_users",
+            "users",
+            ["created_by"],
+            ["id"],
+        )
 
     # Add foreign key index (mirrors 001_initial)
     op.create_index("ix_tasks_created_by_fk", "tasks", ["created_by"], unique=False)
@@ -49,6 +55,12 @@ def downgrade() -> None:
     if "created_by" not in existing_columns:
         return
 
-    op.drop_index("ix_tasks_created_by_fk", table_name="tasks")
+    existing_indexes = [idx["name"] for idx in inspector.get_indexes("tasks")]
+    if "ix_tasks_created_by_fk" in existing_indexes:
+        op.drop_index("ix_tasks_created_by_fk", table_name="tasks")
+
+    existing_fks = {fk["name"] for fk in inspector.get_foreign_keys("tasks")}
     with op.batch_alter_table("tasks") as batch_op:
+        if "fk_tasks_created_by_users" in existing_fks:
+            batch_op.drop_constraint("fk_tasks_created_by_users", type_="foreignkey")
         batch_op.drop_column("created_by")
