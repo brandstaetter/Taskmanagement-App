@@ -252,6 +252,26 @@ class USBPrinter(BasePrinter):
         """Cut paper."""
         printer.cut()
 
+    def disconnect(self) -> None:
+        """Reset and release the USB device handle.
+
+        Called after every print (success or failure) so the interface is
+        freed before the next request arrives. Without this, the second print
+        fails at claim_interface because the handle from the previous request
+        still holds the interface claimed.
+        """
+        if self.device is None:
+            return
+        try:
+            # Reset the USB device so it returns to an unclaimed state;
+            # the kernel usblp driver can then reclaim it normally.
+            self.device.device.reset()
+            self.logger.debug("USB device reset after print")
+        except Exception as e:
+            self.logger.warning("Error resetting USB device: %s", e)
+        finally:
+            self.device = None
+
     def print(self, task: Task) -> Response:
         """
         Print a task to the USB printer.
@@ -330,3 +350,7 @@ class USBPrinter(BasePrinter):
             error_msg = f"Failed to print task {task.id}: {str(e)}"
             self.logger.error(error_msg, exc_info=True)
             raise PrinterError(error_msg)
+
+        finally:
+            # Always release the USB handle so the next request can claim it
+            self.disconnect()
