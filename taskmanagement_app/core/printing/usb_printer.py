@@ -2,7 +2,6 @@ import logging
 from datetime import datetime
 from typing import Any
 
-import usb.core
 from escpos.printer import Usb
 from fastapi import Response
 from fastapi.responses import JSONResponse
@@ -75,8 +74,16 @@ class USBPrinter(BasePrinter):
         The Linux kernel's usblp driver claims the printer automatically,
         which causes [Errno 16] Resource busy when python-escpos tries to
         set the USB configuration. We must release it first.
+
+        Skips gracefully if PyUSB (usb.core) is not installed.
         """
-        raw = usb.core.find(idVendor=self.vendor_id, idProduct=self.product_id)
+        try:
+            import usb.core as usb_core  # noqa: PLC0415
+        except ImportError:
+            self.logger.warning("PyUSB not available; skipping kernel driver detach")
+            return
+
+        raw = usb_core.find(idVendor=self.vendor_id, idProduct=self.product_id)
         if raw is None:
             return
         for config in raw:
@@ -88,7 +95,7 @@ class USBPrinter(BasePrinter):
                         self.logger.debug(
                             "Detached kernel driver from interface %d", iface_num
                         )
-                except usb.core.USBError as e:
+                except usb_core.USBError as e:
                     self.logger.warning(
                         "Could not detach kernel driver from interface %d: %s",
                         iface_num,
