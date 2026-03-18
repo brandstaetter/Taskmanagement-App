@@ -23,6 +23,7 @@ argparse = "1.4.0"
 bcrypt = ">=5.0.0,<5.1.0"
 cffi = "2.0.0"
 fastapi = "0.135.1"
+gunicorn = ">=23.0.0,<24.0.0"
 starlette = "0.52.1"
 uvicorn = {version = "0.42.0", extras = ["standard"]}
 sqlalchemy = "2.0.48"
