@@ -31,7 +31,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
     Handle startup and shutdown events for the FastAPI application.
     """
     # Startup
-    logger.info("Starting application")
+    app_version = _get_app_version()
+    logger.info("Starting application v%s", app_version)
     start_scheduler()
     yield
     # Shutdown
@@ -64,4 +65,4 @@ app.include_router(api_router, prefix=settings.API_V1_STR)
 @app.get("/", response_model=RootResponse)
 async def root() -> RootResponse:
     """Root endpoint."""
-    return RootResponse(message="Task Management API")
+    return RootResponse(message="Task Management API", version=_get_app_version())
