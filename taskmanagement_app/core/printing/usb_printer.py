@@ -21,6 +21,7 @@ label_dict = {
     "started_at": "Started: ",
     "completed_at": "Completed: ",
 }
+max_label_length = max(len(lbl) for lbl in label_dict.values())
 
 
 class USBPrinter(BasePrinter):
@@ -148,7 +149,6 @@ class USBPrinter(BasePrinter):
         """Apply label style to printer."""
         printer.set(align="left", bold=True, double_height=False, double_width=False)
         label = label_dict[label_key]
-        max_label_length = max(len(lbl) for lbl in label_dict.values())
         label = " " * (max_label_length - len(label)) + label
         printer.text(label)
         return max_label_length
@@ -184,8 +184,10 @@ class USBPrinter(BasePrinter):
         current_line: list[str] = []
 
         # Calculate effective line length
-        effective_max_length = (max_length / 2) if wide else max_length
-        first_line_length = effective_max_length - label_length
+        effective_max_length = (max_length // 2) if wide else max_length
+        first_line_length = (
+            (max_length - label_length) // 2 if wide else max_length - label_length
+        )
         current_length = 0
 
         for word in words:
@@ -195,8 +197,9 @@ class USBPrinter(BasePrinter):
                 if current_line:
                     lines.append(" ".join(current_line))
                     current_line = []
-                lines.append(current_word[: int(effective_max_length)])
-                current_word = current_word[int(effective_max_length) :]
+                    current_length = 0
+                lines.append(current_word[:effective_max_length])
+                current_word = current_word[effective_max_length:]
 
             # Check if this is the first line (with label) or subsequent lines
             current_max_length = (
@@ -311,14 +314,14 @@ class USBPrinter(BasePrinter):
                 due_date = self.format_datetime(task.due_date)
                 self.printValue(
                     self.device,
-                    f'{due_date.strftime("%Y-%m-%d %H:%M")}\n',
+                    due_date.strftime("%Y-%m-%d %H:%M"),
                     indent,
                     wide=True,
                 )
 
             if task.reward:
                 indent = self.printLabel(self.device, "reward")
-                self.printValue(self.device, f"{task.reward}\n", indent)
+                self.printValue(self.device, task.reward, indent)
 
             self.printSpacer(self.device)
 
@@ -327,7 +330,7 @@ class USBPrinter(BasePrinter):
                 created_at = self.format_datetime(task.created_at)
                 indent = self.printLabel(self.device, "created_at")
                 self.printValue(
-                    self.device, f'{created_at.strftime("%Y-%m-%d %H:%M")}\n', indent
+                    self.device, created_at.strftime("%Y-%m-%d %H:%M"), indent
                 )
 
             # Print Started At
@@ -335,7 +338,7 @@ class USBPrinter(BasePrinter):
                 started_at = self.format_datetime(task.started_at)
                 indent = self.printLabel(self.device, "started_at")
                 self.printValue(
-                    self.device, f'{started_at.strftime("%Y-%m-%d %H:%M")}\n', indent
+                    self.device, started_at.strftime("%Y-%m-%d %H:%M"), indent
                 )
 
             # Print Completed At
@@ -343,7 +346,7 @@ class USBPrinter(BasePrinter):
                 completed_at = self.format_datetime(task.completed_at)
                 indent = self.printLabel(self.device, "completed_at")
                 self.printValue(
-                    self.device, f'{completed_at.strftime("%Y-%m-%d %H:%M")}\n', indent
+                    self.device, completed_at.strftime("%Y-%m-%d %H:%M"), indent
                 )
 
             # Print QR code
