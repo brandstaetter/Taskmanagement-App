@@ -35,6 +35,7 @@ pydantic = "2.12.5"
 httpx = "0.28.1"
 reportlab = "4.4.10"
 "python-escpos" = "3.1"
+pyusb = ">=1.2.1,<2.0.0"
 "qrcode" = {version = "8.2", extras = ["pil"]}
 "email-validator" = ">=2.2.0,<3.0.0"
 
