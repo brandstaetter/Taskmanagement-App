@@ -74,7 +74,7 @@ class USBPrinter(BasePrinter):
         Skips gracefully if PyUSB (usb.core) is not installed.
         """
         try:
-            import usb.core as usb_core  # type: ignore[import-not-found]  # noqa: PLC0415
+            import usb.core as usb_core  # type: ignore  # noqa: PLC0415
         except ImportError:
             self.logger.warning("PyUSB not available; skipping kernel driver detach")
             return
