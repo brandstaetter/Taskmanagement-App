@@ -1,5 +1,6 @@
 """Tests for printer functionality."""
 
+import sys
 import tempfile
 import time
 from datetime import datetime, timedelta, timezone
@@ -195,6 +196,79 @@ def test_printer_factory_usb_uses_settings(
         assert printer.profile == "TestProfile"
     finally:
         get_settings.cache_clear()
+
+
+def test_usb_printer_disconnect_noop_when_not_connected() -> None:
+    """disconnect() with no active device should be a no-op."""
+    config = {"vendor_id": "0x0416", "product_id": "0x5011"}
+    printer = USBPrinter(config)
+    assert printer.device is None
+    printer.disconnect()  # must not raise
+    assert printer.device is None
+
+
+def test_usb_printer_disconnect_handles_close_error() -> None:
+    """disconnect() must clear device even when close() raises."""
+    config = {"vendor_id": "0x0416", "product_id": "0x5011"}
+    printer = USBPrinter(config)
+    mock_device = MagicMock(spec=Usb)
+    mock_device.close.side_effect = Exception("USB error on close")
+    printer.device = mock_device
+    printer.disconnect()  # must not raise
+    assert printer.device is None
+
+
+def _make_usb_core_mock(mock_raw: MagicMock) -> tuple[MagicMock, MagicMock]:
+    """Return (mock_usb, mock_usb_core) with find() returning mock_raw."""
+    mock_usb_core = MagicMock()
+    mock_usb_core.find.return_value = mock_raw
+    mock_usb_core.USBError = (
+        OSError  # must be a real exception class for except to work
+    )
+    mock_usb = MagicMock()
+    mock_usb.core = mock_usb_core
+    return mock_usb, mock_usb_core
+
+
+def _make_mock_raw(
+    kernel_driver_active: bool | None = None, side_effect: Exception | None = None
+) -> MagicMock:
+    """Return a mock PyUSB device with one interface (number 0)."""
+    mock_interface = MagicMock()
+    mock_interface.bInterfaceNumber = 0
+    mock_config = MagicMock()
+    mock_config.__iter__ = MagicMock(return_value=iter([mock_interface]))
+    mock_raw = MagicMock()
+    mock_raw.__iter__ = MagicMock(return_value=iter([mock_config]))
+    if side_effect is not None:
+        mock_raw.is_kernel_driver_active.side_effect = side_effect
+    elif kernel_driver_active is not None:
+        mock_raw.is_kernel_driver_active.return_value = kernel_driver_active
+    return mock_raw
+
+
+def test_usb_printer_detach_kernel_driver_active() -> None:
+    """_detach_kernel_driver() detaches driver when it is active."""
+    config = {"vendor_id": "0x0416", "product_id": "0x5011"}
+    printer = USBPrinter(config)
+    mock_raw = _make_mock_raw(kernel_driver_active=True)
+    mock_usb, mock_usb_core = _make_usb_core_mock(mock_raw)
+
+    with patch.dict(sys.modules, {"usb": mock_usb, "usb.core": mock_usb_core}):
+        printer._detach_kernel_driver()
+
+    mock_raw.detach_kernel_driver.assert_called_once_with(0)
+
+
+def test_usb_printer_detach_kernel_driver_not_implemented() -> None:
+    """_detach_kernel_driver() swallows NotImplementedError from unsupported backends."""
+    config = {"vendor_id": "0x0416", "product_id": "0x5011"}
+    printer = USBPrinter(config)
+    mock_raw = _make_mock_raw(side_effect=NotImplementedError("not supported"))
+    mock_usb, mock_usb_core = _make_usb_core_mock(mock_raw)
+
+    with patch.dict(sys.modules, {"usb": mock_usb, "usb.core": mock_usb_core}):
+        printer._detach_kernel_driver()  # must not raise
 
 
 class MockPrinter(BasePrinter):

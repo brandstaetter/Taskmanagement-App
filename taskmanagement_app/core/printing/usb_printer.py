@@ -10,10 +10,6 @@ from taskmanagement_app.core.exceptions import PrinterError
 from taskmanagement_app.core.printing.base_printer import BasePrinter
 from taskmanagement_app.schemas.task import Task
 
-# Constants for USB printer
-VENDOR_ID = 0x0456
-PRODUCT_ID = 0x0808
-
 # Labels for task fields
 label_dict = {
     "title": "Title: ",
@@ -95,7 +91,7 @@ class USBPrinter(BasePrinter):
                         self.logger.debug(
                             "Detached kernel driver from interface %d", iface_num
                         )
-                except usb_core.USBError as e:
+                except (usb_core.USBError, NotImplementedError) as e:
                     self.logger.warning(
                         "Could not detach kernel driver from interface %d: %s",
                         iface_num,
@@ -131,6 +127,7 @@ class USBPrinter(BasePrinter):
             self.logger.info("Successfully connected to USB printer")
 
         except Exception as e:
+            self.device = None  # clear broken state so retries work
             error_msg = f"Failed to connect to USB printer: {str(e)}"
             self.logger.error(error_msg, exc_info=True)
             raise PrinterError(error_msg)
@@ -252,6 +249,27 @@ class USBPrinter(BasePrinter):
         """Cut paper."""
         printer.cut()
 
+    def disconnect(self) -> None:
+        """Reset and release the USB device handle.
+
+        Called after every print (success or failure) so the interface is
+        freed before the next request arrives. Without this, the second print
+        fails at claim_interface because the handle from the previous request
+        still holds the interface claimed.
+        """
+        if self.device is None:
+            return
+        try:
+            # close() releases the libusb handle and the claimed interface,
+            # allowing the next print request (and the kernel usblp driver)
+            # to re-acquire the device cleanly.
+            self.device.close()
+            self.logger.debug("USB device closed after print")
+        except Exception as e:
+            self.logger.warning("Error closing USB device: %s", e)
+        finally:
+            self.device = None
+
     def print(self, task: Task) -> Response:
         """
         Print a task to the USB printer.
@@ -330,3 +348,7 @@ class USBPrinter(BasePrinter):
             error_msg = f"Failed to print task {task.id}: {str(e)}"
             self.logger.error(error_msg, exc_info=True)
             raise PrinterError(error_msg)
+
+        finally:
+            # Always release the USB handle so the next request can claim it
+            self.disconnect()
