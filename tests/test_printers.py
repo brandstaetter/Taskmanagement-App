@@ -207,6 +207,18 @@ def test_usb_printer_disconnect_noop_when_not_connected() -> None:
     assert printer.device is None
 
 
+def test_usb_printer_disconnect_resets_and_closes() -> None:
+    """disconnect() calls device.device.reset() then device.close()."""
+    config = {"vendor_id": "0x0416", "product_id": "0x5011"}
+    printer = USBPrinter(config)
+    mock_device = MagicMock(spec=Usb)
+    printer.device = mock_device
+    printer.disconnect()
+    mock_device.device.reset.assert_called_once()
+    mock_device.close.assert_called_once()
+    assert printer.device is None
+
+
 def test_usb_printer_disconnect_handles_close_error() -> None:
     """disconnect() must clear device even when close() raises."""
     config = {"vendor_id": "0x0416", "product_id": "0x5011"}
