@@ -253,18 +253,29 @@ class USBPrinter(BasePrinter):
         """Reset and release the USB device handle.
 
         Called after every print (success or failure) so the interface is
-        freed before the next request arrives. Without this, the second print
-        fails at claim_interface because the handle from the previous request
-        still holds the interface claimed.
+        freed before the next request arrives.
+
+        Gunicorn runs multiple worker processes that share the same physical
+        USB printer.  ``Usb.close()`` only releases the libusb handle inside
+        the *calling* process; it does **not** reset the device at the OS
+        level.  A subsequent request routed to a different worker will still
+        see the interface as "busy".
+
+        ``device.device.reset()`` issues a USB-level reset
+        (``USBDEVFS_RESET``), which releases all claimed interfaces and lets
+        the kernel usblp driver re-probe.  We call it *before* ``close()``
+        so the physical device is fully released for any process.
         """
         if self.device is None:
             return
         try:
-            # close() releases the libusb handle and the claimed interface,
-            # allowing the next print request (and the kernel usblp driver)
-            # to re-acquire the device cleanly.
+            # USB-level reset — releases all claimed interfaces across all
+            # processes and lets the kernel driver re-probe the device.
+            if hasattr(self.device, "device") and self.device.device is not None:
+                self.device.device.reset()
+            # Python-escpos cleanup — disposes the libusb handle.
             self.device.close()
-            self.logger.debug("USB device closed after print")
+            self.logger.debug("USB device reset and closed after print")
         except Exception as e:
             self.logger.warning("Error closing USB device: %s", e)
         finally:
