@@ -91,7 +91,7 @@ class USBPrinter(BasePrinter):
                         self.logger.debug(
                             "Detached kernel driver from interface %d", iface_num
                         )
-                except usb_core.USBError as e:
+                except (usb_core.USBError, NotImplementedError) as e:
                     self.logger.warning(
                         "Could not detach kernel driver from interface %d: %s",
                         iface_num,
@@ -260,12 +260,13 @@ class USBPrinter(BasePrinter):
         if self.device is None:
             return
         try:
-            # Reset the USB device so it returns to an unclaimed state;
-            # the kernel usblp driver can then reclaim it normally.
-            self.device.device.reset()
-            self.logger.debug("USB device reset after print")
+            # close() releases the libusb handle and the claimed interface,
+            # allowing the next print request (and the kernel usblp driver)
+            # to re-acquire the device cleanly.
+            self.device.close()
+            self.logger.debug("USB device closed after print")
         except Exception as e:
-            self.logger.warning("Error resetting USB device: %s", e)
+            self.logger.warning("Error closing USB device: %s", e)
         finally:
             self.device = None
 
