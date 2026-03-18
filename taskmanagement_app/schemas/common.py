@@ -34,6 +34,7 @@ class RootResponse(BaseModel):
     """Response for root endpoint."""
 
     message: str
+    version: str
 
 
 class GenericDictResponse(BaseModel):
