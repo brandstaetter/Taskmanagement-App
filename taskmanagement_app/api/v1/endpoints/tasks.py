@@ -258,7 +258,6 @@ async def print_task(
     printer_type: Optional[str] = Query(None, description="Type of printer to use"),
     timezone: Optional[str] = Query(
         None,
-        alias="tz",
         description="IANA timezone name (e.g. 'Europe/Vienna') for timestamps",
     ),
     db: Session = Depends(get_db),

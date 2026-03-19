@@ -25,7 +25,6 @@ async def print_data(
     request: PrintRequest,
     timezone: Optional[str] = Query(
         None,
-        alias="tz",
         description="IANA timezone name (e.g. 'Europe/Vienna') for timestamps",
     ),
 ) -> Response:
