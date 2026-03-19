@@ -3,9 +3,10 @@ import logging
 import os
 import shutil
 import tempfile
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, List, Optional
+from zoneinfo import ZoneInfo
 
 import qrcode
 from fastapi import Response
@@ -107,10 +108,20 @@ class PDFPrinter(BasePrinter):
             )
             raise PrinterError(f"Failed to initialize PDF printer: {str(e)}")
 
-    def format_datetime(self, dt_str: str) -> Optional[datetime]:
-        """Convert ISO datetime string to datetime object."""
+    def format_datetime(
+        self, dt_str: str, tz: Optional[ZoneInfo] = None
+    ) -> Optional[datetime]:
+        """Convert ISO datetime string to datetime object in the given timezone.
+
+        Args:
+            dt_str: ISO-8601 datetime string.
+            tz: Target timezone.  ``None`` keeps the original offset (UTC).
+        """
         try:
-            return datetime.fromisoformat(dt_str.replace("Z", "+00:00"))
+            dt = datetime.fromisoformat(dt_str.replace("Z", "+00:00"))
+            if tz is not None:
+                dt = dt.astimezone(tz)
+            return dt
         except (ValueError, TypeError) as e:
             self.logger.warning("Failed to parse datetime %s: %s", dt_str, str(e))
             return None
@@ -173,7 +184,11 @@ class PDFPrinter(BasePrinter):
         elements.append(Spacer(1, 2 * mm))
 
     def _add_task_details(
-        self, elements: List[Flowable], task: Task, styles: dict[str, ParagraphStyle]
+        self,
+        elements: List[Flowable],
+        task: Task,
+        styles: dict[str, ParagraphStyle],
+        tz: Optional[ZoneInfo] = None,
     ) -> None:
         """Add task details like description and reward."""
         if task.description:
@@ -182,7 +197,7 @@ class PDFPrinter(BasePrinter):
             elements.append(Spacer(1, 2 * mm))
 
         if task.due_date:
-            due_date = self.format_datetime(task.due_date)
+            due_date = self.format_datetime(task.due_date, tz)
             if due_date is not None:
                 elements.append(Paragraph("Due date:", styles["label"]))
                 elements.append(
@@ -196,7 +211,11 @@ class PDFPrinter(BasePrinter):
             elements.append(Spacer(1, 2 * mm))
 
     def _add_task_dates(
-        self, elements: List[Flowable], task: Task, styles: dict[str, ParagraphStyle]
+        self,
+        elements: List[Flowable],
+        task: Task,
+        styles: dict[str, ParagraphStyle],
+        tz: Optional[ZoneInfo] = None,
     ) -> None:
         """Add task dates (created, started, completed)."""
         elements.append(Spacer(1, 4 * mm))
@@ -210,7 +229,7 @@ class PDFPrinter(BasePrinter):
         for field, label in date_fields:
             date_value = getattr(task, field)
             if date_value is not None:
-                formatted_date = self.format_datetime(date_value)
+                formatted_date = self.format_datetime(date_value, tz)
                 if formatted_date is not None:
                     elements.append(Paragraph(label, styles["label"]))
                     elements.append(
@@ -220,8 +239,13 @@ class PDFPrinter(BasePrinter):
                     )
                     elements.append(Spacer(1, 2 * mm))
 
-    def print_task(self, task: Task) -> Path:
-        """Print a task to a receipt-like PDF file."""
+    def print_task(self, task: Task, tz: Optional[ZoneInfo] = None) -> Path:
+        """Print a task to a receipt-like PDF file.
+
+        Args:
+            task: The task to print.
+            tz: Target timezone for timestamp conversion.
+        """
         try:
             self.logger.info("Starting PDF generation for task %d", task.id)
             filename = f"task_{task.id}_{task.title.lower().replace(' ', '_')}.pdf"
@@ -252,8 +276,8 @@ class PDFPrinter(BasePrinter):
 
                 # Build the document content
                 self._add_task_header(elements, task, styles, doc.width)
-                self._add_task_details(elements, task, styles)
-                self._add_task_dates(elements, task, styles)
+                self._add_task_details(elements, task, styles, tz)
+                self._add_task_dates(elements, task, styles, tz)
 
                 # Add QR code (centered)
                 elements.append(Spacer(1, 4 * mm))
@@ -284,9 +308,10 @@ class PDFPrinter(BasePrinter):
             self.logger.error("%s: %s", error_msg, str(e), exc_info=True)
             raise PrinterError(f"{error_msg}: {str(e)}")
 
-    def print(self, task: Task) -> Response:
+    def print(self, task: Task, tz_name: Optional[str] = None) -> Response:
         """Print the task and return a FastAPI Response object."""
-        filepath = self.print_task(task)
+        tz = ZoneInfo(tz_name) if tz_name else None
+        filepath = self.print_task(task, tz)
 
         return FileResponse(
             path=filepath.absolute().as_posix(),
