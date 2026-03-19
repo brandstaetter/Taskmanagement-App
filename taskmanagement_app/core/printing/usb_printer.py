@@ -140,7 +140,7 @@ class USBPrinter(BasePrinter):
     def printHeading(self, printer: Usb, title: str) -> None:
         """Apply heading style to printer."""
         printer.set(align="center", bold=True, double_height=True, double_width=True)
-        printer.text("\n")
+        printer.text("\n")  # Ensure no leftover from previous print
         lines = self.wrap_text(title, wide=True)
         for line in lines:
             printer.text(line + "\n")
@@ -183,10 +183,15 @@ class USBPrinter(BasePrinter):
         lines = []
         current_line: list[str] = []
 
-        # Calculate effective line length
-        effective_max_length = (max_length // 2) if wide else max_length
+        # Calculate effective line length.
+        # When not wide, ALL lines (including continuations) must fit in
+        # max_length - label_length because printValue indents continuation
+        # lines by label_length spaces.
+        effective_max_length = (
+            (max_length // 2) if wide else (max_length - label_length)
+        )
         first_line_length = (
-            (max_length - label_length) // 2 if wide else max_length - label_length
+            (max_length - label_length) // 2 if wide else effective_max_length
         )
         current_length = 0
 
@@ -303,6 +308,8 @@ class USBPrinter(BasePrinter):
 
             # Print header
             self.printHeading(self.device, task.title)
+
+            self.printSpacer(self.device)
 
             # Print Description
             if task.description:
