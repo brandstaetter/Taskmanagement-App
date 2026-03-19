@@ -1,5 +1,9 @@
 import logging
+import sys
+import tempfile
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
+from typing import Any
 
 from sqlalchemy.orm import Session
 
@@ -191,17 +195,75 @@ def process_due_tasks(db: Session) -> None:
             logger.debug(f"Skipping task {task.id} - no due date")
 
 
-def run_maintenance() -> None:
-    """Run all maintenance tasks."""
-    try:
-        from taskmanagement_app.db.session import SessionLocal
+_LOCK_PATH = Path(tempfile.gettempdir()) / "taskman_maintenance.lock"
 
-        db = SessionLocal()
-        try:
-            cleanup_old_tasks(db)
-            process_completed_tasks(db)
-            process_due_tasks(db)
-        finally:
-            db.close()
+
+def _run_maintenance_inner() -> None:
+    """Execute the actual maintenance work (no locking)."""
+    from taskmanagement_app.db.session import SessionLocal
+
+    db = SessionLocal()
+    try:
+        cleanup_old_tasks(db)
+        process_completed_tasks(db)
+        process_due_tasks(db)
+    finally:
+        db.close()
+
+
+def _acquire_lock() -> Any:
+    """Try to acquire an exclusive, non-blocking file lock.
+
+    Returns the open file descriptor on success, or None if the lock is
+    already held by another process (or on platforms without fcntl).
+    """
+    if sys.platform == "win32":
+        # Windows runs a single uvicorn worker — no locking needed.
+        # Return a sentinel so the caller knows to proceed.
+        return True
+
+    import fcntl  # type: ignore[unreachable,unused-ignore]
+
+    fd = None
+    try:
+        fd = open(_LOCK_PATH, "w")  # noqa: SIM115
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)  # type: ignore[possibly-undefined,unused-ignore]
+        return fd
+    except OSError:
+        if fd is not None:
+            fd.close()
+        return None
+
+
+def _release_lock(lock: Any) -> None:
+    """Release the file lock acquired by _acquire_lock."""
+    if lock is True or lock is None:
+        return
+
+    import fcntl  # noqa: F811
+
+    try:
+        fcntl.flock(lock, fcntl.LOCK_UN)  # type: ignore[attr-defined,unused-ignore]
+        lock.close()
+    except OSError:
+        pass
+
+
+def run_maintenance() -> None:
+    """Run all maintenance tasks.
+
+    On Linux (gunicorn with multiple workers), uses a non-blocking file lock
+    so only one worker executes the job. On Windows (single uvicorn), runs
+    directly without locking.
+    """
+    lock = _acquire_lock()
+    if lock is None:
+        logger.debug("Maintenance job skipped — another worker holds the lock")
+        return
+
+    try:
+        _run_maintenance_inner()
     except Exception as e:
         logger.error(f"Maintenance failed: {str(e)}", exc_info=True)
+    finally:
+        _release_lock(lock)
