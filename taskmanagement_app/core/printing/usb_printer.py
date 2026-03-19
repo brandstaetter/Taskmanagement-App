@@ -228,15 +228,16 @@ class USBPrinter(BasePrinter):
 
         return lines if lines else [""]
 
-    def printValue(
-        self, printer: Usb, text: str, label_length: int, wide: bool = False
-    ) -> None:
+    def printValue(self, printer: Usb, text: str, label_length: int) -> None:
         """Print text value with proper wrapping and formatting."""
-        printer.set(align="left", bold=False, double_height=False, double_width=wide)
+        printer.set(align="left", bold=False, double_height=False, double_width=False)
 
         # Wrap text to printer width
-        lines = self.wrap_text(text, label_length=label_length, wide=wide)
-        for line in lines:
+        lines = self.wrap_text(text, label_length=label_length)
+        indent = " " * label_length
+        for i, line in enumerate(lines):
+            if i > 0:
+                printer.text(indent)
             printer.text(line + "\n")
 
     def printQRCode(self, printer: Usb, task_id: int) -> None:
@@ -316,7 +317,6 @@ class USBPrinter(BasePrinter):
                     self.device,
                     due_date.strftime("%Y-%m-%d %H:%M"),
                     indent,
-                    wide=True,
                 )
 
             if task.reward:
