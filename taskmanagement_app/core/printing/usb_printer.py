@@ -315,6 +315,7 @@ class USBPrinter(BasePrinter):
             if task.description:
                 indent = self.printLabel(self.device, "description")
                 self.printValue(self.device, task.description, indent)
+                self.printSpacer(self.device)
 
             # Print Due Date
             if task.due_date:
@@ -325,12 +326,12 @@ class USBPrinter(BasePrinter):
                     due_date.strftime("%Y-%m-%d %H:%M"),
                     indent,
                 )
+                self.printSpacer(self.device)
 
             if task.reward:
                 indent = self.printLabel(self.device, "reward")
                 self.printValue(self.device, task.reward, indent)
-
-            self.printSpacer(self.device)
+                self.printSpacer(self.device)
 
             # Print Created At
             if task.created_at:
