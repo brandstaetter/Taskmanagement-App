@@ -7,6 +7,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
+from taskmanagement_app.core.config import get_settings
 from taskmanagement_app.core.printing.base_printer import BasePrinter
 from taskmanagement_app.core.printing.printer_factory import PrinterFactory
 from taskmanagement_app.crud.task import (
@@ -95,7 +96,7 @@ def process_single_task(
             logger.debug(f"Processing due task: {task.id} - {task.title}")
 
             # Print task
-            printer.print(task)
+            printer.print(task, tz_name=get_settings().DEFAULT_TIMEZONE)
             logger.debug(f"Printed task: {task.id}")
 
             # Update task state

@@ -29,6 +29,9 @@ class Settings(BaseSettings):
     ADMIN_USERNAME: str = "admin"
     ADMIN_PASSWORD: str = "admin"  # Change in production
 
+    # Timezone — used as default when the client does not send one
+    DEFAULT_TIMEZONE: str = "Europe/Vienna"
+
     # USB Printer Settings
     USB_PRINTER_VENDOR_ID: str = "0x28E9"
     USB_PRINTER_PRODUCT_ID: str = "0x0289"
