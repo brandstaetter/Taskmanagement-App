@@ -96,6 +96,7 @@ class PrinterFactory:
             printer_config["vendor_id"] = settings.USB_PRINTER_VENDOR_ID
             printer_config["product_id"] = settings.USB_PRINTER_PRODUCT_ID
             printer_config["profile"] = settings.USB_PRINTER_PROFILE
+            printer_config["frontend_url"] = settings.FRONTEND_URL
 
         logger.debug(f"Printer config for {printer_type}: {printer_config}")
 
