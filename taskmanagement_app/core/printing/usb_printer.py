@@ -134,9 +134,7 @@ class USBPrinter(BasePrinter):
             self.logger.error(error_msg, exc_info=True)
             raise PrinterError(error_msg)
 
-    def format_datetime(
-        self, dt_str: str, tz: Optional[ZoneInfo] = None
-    ) -> datetime:
+    def format_datetime(self, dt_str: str, tz: Optional[ZoneInfo] = None) -> datetime:
         """Convert ISO datetime string to datetime object in the given timezone.
 
         Args:
