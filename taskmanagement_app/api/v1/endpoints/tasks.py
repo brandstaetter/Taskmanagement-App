@@ -256,10 +256,20 @@ def delete_task_endpoint(task_id: int, db: Session = Depends(get_db)) -> Task:
 async def print_task(
     task_id: int,
     printer_type: Optional[str] = Query(None, description="Type of printer to use"),
+    timezone: Optional[str] = Query(
+        None,
+        alias="tz",
+        description="IANA timezone name (e.g. 'Europe/Vienna') for timestamps",
+    ),
     db: Session = Depends(get_db),
 ) -> Response:
     """
     Print a task using the specified printer (defaults to PDF).
+
+    The optional ``tz`` query parameter accepts an IANA timezone name
+    (e.g. ``Europe/Vienna``).  When provided, all timestamps on the
+    printout are converted from UTC to the given timezone so they match
+    the user's local time.
     """
     task = get_task(db, task_id=task_id)
     if not task:
@@ -267,7 +277,7 @@ async def print_task(
 
     try:
         printer = PrinterFactory.create_printer(printer_type)
-        response = printer.print(task)
+        response = printer.print(task, tz_name=timezone)
         return response
     except Exception as e:
         raise HTTPException(

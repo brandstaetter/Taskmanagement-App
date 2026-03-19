@@ -1,7 +1,7 @@
 import logging
 from typing import Any, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel
 
 from taskmanagement_app.core.auth import verify_not_superadmin
@@ -21,12 +21,20 @@ class PrintRequest(BaseModel):
 
 
 @router.post("/", response_model=None)
-async def print_data(request: PrintRequest) -> Response:
+async def print_data(
+    request: PrintRequest,
+    timezone: Optional[str] = Query(
+        None,
+        alias="tz",
+        description="IANA timezone name (e.g. 'Europe/Vienna') for timestamps",
+    ),
+) -> Response:
     """
     Print data using the configured printer.
 
     Args:
         request: PrintRequest object containing the data to print
+        timezone: Optional IANA timezone name for timestamp conversion
 
     Returns:
         Response from the printer (e.g., PDF file for download)
@@ -50,7 +58,7 @@ async def print_data(request: PrintRequest) -> Response:
             completed_at=None,
         )
 
-        response = printer.print(task_data)
+        response = printer.print(task_data, tz_name=timezone)
 
         logger.debug("Print completed successfully")
         return response
