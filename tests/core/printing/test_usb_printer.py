@@ -112,7 +112,9 @@ class TestTextWrapping:
 
         # Check remaining lines
         if len(result) > 1:
-            expected_other_lines_max = (max_length / 2) if wide else max_length
+            expected_other_lines_max = (
+                (max_length / 2) if wide else (max_length - label_length)
+            )
             other_line_lengths = [len(line) for line in result[1:]]
             logger.debug(
                 f"Other lines check: expected_max={expected_other_lines_max}, actual_lengths={other_line_lengths}"
