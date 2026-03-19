@@ -222,12 +222,12 @@ def _acquire_lock() -> Any:
         # Return a sentinel so the caller knows to proceed.
         return True
 
-    import fcntl  # type: ignore[unreachable]
+    import fcntl  # type: ignore[unreachable,unused-ignore]
 
     fd = None
     try:
         fd = open(_LOCK_PATH, "w")  # noqa: SIM115
-        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)  # type: ignore[possibly-undefined,unused-ignore]
         return fd
     except OSError:
         if fd is not None:
@@ -243,7 +243,7 @@ def _release_lock(lock: Any) -> None:
     import fcntl  # noqa: F811
 
     try:
-        fcntl.flock(lock, fcntl.LOCK_UN)  # type: ignore[attr-defined]
+        fcntl.flock(lock, fcntl.LOCK_UN)  # type: ignore[attr-defined,unused-ignore]
         lock.close()
     except OSError:
         pass
