@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel
 
 from taskmanagement_app.core.auth import verify_not_superadmin
+from taskmanagement_app.core.config import get_settings
 from taskmanagement_app.core.printing.printer_factory import PrinterFactory
 from taskmanagement_app.schemas.task import Task
 
@@ -25,7 +26,6 @@ async def print_data(
     request: PrintRequest,
     timezone: Optional[str] = Query(
         None,
-        alias="tz",
         description="IANA timezone name (e.g. 'Europe/Vienna') for timestamps",
     ),
 ) -> Response:
@@ -58,7 +58,8 @@ async def print_data(
             completed_at=None,
         )
 
-        response = printer.print(task_data, tz_name=timezone)
+        tz = timezone or get_settings().DEFAULT_TIMEZONE
+        response = printer.print(task_data, tz_name=tz)
 
         logger.debug("Print completed successfully")
         return response

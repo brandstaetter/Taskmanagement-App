@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy.orm import Session
 
 from taskmanagement_app.core.auth import get_current_user, verify_not_superadmin
+from taskmanagement_app.core.config import get_settings
 from taskmanagement_app.core.exceptions import TaskNotFoundError, TaskStatusError
 from taskmanagement_app.core.printing.printer_factory import PrinterFactory
 from taskmanagement_app.crud.task import (
@@ -258,7 +259,6 @@ async def print_task(
     printer_type: Optional[str] = Query(None, description="Type of printer to use"),
     timezone: Optional[str] = Query(
         None,
-        alias="tz",
         description="IANA timezone name (e.g. 'Europe/Vienna') for timestamps",
     ),
     db: Session = Depends(get_db),
@@ -277,7 +277,8 @@ async def print_task(
 
     try:
         printer = PrinterFactory.create_printer(printer_type)
-        response = printer.print(task, tz_name=timezone)
+        tz = timezone or get_settings().DEFAULT_TIMEZONE
+        response = printer.print(task, tz_name=tz)
         return response
     except Exception as e:
         raise HTTPException(
