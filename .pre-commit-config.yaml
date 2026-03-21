@@ -14,3 +14,17 @@ repos:
         language: system
         types: [python]
         args: [--check]
+
+      - id: flake8
+        name: flake8
+        entry: poetry run flake8
+        language: system
+        types: [python]
+
+      - id: mypy
+        name: mypy
+        entry: poetry run mypy
+        language: system
+        types: [python]
+        pass_filenames: false
+        args: [.]
