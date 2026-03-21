@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict
+from typing import Any
 
 import pytest
 from sqlalchemy.orm import Session
@@ -17,7 +17,6 @@ from taskmanagement_app.crud.task import (
     update_task,
     validate_user_references,
 )
-from taskmanagement_app.db.models.task import AssignmentType
 from taskmanagement_app.schemas.task import TaskCreate, TaskUpdate
 from tests.test_utils import TestUserFactory
 
@@ -331,12 +330,12 @@ def test_validate_user_references_with_valid_users(db_session: Session) -> None:
     validate_user_references(db=db_session, task_data=task_in)
 
     # Test TaskUpdate with valid user
-    task_update = TaskUpdate(assigned_to=user_id)
+    task_update = TaskUpdate(assigned_user_ids=[user_id])
     # Should not raise an exception
     validate_user_references(db=db_session, task_data=task_update)
 
     # Test dict with valid users
-    task_dict = {"created_by": user_id, "assigned_to": user_id}
+    task_dict = {"created_by": user_id, "assigned_user_ids": [user_id]}
     # Should not raise an exception
     validate_user_references(db=db_session, task_data=task_dict)
 
@@ -353,9 +352,11 @@ def test_validate_user_references_with_invalid_created_by(db_session: Session) -
         validate_user_references(db=db_session, task_data=task_in)
 
 
-def test_validate_user_references_with_invalid_assigned_to(db_session: Session) -> None:
-    """Test validation fails when assigned_to user doesn't exist."""
-    task_update = TaskUpdate(assigned_to=99999)  # Non-existent user ID
+def test_validate_user_references_with_invalid_assigned_user_ids_single(
+    db_session: Session,
+) -> None:
+    """Test validation fails when assigned_user_ids contain non-existent users."""
+    task_update = TaskUpdate(assigned_user_ids=[99999])  # Non-existent user ID
 
     with pytest.raises(ValueError, match="User with ID 99999 does not exist"):
         validate_user_references(db=db_session, task_data=task_update)
@@ -397,7 +398,7 @@ def test_update_task_with_invalid_user_reference(db_session: Session) -> None:
     task = create_task(db=db_session, task=task_in)
 
     # Try to update with invalid user reference
-    task_update = TaskUpdate(assigned_to=99999)  # Non-existent user ID
+    task_update = TaskUpdate(assigned_user_ids=[99999])  # Non-existent user ID
 
     with pytest.raises(ValueError, match="User with ID 99999 does not exist"):
         update_task(db=db_session, task_id=task.id, task=task_update)
@@ -413,17 +414,13 @@ def test_validate_user_references_with_none_values(db_session: Session) -> None:
         title="Test Task",
         description="Test Description",
         created_by=user_id,  # Valid user
-        assigned_to=None,
         assigned_user_ids=None,
     )
     # Should not raise an exception
     validate_user_references(db=db_session, task_data=task_in)
 
     # Test TaskUpdate with None values
-    task_update = TaskUpdate(
-        assigned_to=None,
-        assigned_user_ids=None,
-    )
+    task_update = TaskUpdate(assigned_user_ids=None)
     # Should not raise an exception
     validate_user_references(db=db_session, task_data=task_update)
 
@@ -435,56 +432,32 @@ def test_validate_user_references_with_empty_list(db_session: Session) -> None:
     validate_user_references(db=db_session, task_data=task_update)
 
 
-def test_update_task_assignment_type_some_requires_assigned_user_ids(
-    db_session: Session,
-) -> None:
-    """Test that setting assignment_type to 'some' requires non-empty assigned_user_ids."""
+def test_update_task_assigned_user_ids(db_session: Session) -> None:
+    """Test updating task's assigned_user_ids."""
     user_id = create_test_user(db_session, "test_assignment_validation")
 
-    # Create a task with 'one' assignment type
     task_in = TaskCreate(
         title="Test Task",
         description="Test Description",
         due_date=(datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
         state="todo",
         created_by=user_id,
-        assignment_type="one",
-        assigned_to=user_id,
     )
     task = create_task(db=db_session, task=task_in)
+    assert task.assigned_users == []
 
-    # Test 1: Try to set assignment_type to 'some' without assigned_user_ids
-    # This should fail at Pydantic validation level
-    with pytest.raises(
-        ValueError,
-        match="assigned_user_ids must be specified when assignment_type is 'some'",
-    ):
-        TaskUpdate(assignment_type="some")
-
-    # Test 2: Try to set assignment_type to 'some' with empty assigned_user_ids
-    # This should also fail at Pydantic validation level
-    with pytest.raises(
-        ValueError,
-        match="assigned_user_ids must be specified when assignment_type is 'some'",
-    ):
-        TaskUpdate(assignment_type="some", assigned_user_ids=[])
-
-    # Test 3: Try to provide empty assigned_user_ids while keeping assignment_type as 'some'
-    # First set it to 'some' with valid users
-    task_update_valid = TaskUpdate(assignment_type="some", assigned_user_ids=[user_id])
+    # Assign to user
+    task_update_valid = TaskUpdate(assigned_user_ids=[user_id])
     updated_task = update_task(db=db_session, task_id=task.id, task=task_update_valid)
     assert updated_task is not None
-    assert updated_task.assignment_type == AssignmentType.some
     assert len(updated_task.assigned_users) == 1
+    assert updated_task.assigned_users[0].id == user_id
 
-    # Then try to update with empty assigned_user_ids - this should fail at CRUD validation
-    # Use dict to bypass Pydantic validation and test our CRUD validation
-    task_update_empty_only: Dict[str, Any] = {"assigned_user_ids": []}
-    with pytest.raises(
-        ValueError,
-        match="assigned_user_ids must be provided and non-empty when assignment_type is 'some'",
-    ):
-        update_task(db=db_session, task_id=task.id, task=task_update_empty_only)
+    # Clear assignees
+    task_update_clear = TaskUpdate(assigned_user_ids=[])
+    cleared_task = update_task(db=db_session, task_id=task.id, task=task_update_clear)
+    assert cleared_task is not None
+    assert cleared_task.assigned_users == []
 
 
 def test_start_task_records_started_by(db_session: Session) -> None:
@@ -517,6 +490,41 @@ def test_start_task_without_user_started_by_is_none(db_session: Session) -> None
 
     started = start_task(db=db_session, task=task, started_by_user_id=None)
     assert started.started_by is None
+
+
+def test_start_task_auto_assigns_user(db_session: Session) -> None:
+    """start_task auto-assigns the starting user if not already in assigned_users."""
+    user_id = create_test_user(db_session, "test_start_task_auto_assign")
+    task_in = TaskCreate(
+        title="Test Task",
+        description="Test Description",
+        state="todo",
+        created_by=user_id,
+    )
+    task = create_task(db=db_session, task=task_in)
+    assert task.assigned_users == []
+
+    started = start_task(db=db_session, task=task, started_by_user_id=user_id)
+    assert started.state == "in_progress"
+    assert started.started_by == user_id
+    assert any(u.id == user_id for u in started.assigned_users)
+
+
+def test_start_task_does_not_duplicate_existing_assignee(db_session: Session) -> None:
+    """start_task does not add user twice if already in assigned_users."""
+    user_id = create_test_user(db_session, "test_start_task_no_dup")
+    task_in = TaskCreate(
+        title="Test Task",
+        description="Already assigned",
+        state="todo",
+        created_by=user_id,
+        assigned_user_ids=[user_id],
+    )
+    task = create_task(db=db_session, task=task_in)
+    assert len(task.assigned_users) == 1
+
+    started = start_task(db=db_session, task=task, started_by_user_id=user_id)
+    assert len(started.assigned_users) == 1  # No duplicate
 
 
 def test_reset_task_to_todo_clears_started_by(db_session: Session) -> None:

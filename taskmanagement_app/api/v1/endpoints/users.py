@@ -11,6 +11,7 @@ from taskmanagement_app.crud.user import (
     change_user_password as crud_change_user_password,
 )
 from taskmanagement_app.crud.user import (
+    get_all_users,
     get_user_by_email,
 )
 from taskmanagement_app.crud.user import update_display_name as crud_update_display_name
@@ -166,3 +167,15 @@ def update_display_name(
     if updated is None:
         raise HTTPException(status_code=404, detail="User not found")
     return _user_response(updated)
+
+
+@router.get("", response_model=list[UserSchema])
+def list_users(
+    skip: int = 0,
+    limit: int = 1000,
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(get_current_user),
+) -> list[UserSchema]:
+    """List all active users. Available to any authenticated user."""
+    users = get_all_users(db, skip=skip, limit=limit)
+    return [_user_response(u) for u in users if u.is_active]

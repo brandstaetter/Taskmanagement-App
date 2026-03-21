@@ -1,8 +1,7 @@
-from .task import AssignmentType, TaskModel, TaskState
+from .task import TaskModel, TaskState
 from .user import User
 
 __all__ = [
-    "AssignmentType",
     "TaskModel",
     "TaskState",
     "User",
