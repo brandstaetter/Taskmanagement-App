@@ -3,9 +3,9 @@ import sys
 from logging.config import fileConfig
 from typing import Dict
 
+from alembic import context
 from sqlalchemy import engine_from_config, pool
 
-from alembic import context
 from taskmanagement_app.core.config import get_settings
 from taskmanagement_app.db.base import Base
 
