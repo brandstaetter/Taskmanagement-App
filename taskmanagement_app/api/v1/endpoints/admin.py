@@ -28,6 +28,7 @@ from taskmanagement_app.schemas.common import (
 )
 from taskmanagement_app.schemas.user import AdminUserCreate, AdminUserRoleUpdate
 from taskmanagement_app.schemas.user import User as UserSchema
+from taskmanagement_app.utils.gravatar import gravatar_url
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +55,24 @@ def _get_db_location_for_log() -> str:
 
 
 router = APIRouter()
+
+
+def _user_response(user: object) -> UserSchema:
+    """Build a UserSchema with gravatar_url from a DB user model."""
+    data = {
+        "id": user.id,  # type: ignore[attr-defined]
+        "email": user.email,  # type: ignore[attr-defined]
+        "is_active": user.is_active,  # type: ignore[attr-defined]
+        "is_admin": user.is_admin,  # type: ignore[attr-defined]
+        "is_superadmin": False,
+        "display_name": getattr(user, "display_name", None),
+        "avatar_url": getattr(user, "avatar_url", None),
+        "gravatar_url": gravatar_url(user.email),  # type: ignore[attr-defined]
+        "last_login": getattr(user, "last_login", None),
+        "created_at": user.created_at,  # type: ignore[attr-defined]
+        "updated_at": user.updated_at,  # type: ignore[attr-defined]
+    }
+    return UserSchema.model_validate(data)
 
 
 @router.post("/db/init", response_model=DbOperationResponse)
@@ -143,7 +162,7 @@ def create_new_user(
     if existing is not None:
         raise HTTPException(status_code=400, detail="Email already registered")
     created = admin_create_user(db, user=user)
-    return UserSchema.model_validate(created)
+    return _user_response(created)
 
 
 @router.post("/users/{user_id}/reset-password", response_model=PasswordResetResponse)
@@ -169,7 +188,7 @@ def list_users(
     _: bool = Depends(verify_admin),
 ) -> list[UserSchema]:
     users = get_all_users(db, skip=skip, limit=limit)
-    return [UserSchema.model_validate(u) for u in users]
+    return [_user_response(u) for u in users]
 
 
 @router.delete("/users/{user_id}", response_model=UserSchema)
@@ -187,7 +206,7 @@ def remove_user(
         )
     if deleted is None:
         raise HTTPException(status_code=404, detail="User not found")
-    return UserSchema.model_validate(deleted)
+    return _user_response(deleted)
 
 
 @router.patch("/users/{user_id}/role", response_model=UserSchema)
@@ -200,4 +219,4 @@ def update_role(
     updated = update_user_role(db, user_id=user_id, is_admin=role_update.is_admin)
     if updated is None:
         raise HTTPException(status_code=404, detail="User not found")
-    return UserSchema.model_validate(updated)
+    return _user_response(updated)

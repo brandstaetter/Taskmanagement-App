@@ -88,6 +88,8 @@ class Task(TaskBase):
     started_by: Optional[int] = None
     creator_display_name: Optional[str] = None
     worker_display_name: Optional[str] = None
+    creator_avatar_url: Optional[str] = None
+    worker_avatar_url: Optional[str] = None
 
 
 class TaskCreate(TaskBase):

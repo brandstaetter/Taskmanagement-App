@@ -24,8 +24,27 @@ from taskmanagement_app.schemas.user import (
     UserPasswordChange,
     UserPasswordReset,
 )
+from taskmanagement_app.utils.gravatar import gravatar_url
 
 router = APIRouter()
+
+
+def _user_response(user: User) -> UserSchema:
+    """Build a UserSchema response with gravatar_url populated."""
+    user_dict = {
+        "id": user.id,
+        "email": user.email,
+        "is_active": user.is_active,
+        "is_admin": user.is_admin,
+        "is_superadmin": False,
+        "display_name": user.display_name,
+        "avatar_url": user.avatar_url,
+        "gravatar_url": gravatar_url(user.email),
+        "last_login": user.last_login,
+        "created_at": user.created_at,
+        "updated_at": user.updated_at,
+    }
+    return UserSchema.model_validate(user_dict)
 
 
 def get_current_user_for_me(
@@ -94,20 +113,7 @@ def get_current_user_info(
         # Superadmin case - already has all fields including is_superadmin
         return UserSchema.model_validate(current_user)
     else:
-        # Regular user case - add is_superadmin field dynamically
-        user_dict = {
-            "id": current_user.id,
-            "email": current_user.email,
-            "is_active": current_user.is_active,
-            "is_admin": current_user.is_admin,
-            "is_superadmin": False,  # Regular users are never superadmin
-            "display_name": current_user.display_name,
-            "avatar_url": current_user.avatar_url,
-            "last_login": current_user.last_login,
-            "created_at": current_user.created_at,
-            "updated_at": current_user.updated_at,
-        }
-        return UserSchema.model_validate(user_dict)
+        return _user_response(current_user)
 
 
 @router.put("/me/password", response_model=UserSchema)
@@ -129,7 +135,7 @@ def change_password(
     )
     if updated is None:
         raise HTTPException(status_code=404, detail="User not found")
-    return UserSchema.model_validate(updated)
+    return _user_response(updated)
 
 
 @router.put("/me/avatar", response_model=UserSchema)
@@ -144,7 +150,7 @@ def update_avatar(
     )
     if updated is None:
         raise HTTPException(status_code=404, detail="User not found")
-    return UserSchema.model_validate(updated)
+    return _user_response(updated)
 
 
 @router.patch("/me/display-name", response_model=UserSchema)
@@ -159,4 +165,4 @@ def update_display_name(
     )
     if updated is None:
         raise HTTPException(status_code=404, detail="User not found")
-    return UserSchema.model_validate(updated)
+    return _user_response(updated)
