@@ -110,6 +110,7 @@ async def run_migrations(authorized: bool = Depends(verify_admin)) -> MigrationR
     try:
         from alembic import command as alembic_command
         from alembic.config import Config as AlembicConfig
+
         from taskmanagement_app.core.config import get_settings
 
         settings = get_settings()

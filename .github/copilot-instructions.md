@@ -28,9 +28,9 @@ This is a FastAPI-based Task Management application with printing capabilities. 
 │   ├── db/             # Database models and sessions
 │   │   └── models/     # SQLAlchemy models
 │   ├── jobs/           # Background jobs and schedulers
+│   ├── migrations/     # Alembic database migrations
 │   └── schemas/        # Pydantic models for validation
 ├── tests/              # Test files
-├── alembic/            # Database migrations
 └── config/             # Configuration files (e.g., printers.ini)
 ```
 

@@ -11,9 +11,8 @@ Create Date: 2026-03-21
 
 """
 
-from sqlalchemy import inspect
-
 from alembic import op
+from sqlalchemy import inspect
 
 # revision identifiers, used by Alembic.
 revision = "004_drop_assignment_columns"
