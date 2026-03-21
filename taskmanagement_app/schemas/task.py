@@ -85,6 +85,9 @@ class TaskBase(BaseModel, AssignmentValidationMixin):
 
 class Task(TaskBase):
     id: int
+    started_by: Optional[int] = None
+    creator_display_name: Optional[str] = None
+    worker_display_name: Optional[str] = None
 
 
 class TaskCreate(TaskBase):

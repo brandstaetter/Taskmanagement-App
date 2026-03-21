@@ -144,3 +144,34 @@ def test_unique_email_constraint(db_session: Session) -> None:
         user_crud.create_user(db_session, data)
 
     db_session.rollback()
+
+
+def test_update_display_name(db_session: Session) -> None:
+    data = UserCreate(email=f"u_dn_{uuid4()}@example.com", password="StrongPass1!")
+    created = user_crud.create_user(db_session, data)
+    assert created.display_name is None
+
+    updated = user_crud.update_display_name(db_session, created.id, "My Display Name")
+    assert updated is not None
+    assert updated.display_name == "My Display Name"
+
+
+def test_update_display_name_replaces_existing(db_session: Session) -> None:
+    data = UserCreate(email=f"u_dn2_{uuid4()}@example.com", password="StrongPass1!")
+    created = user_crud.create_user(db_session, data)
+
+    user_crud.update_display_name(db_session, created.id, "First Name")
+    updated = user_crud.update_display_name(db_session, created.id, "Second Name")
+    assert updated is not None
+    assert updated.display_name == "Second Name"
+
+
+def test_update_display_name_nonexistent_returns_none(db_session: Session) -> None:
+    result = user_crud.update_display_name(db_session, 999999, "Ghost")
+    assert result is None
+
+
+def test_create_user_display_name_defaults_to_none(db_session: Session) -> None:
+    data = UserCreate(email=f"u_dn3_{uuid4()}@example.com", password="StrongPass1!")
+    created = user_crud.create_user(db_session, data)
+    assert created.display_name is None

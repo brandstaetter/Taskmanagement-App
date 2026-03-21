@@ -316,3 +316,134 @@ def test_update_avatar_requires_authentication(
             client.headers["Authorization"] = existing_auth
 
     assert response.status_code == 401
+
+
+def test_update_display_name(client: TestClient, db_session: Session) -> None:
+    email, access_token = create_and_login_user(client, db_session, "Str0ng!Pass1")
+
+    response = client.patch(
+        "/api/v1/users/me/display-name",
+        json={"display_name": "My Display Name"},
+        headers={"Authorization": f"Bearer {access_token}"},
+    )
+
+    assert response.status_code == 200
+    updated_user = response.json()
+    assert updated_user["display_name"] == "My Display Name"
+    assert updated_user["email"] == email
+
+    db_user = get_user_by_email(db_session, email=email)
+    assert db_user is not None
+    assert db_user.display_name == "My Display Name"
+
+
+def test_update_display_name_replaces_existing(
+    client: TestClient, db_session: Session
+) -> None:
+    email, access_token = create_and_login_user(client, db_session, "Str0ng!Pass1")
+
+    client.patch(
+        "/api/v1/users/me/display-name",
+        json={"display_name": "First Name"},
+        headers={"Authorization": f"Bearer {access_token}"},
+    )
+
+    response = client.patch(
+        "/api/v1/users/me/display-name",
+        json={"display_name": "Second Name"},
+        headers={"Authorization": f"Bearer {access_token}"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["display_name"] == "Second Name"
+
+
+def test_update_display_name_empty_string_rejected(
+    client: TestClient, db_session: Session
+) -> None:
+    _, access_token = create_and_login_user(client, db_session, "Str0ng!Pass1")
+
+    response = client.patch(
+        "/api/v1/users/me/display-name",
+        json={"display_name": ""},
+        headers={"Authorization": f"Bearer {access_token}"},
+    )
+
+    assert response.status_code == 422
+
+
+def test_update_display_name_requires_authentication(
+    client: TestClient, db_session: Session
+) -> None:
+    email = f"user_{uuid4()}@example.com"
+    user_data = UserCreate(email=email, password="Str0ng!Pass1")
+    response = client.post("/api/v1/admin/users", json=user_data.model_dump())
+    assert response.status_code == 200
+
+    existing_auth = client.headers.pop("Authorization", None)
+    try:
+        response = client.patch(
+            "/api/v1/users/me/display-name",
+            json={"display_name": "No Auth Name"},
+        )
+    finally:
+        if existing_auth is not None:
+            client.headers["Authorization"] = existing_auth
+
+    assert response.status_code == 401
+
+
+def test_superadmin_cannot_update_display_name(client: TestClient) -> None:
+    from taskmanagement_app.core.config import get_settings
+
+    settings = get_settings()
+    login = client.post(
+        "/api/v1/auth/user/token",
+        data={"username": settings.ADMIN_USERNAME, "password": settings.ADMIN_PASSWORD},
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+    assert login.status_code == 200
+    token = login.json()["access_token"]
+
+    response = client.patch(
+        "/api/v1/users/me/display-name",
+        json={"display_name": "SuperAdmin Name"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 403
+
+
+def test_get_me_returns_display_name_field(
+    client: TestClient, db_session: Session
+) -> None:
+    email, access_token = create_and_login_user(client, db_session, "Str0ng!Pass1")
+
+    response = client.get(
+        "/api/v1/users/me",
+        headers={"Authorization": f"Bearer {access_token}"},
+    )
+
+    assert response.status_code == 200
+    user_data = response.json()
+    assert "display_name" in user_data
+    assert user_data["display_name"] is None  # Not yet set
+
+
+def test_get_me_returns_updated_display_name(
+    client: TestClient, db_session: Session
+) -> None:
+    email, access_token = create_and_login_user(client, db_session, "Str0ng!Pass1")
+
+    client.patch(
+        "/api/v1/users/me/display-name",
+        json={"display_name": "Visible Name"},
+        headers={"Authorization": f"Bearer {access_token}"},
+    )
+
+    response = client.get(
+        "/api/v1/users/me",
+        headers={"Authorization": f"Bearer {access_token}"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["display_name"] == "Visible Name"

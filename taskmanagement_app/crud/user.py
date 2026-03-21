@@ -107,6 +107,17 @@ def change_user_password(
     return db_user
 
 
+def update_display_name(db: Session, user_id: int, display_name: str) -> Optional[User]:
+    db_user = get_user(db, user_id)
+    if not db_user:
+        return None
+
+    db_user.display_name = display_name
+    db.commit()
+    db.refresh(db_user)
+    return db_user
+
+
 def update_user_avatar(db: Session, user_id: int, avatar_url: str) -> Optional[User]:
     db_user = get_user(db, user_id)
     if not db_user:

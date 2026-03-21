@@ -21,6 +21,7 @@ class User(Base):
     hashed_password: Mapped[str] = mapped_column(String)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
+    display_name: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     avatar_url: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     last_login: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), nullable=True
@@ -41,4 +42,7 @@ class User(Base):
     )
     assigned_tasks: Mapped[list["TaskModel"]] = relationship(
         "TaskModel", secondary=task_assigned_users, back_populates="assigned_users"
+    )
+    working_tasks: Mapped[list["TaskModel"]] = relationship(
+        "TaskModel", foreign_keys="TaskModel.started_by", back_populates="worker"
     )

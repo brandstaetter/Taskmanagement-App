@@ -375,12 +375,15 @@ def complete_task(db: Session, task: TaskModel) -> TaskModel:
     return task
 
 
-def start_task(db: Session, task: TaskModel) -> TaskModel:
+def start_task(
+    db: Session, task: TaskModel, started_by_user_id: Optional[int] = None
+) -> TaskModel:
     """
     Mark a task as in progress and set the start timestamp.
     """
     task.state = TaskState.in_progress
     task.started_at = datetime.now(timezone.utc).isoformat()
+    task.started_by = started_by_user_id
     db.commit()
     return task
 
@@ -493,6 +496,7 @@ def reset_task_to_todo(db: Session, task_id: int) -> TaskModel:
     task.state = TaskState.todo
     task.started_at = None
     task.completed_at = None
+    task.started_by = None
 
     db.commit()
     db.refresh(task)

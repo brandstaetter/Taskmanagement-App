@@ -2,6 +2,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Dict
 
 from fastapi.testclient import TestClient
+from sqlalchemy.orm import Session
 
 from taskmanagement_app.core.config import get_settings
 
@@ -727,3 +728,144 @@ def test_update_task_state_preservation(client: TestClient) -> None:
     assert final_task["state"] == "done"
     assert final_task["started_at"] == started_at
     assert final_task["completed_at"] == completed_at
+
+
+def test_task_response_includes_display_name_fields(
+    client: TestClient, db_session: Session
+) -> None:
+    """Task responses include started_by, creator_display_name, worker_display_name."""
+    from tests.test_utils import TestUserFactory
+
+    user = TestUserFactory.create_test_user(db_session, "task_display_name_test")
+    user_id = user["id"]
+
+    task = create_test_task(client, user_id, "Display Name Fields Task")
+
+    response = client.get(f"/api/v1/tasks/{task['id']}")
+    assert response.status_code == 200
+    data = response.json()
+
+    assert "started_by" in data
+    assert "creator_display_name" in data
+    assert "worker_display_name" in data
+    assert data["started_by"] is None
+    assert data["worker_display_name"] is None
+
+
+def test_start_task_records_started_by_for_regular_user(
+    client: TestClient, db_session: Session
+) -> None:
+    """start endpoint sets started_by when called with a user token."""
+    from taskmanagement_app.core.auth import create_user_token
+    from tests.test_utils import TestUserFactory
+
+    user_info = TestUserFactory.create_test_user(db_session, "start_task_user")
+    user_id = user_info["id"]
+    user_email = user_info["email"]
+
+    task = create_test_task(client, user_id, "Started By Test Task")
+
+    # Use a real user token so current_user is populated
+    user_token = create_user_token(subject=user_email)
+    response = client.post(
+        f"/api/v1/tasks/{task['id']}/start",
+        headers={"Authorization": f"Bearer {user_token}"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["started_by"] == user_id
+    assert data["state"] == "in_progress"
+
+
+def test_reset_to_todo_clears_started_by_in_response(
+    client: TestClient, db_session: Session
+) -> None:
+    """reset-to-todo endpoint returns started_by as None."""
+    from taskmanagement_app.core.auth import create_user_token
+    from tests.test_utils import TestUserFactory
+
+    user_info = TestUserFactory.create_test_user(db_session, "reset_started_by_test")
+    user_id = user_info["id"]
+    user_email = user_info["email"]
+
+    task = create_test_task(client, user_id, "Reset Started By Task")
+
+    user_token = create_user_token(subject=user_email)
+    start_response = client.post(
+        f"/api/v1/tasks/{task['id']}/start",
+        headers={"Authorization": f"Bearer {user_token}"},
+    )
+    assert start_response.status_code == 200
+    assert start_response.json()["started_by"] == user_id
+
+    reset_response = client.patch(f"/api/v1/tasks/{task['id']}/reset-to-todo")
+    assert reset_response.status_code == 200
+    reset_data = reset_response.json()
+    assert reset_data["started_by"] is None
+    assert reset_data["state"] == "todo"
+    assert reset_data["started_at"] is None
+
+
+def test_creator_display_name_uses_display_name_when_set(
+    client: TestClient, db_session: Session
+) -> None:
+    """creator_display_name shows display_name when set, falls back to email."""
+    from taskmanagement_app.crud.user import update_display_name
+    from tests.test_utils import TestUserFactory
+
+    user_info = TestUserFactory.create_test_user(db_session, "creator_dn_test")
+    user_id = user_info["id"]
+
+    # Set display name on the user
+    update_display_name(db_session, user_id, "Creator Display")
+
+    task = create_test_task(client, user_id, "Creator DN Task")
+
+    response = client.get(f"/api/v1/tasks/{task['id']}")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["creator_display_name"] == "Creator Display"
+
+
+def test_creator_display_name_falls_back_to_email(
+    client: TestClient, db_session: Session
+) -> None:
+    """creator_display_name returns email when display_name is not set."""
+    from tests.test_utils import TestUserFactory
+
+    user_info = TestUserFactory.create_test_user(db_session, "creator_email_fallback")
+    user_id = user_info["id"]
+    user_email = user_info["email"]
+
+    task = create_test_task(client, user_id, "Creator Email Fallback Task")
+
+    response = client.get(f"/api/v1/tasks/{task['id']}")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["creator_display_name"] == user_email
+
+
+def test_worker_display_name_set_when_started_by_user(
+    client: TestClient, db_session: Session
+) -> None:
+    """worker_display_name is populated after start with a user token."""
+    from taskmanagement_app.core.auth import create_user_token
+    from taskmanagement_app.crud.user import update_display_name
+    from tests.test_utils import TestUserFactory
+
+    user_info = TestUserFactory.create_test_user(db_session, "worker_dn_test")
+    user_id = user_info["id"]
+    user_email = user_info["email"]
+
+    update_display_name(db_session, user_id, "Worker Display")
+
+    task = create_test_task(client, user_id, "Worker DN Task")
+
+    user_token = create_user_token(subject=user_email)
+    start_response = client.post(
+        f"/api/v1/tasks/{task['id']}/start",
+        headers={"Authorization": f"Bearer {user_token}"},
+    )
+    assert start_response.status_code == 200
+    data = start_response.json()
+    assert data["worker_display_name"] == "Worker Display"

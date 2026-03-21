@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, List, Optional
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy.orm import Session
@@ -24,17 +24,49 @@ from taskmanagement_app.crud.task import (
     update_task,
     weighted_random_choice,
 )
-from taskmanagement_app.db.models.task import TaskState
+from taskmanagement_app.db.models.task import TaskModel, TaskState
+from taskmanagement_app.db.models.user import User
 from taskmanagement_app.db.session import get_db
 from taskmanagement_app.schemas.common import MaintenanceResponse
 from taskmanagement_app.schemas.task import Task, TaskCreate, TaskUpdate
 
-if TYPE_CHECKING:
-    from taskmanagement_app.db.models.user import User
-
 logger = logging.getLogger(__name__)
 
 router = APIRouter(dependencies=[Depends(verify_not_superadmin)])
+
+
+def _task_response(db_task: TaskModel) -> Task:
+    """Build a Task response including resolved display names."""
+
+    assigned_user_ids = (
+        [u.id for u in db_task.assigned_users] if db_task.assigned_users else None
+    )
+    creator_display = None
+    if db_task.creator:
+        creator_display = db_task.creator.display_name or db_task.creator.email
+    worker_display = None
+    if db_task.worker:
+        worker_display = db_task.worker.display_name or db_task.worker.email
+    return Task.model_validate(
+        {
+            "id": db_task.id,
+            "title": db_task.title,
+            "description": db_task.description,
+            "state": db_task.state,
+            "due_date": db_task.due_date,
+            "reward": db_task.reward,
+            "created_at": db_task.created_at,
+            "started_at": db_task.started_at,
+            "completed_at": db_task.completed_at,
+            "created_by": db_task.created_by,
+            "assignment_type": db_task.assignment_type,
+            "assigned_to": db_task.assigned_to,
+            "assigned_user_ids": assigned_user_ids,
+            "started_by": db_task.started_by,
+            "creator_display_name": creator_display,
+            "worker_display_name": worker_display,
+        }
+    )
 
 
 @router.get("", response_model=List[Task])
@@ -47,7 +79,7 @@ def read_tasks(
         True, description="Include tasks created by the user"
     ),
     db: Session = Depends(get_db),
-    current_user: Optional["User"] = Depends(get_current_user),
+    current_user: Optional[User] = Depends(get_current_user),
 ) -> List[Task]:
     """
     Retrieve tasks.
@@ -73,7 +105,7 @@ def read_tasks(
         user_id=user_id,
         include_created=include_created,
     )
-    return [Task.model_validate(task) for task in db_tasks]
+    return [_task_response(task) for task in db_tasks]
 
 
 @router.post("", response_model=Task)
@@ -86,7 +118,7 @@ def create_new_task(
     """
     try:
         db_task = create_task(db=db, task=task)
-        return Task.model_validate(db_task)
+        return _task_response(db_task)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -94,7 +126,7 @@ def create_new_task(
 @router.get("/due/", response_model=List[Task])
 def read_due_tasks(
     db: Session = Depends(get_db),
-    current_user: Optional["User"] = Depends(get_current_user),
+    current_user: Optional[User] = Depends(get_current_user),
 ) -> List[Task]:
     """
     Retrieve all tasks that are due within the next 24 hours.
@@ -111,14 +143,14 @@ def read_due_tasks(
         if task.due_date:
             due_date = datetime.fromisoformat(task.due_date.replace("Z", "+00:00"))
             if (due_date - now).total_seconds() <= 24 * 3600:  # 24 hours in seconds
-                due_tasks.append(Task.model_validate(task))
+                due_tasks.append(_task_response(task))
     return due_tasks
 
 
 @router.get("/random/", response_model=Task)
 def get_random_task(
     db: Session = Depends(get_db),
-    current_user: Optional["User"] = Depends(get_current_user),
+    current_user: Optional[User] = Depends(get_current_user),
 ) -> Task:
     """
     Get a random task, prioritizing tasks that are:
@@ -143,7 +175,7 @@ def get_random_task(
     if not selected_task:
         raise HTTPException(status_code=404, detail="No tasks found")
 
-    return Task.model_validate(selected_task)
+    return _task_response(selected_task)
 
 
 @router.get("/search/", response_model=List[Task])
@@ -151,7 +183,7 @@ def search_tasks(
     q: str = Query(..., description="Search query"),
     include_archived: bool = False,
     db: Session = Depends(get_db),
-    current_user: Optional["User"] = Depends(get_current_user),
+    current_user: Optional[User] = Depends(get_current_user),
 ) -> List[Task]:
     """
     Search tasks by title or description.
@@ -175,7 +207,7 @@ def search_tasks(
 
     # Log results and convert to response models
     logger.debug("Found %d tasks matching query '%s'", len(db_tasks), q)
-    return [Task.model_validate(task) for task in db_tasks]
+    return [_task_response(task) for task in db_tasks]
 
 
 @router.get("/{task_id}", response_model=Task)
@@ -189,11 +221,15 @@ def read_task(
     db_task = get_task(db, task_id=task_id)
     if not db_task:
         raise HTTPException(status_code=404, detail="Task not found")
-    return Task.model_validate(db_task)
+    return _task_response(db_task)
 
 
 @router.post("/{task_id}/start", response_model=Task)
-def start_task(task_id: int, db: Session = Depends(get_db)) -> Task:
+def start_task(
+    task_id: int,
+    db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_user),
+) -> Task:
     """
     Mark a task as in progress and set the started_at timestamp.
     """
@@ -208,8 +244,9 @@ def start_task(task_id: int, db: Session = Depends(get_db)) -> Task:
             "Task must be in 'todo' state.",
         )
 
-    updated_db_task = start_task_crud(db, db_task)
-    return Task.model_validate(updated_db_task)
+    user_id = current_user.id if current_user else None
+    updated_db_task = start_task_crud(db, db_task, started_by_user_id=user_id)
+    return _task_response(updated_db_task)
 
 
 @router.post("/{task_id}/complete", response_model=Task)
@@ -230,7 +267,7 @@ def complete_task(task_id: int, db: Session = Depends(get_db)) -> Task:
 
     try:
         updated_db_task = complete_task_crud(db, db_task)
-        return Task.model_validate(updated_db_task)
+        return _task_response(updated_db_task)
     except TaskStatusError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -248,7 +285,7 @@ def delete_task_endpoint(task_id: int, db: Session = Depends(get_db)) -> Task:
         task = archive_task(db, task_id)
         if not task:
             raise HTTPException(status_code=404, detail="Task not found")
-        return Task.model_validate(task)
+        return _task_response(task)
     except TaskStatusError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -309,7 +346,8 @@ async def trigger_maintenance(db: Session = Depends(get_db)) -> MaintenanceRespo
 def reset_task_to_todo_endpoint(task_id: int, db: Session = Depends(get_db)) -> Task:
     """Reset a task to todo state and clear its progress timestamps."""
     try:
-        return reset_task_to_todo(db=db, task_id=task_id)
+        db_task = reset_task_to_todo(db=db, task_id=task_id)
+        return _task_response(db_task)
     except TaskNotFoundError:
         raise HTTPException(
             status_code=404,
@@ -348,6 +386,8 @@ def update_task_endpoint(
 
     try:
         updated_task = update_task(db, task_id, task)
-        return Task.model_validate(updated_task)
+        if not updated_task:
+            raise HTTPException(status_code=404, detail="Task not found")
+        return _task_response(updated_task)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
