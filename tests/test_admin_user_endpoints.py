@@ -198,3 +198,30 @@ def test_update_role_returns_full_user_schema(client: TestClient) -> None:
     assert "is_active" in data
     assert "is_admin" in data
     assert "created_at" in data
+
+
+# ---------------------------------------------------------------------------
+# Gravatar URL in admin responses
+# ---------------------------------------------------------------------------
+
+
+def test_create_user_response_includes_gravatar_url(client: TestClient) -> None:
+    import time
+
+    user = _create_user(client, str(int(time.time() * 1_000_000)))
+    assert "gravatar_url" in user
+    assert user["gravatar_url"] is not None
+    assert "gravatar.com" in user["gravatar_url"]
+
+
+def test_list_users_includes_gravatar_url(client: TestClient) -> None:
+    import time
+
+    _create_user(client, str(int(time.time() * 1_000_000)))
+    response = client.get("/api/v1/admin/users")
+    assert response.status_code == 200
+    users = response.json()
+    assert len(users) > 0
+    for u in users:
+        assert "gravatar_url" in u
+        assert u["gravatar_url"] is not None

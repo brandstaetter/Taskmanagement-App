@@ -1,3 +1,4 @@
+import hashlib
 from uuid import uuid4
 
 from fastapi.testclient import TestClient
@@ -447,3 +448,70 @@ def test_get_me_returns_updated_display_name(
 
     assert response.status_code == 200
     assert response.json()["display_name"] == "Visible Name"
+
+
+def test_get_me_returns_gravatar_url(client: TestClient, db_session: Session) -> None:
+    email, access_token = create_and_login_user(client, db_session, "Str0ng!Pass1")
+
+    response = client.get(
+        "/api/v1/users/me",
+        headers={"Authorization": f"Bearer {access_token}"},
+    )
+
+    assert response.status_code == 200
+    user_data = response.json()
+    assert "gravatar_url" in user_data
+    expected_hash = hashlib.sha256(email.strip().lower().encode()).hexdigest()
+    assert expected_hash in user_data["gravatar_url"]
+    assert user_data["gravatar_url"].startswith("https://www.gravatar.com/avatar/")
+
+
+def test_update_avatar_response_includes_gravatar_url(
+    client: TestClient, db_session: Session
+) -> None:
+    email, access_token = create_and_login_user(client, db_session, "Str0ng!Pass1")
+
+    response = client.put(
+        "/api/v1/users/me/avatar",
+        json={"avatar_url": "https://example.com/custom.png"},
+        headers={"Authorization": f"Bearer {access_token}"},
+    )
+
+    assert response.status_code == 200
+    user_data = response.json()
+    assert user_data["avatar_url"] == "https://example.com/custom.png"
+    assert user_data["gravatar_url"] is not None
+    assert "gravatar.com" in user_data["gravatar_url"]
+
+
+def test_update_display_name_response_includes_gravatar_url(
+    client: TestClient, db_session: Session
+) -> None:
+    _, access_token = create_and_login_user(client, db_session, "Str0ng!Pass1")
+
+    response = client.patch(
+        "/api/v1/users/me/display-name",
+        json={"display_name": "Gravatar User"},
+        headers={"Authorization": f"Bearer {access_token}"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["gravatar_url"] is not None
+
+
+def test_change_password_response_includes_gravatar_url(
+    client: TestClient, db_session: Session
+) -> None:
+    _, access_token = create_and_login_user(client, db_session, "Str0ng!Pass1")
+
+    response = client.put(
+        "/api/v1/users/me/password",
+        json={
+            "current_password": "Str0ng!Pass1",
+            "new_password": "N3w!StrongPass",
+        },
+        headers={"Authorization": f"Bearer {access_token}"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["gravatar_url"] is not None
