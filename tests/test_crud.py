@@ -12,6 +12,7 @@ from taskmanagement_app.crud.task import (
     get_random_task,
     get_task,
     get_tasks,
+    reset_task_to_todo,
     start_task,
     update_task,
     validate_user_references,
@@ -484,3 +485,85 @@ def test_update_task_assignment_type_some_requires_assigned_user_ids(
         match="assigned_user_ids must be provided and non-empty when assignment_type is 'some'",
     ):
         update_task(db=db_session, task_id=task.id, task=task_update_empty_only)
+
+
+def test_start_task_records_started_by(db_session: Session) -> None:
+    """start_task stores the started_by user ID on the task."""
+    user_id = create_test_user(db_session, "test_start_task_records_started_by")
+    task_in = TaskCreate(
+        title="Test Task",
+        description="Test Description",
+        state="todo",
+        created_by=user_id,
+    )
+    task = create_task(db=db_session, task=task_in)
+
+    started = start_task(db=db_session, task=task, started_by_user_id=user_id)
+    assert started.state == "in_progress"
+    assert started.started_at is not None
+    assert started.started_by == user_id
+
+
+def test_start_task_without_user_started_by_is_none(db_session: Session) -> None:
+    """start_task with no user ID leaves started_by as None."""
+    user_id = create_test_user(db_session, "test_start_task_no_user")
+    task_in = TaskCreate(
+        title="Test Task",
+        description="Test Description",
+        state="todo",
+        created_by=user_id,
+    )
+    task = create_task(db=db_session, task=task_in)
+
+    started = start_task(db=db_session, task=task, started_by_user_id=None)
+    assert started.started_by is None
+
+
+def test_reset_task_to_todo_clears_started_by(db_session: Session) -> None:
+    """reset_task_to_todo clears started_by, started_at and completed_at."""
+    user_id = create_test_user(db_session, "test_reset_task_clears_started_by")
+    task_in = TaskCreate(
+        title="Test Task",
+        description="Test Description",
+        state="todo",
+        created_by=user_id,
+    )
+    task = create_task(db=db_session, task=task_in)
+
+    started = start_task(db=db_session, task=task, started_by_user_id=user_id)
+    assert started.started_by == user_id
+
+    reset = reset_task_to_todo(db=db_session, task_id=task.id)
+    assert reset.state == "todo"
+    assert reset.started_at is None
+    assert reset.completed_at is None
+    assert reset.started_by is None
+
+
+def test_reset_task_to_todo_from_done(db_session: Session) -> None:
+    """reset_task_to_todo works on a completed task and clears all timestamps."""
+    user_id = create_test_user(db_session, "test_reset_task_from_done")
+    task_in = TaskCreate(
+        title="Test Task",
+        description="Test Description",
+        state="todo",
+        created_by=user_id,
+    )
+    task = create_task(db=db_session, task=task_in)
+
+    start_task(db=db_session, task=task, started_by_user_id=user_id)
+    complete_task(db=db_session, task=task)
+
+    reset = reset_task_to_todo(db=db_session, task_id=task.id)
+    assert reset.state == "todo"
+    assert reset.started_at is None
+    assert reset.completed_at is None
+    assert reset.started_by is None
+
+
+def test_reset_task_to_todo_nonexistent_raises(db_session: Session) -> None:
+    """reset_task_to_todo raises TaskNotFoundError for missing task."""
+    from taskmanagement_app.core.exceptions import TaskNotFoundError
+
+    with pytest.raises(TaskNotFoundError):
+        reset_task_to_todo(db=db_session, task_id=999999)
