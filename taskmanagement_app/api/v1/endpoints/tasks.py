@@ -28,7 +28,12 @@ from taskmanagement_app.db.models.task import TaskModel, TaskState
 from taskmanagement_app.db.models.user import User
 from taskmanagement_app.db.session import get_db
 from taskmanagement_app.schemas.common import MaintenanceResponse
-from taskmanagement_app.schemas.task import Task, TaskCreate, TaskUpdate
+from taskmanagement_app.schemas.task import (
+    AssignedUserDisplay,
+    Task,
+    TaskCreate,
+    TaskUpdate,
+)
 from taskmanagement_app.utils.gravatar import gravatar_url
 
 logger = logging.getLogger(__name__)
@@ -42,6 +47,17 @@ def _task_response(db_task: TaskModel) -> Task:
     assigned_user_ids = (
         [u.id for u in db_task.assigned_users] if db_task.assigned_users else None
     )
+    assigned_users_display = None
+    if db_task.assigned_users:
+        assigned_users_display = [
+            AssignedUserDisplay(
+                id=u.id,
+                display_name=u.display_name or u.email,
+                avatar_url=u.avatar_url or gravatar_url(u.email),
+            )
+            for u in db_task.assigned_users
+        ]
+
     creator_display = None
     creator_avatar = None
     if db_task.creator:
@@ -66,14 +82,13 @@ def _task_response(db_task: TaskModel) -> Task:
             "started_at": db_task.started_at,
             "completed_at": db_task.completed_at,
             "created_by": db_task.created_by,
-            "assignment_type": db_task.assignment_type,
-            "assigned_to": db_task.assigned_to,
             "assigned_user_ids": assigned_user_ids,
             "started_by": db_task.started_by,
             "creator_display_name": creator_display,
             "worker_display_name": worker_display,
             "creator_avatar_url": creator_avatar,
             "worker_avatar_url": worker_avatar,
+            "assigned_users_display": assigned_users_display,
         }
     )
 

@@ -21,14 +21,7 @@ class TaskState(str, enum.Enum):
     archived = "archived"
 
 
-class AssignmentType(str, enum.Enum):
-    any = "any"
-    some = "some"
-    one = "one"
-
-
 # Association table for many-to-many relationship between tasks and users
-# (for "some" assignment type)
 task_assigned_users = Table(
     "task_assigned_users",
     Base.metadata,
@@ -50,15 +43,9 @@ class TaskModel(Base):
     started_at: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     completed_at: Mapped[Optional[str]] = mapped_column(String, nullable=True)
 
-    # Assignment and creator fields
+    # Creator and worker fields
     created_by: Mapped[int] = mapped_column(
         ForeignKey(USERS_ID_FK), nullable=False, index=True
-    )
-    assignment_type: Mapped[AssignmentType] = mapped_column(
-        Enum(AssignmentType), default=AssignmentType.any
-    )
-    assigned_to: Mapped[Optional[int]] = mapped_column(
-        ForeignKey(USERS_ID_FK), nullable=True, index=True
     )
     started_by: Mapped[Optional[int]] = mapped_column(
         ForeignKey(USERS_ID_FK), nullable=True, index=True
@@ -66,9 +53,6 @@ class TaskModel(Base):
 
     # Relationships
     creator: Mapped["User"] = relationship("User", foreign_keys=[created_by])
-    assigned_user: Mapped[Optional["User"]] = relationship(
-        "User", foreign_keys=[assigned_to]
-    )
     assigned_users: Mapped[list["User"]] = relationship(
         "User", secondary=task_assigned_users, back_populates="assigned_tasks"
     )
