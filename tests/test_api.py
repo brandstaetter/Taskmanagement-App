@@ -869,3 +869,72 @@ def test_worker_display_name_set_when_started_by_user(
     assert start_response.status_code == 200
     data = start_response.json()
     assert data["worker_display_name"] == "Worker Display"
+
+
+def test_task_response_includes_avatar_url_fields(
+    client: TestClient, db_session: Session
+) -> None:
+    """Task responses include creator_avatar_url and worker_avatar_url."""
+    from tests.test_utils import TestUserFactory
+
+    user = TestUserFactory.create_test_user(db_session, "avatar_fields_test")
+    user_id = user["id"]
+
+    task = create_test_task(client, user_id, "Avatar Fields Task")
+
+    response = client.get(f"/api/v1/tasks/{task['id']}")
+    assert response.status_code == 200
+    data = response.json()
+
+    assert "creator_avatar_url" in data
+    assert "worker_avatar_url" in data
+    # Creator should have a gravatar URL (no custom avatar set)
+    assert data["creator_avatar_url"] is not None
+    assert "gravatar.com" in data["creator_avatar_url"]
+    # Worker not yet assigned
+    assert data["worker_avatar_url"] is None
+
+
+def test_creator_avatar_url_uses_custom_avatar_when_set(
+    client: TestClient, db_session: Session
+) -> None:
+    """creator_avatar_url prefers custom avatar_url over gravatar."""
+    from taskmanagement_app.crud.user import update_user_avatar
+    from tests.test_utils import TestUserFactory
+
+    user_info = TestUserFactory.create_test_user(db_session, "creator_avatar_test")
+    user_id = user_info["id"]
+
+    custom_url = "https://example.com/my-avatar.png"
+    update_user_avatar(db_session, user_id, custom_url)
+
+    task = create_test_task(client, user_id, "Creator Avatar Task")
+
+    response = client.get(f"/api/v1/tasks/{task['id']}")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["creator_avatar_url"] == custom_url
+
+
+def test_worker_avatar_url_populated_after_start(
+    client: TestClient, db_session: Session
+) -> None:
+    """worker_avatar_url is populated after a user starts the task."""
+    from taskmanagement_app.core.auth import create_user_token
+    from tests.test_utils import TestUserFactory
+
+    user_info = TestUserFactory.create_test_user(db_session, "worker_avatar_test")
+    user_id = user_info["id"]
+    user_email = user_info["email"]
+
+    task = create_test_task(client, user_id, "Worker Avatar Task")
+
+    user_token = create_user_token(subject=user_email)
+    start_response = client.post(
+        f"/api/v1/tasks/{task['id']}/start",
+        headers={"Authorization": f"Bearer {user_token}"},
+    )
+    assert start_response.status_code == 200
+    data = start_response.json()
+    assert data["worker_avatar_url"] is not None
+    assert "gravatar.com" in data["worker_avatar_url"]
