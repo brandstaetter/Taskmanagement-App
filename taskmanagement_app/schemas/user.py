@@ -76,6 +76,7 @@ class User(UserBase):
     is_superadmin: bool = False
     display_name: Optional[str] = None
     avatar_url: Optional[str] = None
+    gravatar_url: Optional[str] = None
     last_login: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime

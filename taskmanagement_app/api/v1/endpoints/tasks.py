@@ -29,6 +29,7 @@ from taskmanagement_app.db.models.user import User
 from taskmanagement_app.db.session import get_db
 from taskmanagement_app.schemas.common import MaintenanceResponse
 from taskmanagement_app.schemas.task import Task, TaskCreate, TaskUpdate
+from taskmanagement_app.utils.gravatar import gravatar_url
 
 logger = logging.getLogger(__name__)
 
@@ -42,11 +43,17 @@ def _task_response(db_task: TaskModel) -> Task:
         [u.id for u in db_task.assigned_users] if db_task.assigned_users else None
     )
     creator_display = None
+    creator_avatar = None
     if db_task.creator:
         creator_display = db_task.creator.display_name or db_task.creator.email
+        creator_avatar = db_task.creator.avatar_url or gravatar_url(
+            db_task.creator.email
+        )
     worker_display = None
+    worker_avatar = None
     if db_task.worker:
         worker_display = db_task.worker.display_name or db_task.worker.email
+        worker_avatar = db_task.worker.avatar_url or gravatar_url(db_task.worker.email)
     return Task.model_validate(
         {
             "id": db_task.id,
@@ -65,6 +72,8 @@ def _task_response(db_task: TaskModel) -> Task:
             "started_by": db_task.started_by,
             "creator_display_name": creator_display,
             "worker_display_name": worker_display,
+            "creator_avatar_url": creator_avatar,
+            "worker_avatar_url": worker_avatar,
         }
     )
 
