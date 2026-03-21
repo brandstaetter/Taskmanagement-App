@@ -65,9 +65,9 @@ poetry run uvicorn taskmanagement_app.main:app --reload
 │   ├── crud/           # Database operations
 │   ├── db/             # Database models and sessions
 │   ├── jobs/           # Background jobs and schedulers
+│   ├── migrations/     # Alembic database migrations
 │   └── schemas/        # Pydantic models
 ├── tests/              # Test files
-├── alembic/            # Database migrations
 ├── .env               # Environment variables
 ├── pyproject.toml    # Project dependencies and configuration
 └── README.md         # Project documentation
