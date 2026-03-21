@@ -13,12 +13,14 @@ from taskmanagement_app.crud.user import (
 from taskmanagement_app.crud.user import (
     get_user_by_email,
 )
+from taskmanagement_app.crud.user import update_display_name as crud_update_display_name
 from taskmanagement_app.crud.user import update_user_avatar as crud_update_user_avatar
 from taskmanagement_app.db.models.user import User
 from taskmanagement_app.db.session import get_db
 from taskmanagement_app.schemas.user import User as UserSchema
 from taskmanagement_app.schemas.user import (
     UserAvatarUpdate,
+    UserDisplayNameUpdate,
     UserPasswordChange,
     UserPasswordReset,
 )
@@ -99,6 +101,7 @@ def get_current_user_info(
             "is_active": current_user.is_active,
             "is_admin": current_user.is_admin,
             "is_superadmin": False,  # Regular users are never superadmin
+            "display_name": current_user.display_name,
             "avatar_url": current_user.avatar_url,
             "last_login": current_user.last_login,
             "created_at": current_user.created_at,
@@ -138,6 +141,21 @@ def update_avatar(
     """Update the current user's avatar URL."""
     updated = crud_update_user_avatar(
         db, user_id=current_user.id, avatar_url=str(avatar_update.avatar_url)
+    )
+    if updated is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    return UserSchema.model_validate(updated)
+
+
+@router.patch("/me/display-name", response_model=UserSchema)
+def update_display_name(
+    display_name_update: UserDisplayNameUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> UserSchema:
+    """Update the current user's display name."""
+    updated = crud_update_display_name(
+        db, user_id=current_user.id, display_name=display_name_update.display_name
     )
     if updated is None:
         raise HTTPException(status_code=404, detail="User not found")

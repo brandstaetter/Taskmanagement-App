@@ -60,6 +60,9 @@ class TaskModel(Base):
     assigned_to: Mapped[Optional[int]] = mapped_column(
         ForeignKey(USERS_ID_FK), nullable=True, index=True
     )
+    started_by: Mapped[Optional[int]] = mapped_column(
+        ForeignKey(USERS_ID_FK), nullable=True, index=True
+    )
 
     # Relationships
     creator: Mapped["User"] = relationship("User", foreign_keys=[created_by])
@@ -68,4 +71,7 @@ class TaskModel(Base):
     )
     assigned_users: Mapped[list["User"]] = relationship(
         "User", secondary=task_assigned_users, back_populates="assigned_tasks"
+    )
+    worker: Mapped[Optional["User"]] = relationship(
+        "User", foreign_keys=[started_by], back_populates="working_tasks"
     )

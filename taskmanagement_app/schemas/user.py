@@ -23,6 +23,7 @@ class UserUpdate(BaseModel):
     email: Optional[EmailStr] = None
     is_active: Optional[bool] = None
     avatar_url: Optional[str] = None
+    display_name: Optional[str] = None
     password: Optional[str] = Field(default=None, min_length=8)
 
     @field_validator("password")
@@ -31,6 +32,10 @@ class UserUpdate(BaseModel):
         if v is None:
             return v
         return validate_password_strength(v)
+
+
+class UserDisplayNameUpdate(BaseModel):
+    display_name: str = Field(..., min_length=1, max_length=50)
 
 
 class AdminUserCreate(UserCreate):
@@ -69,6 +74,7 @@ class User(UserBase):
     is_active: bool
     is_admin: bool
     is_superadmin: bool = False
+    display_name: Optional[str] = None
     avatar_url: Optional[str] = None
     last_login: Optional[datetime] = None
     created_at: datetime
