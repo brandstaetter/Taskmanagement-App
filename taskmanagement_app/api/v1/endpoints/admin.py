@@ -1,9 +1,8 @@
 import logging
-import subprocess
-import sys
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import inspect as sa_inspect
 from sqlalchemy.exc import IntegrityError as SQLAlchemyIntegrityError
 from sqlalchemy.orm import Session
 
@@ -85,15 +84,25 @@ async def run_migrations(authorized: bool = Depends(verify_admin)) -> MigrationR
     """
     Run all pending Alembic migrations.
     Requires admin authentication.
+
+    Uses the Alembic API programmatically so that migrations work regardless
+    of where the package is installed (dev checkout vs site-packages wheel).
     """
     try:
-        # Get the project root directory
-        project_root = Path(__file__).parent.parent.parent.parent.parent
+        from alembic import command as alembic_command
+        from alembic.config import Config as AlembicConfig
+        from taskmanagement_app.core.config import get_settings
 
-        # Create Alembic config
-        alembic_ini_path = project_root / "alembic.ini"
-        if not alembic_ini_path.exists():
-            raise HTTPException(status_code=500, detail="alembic.ini not found")
+        settings = get_settings()
+
+        # Locate the migrations directory bundled inside the package
+        package_root = Path(__file__).resolve().parent.parent.parent.parent
+        migrations_dir = str(package_root / "migrations")
+
+        # Build an Alembic config programmatically — no alembic.ini needed
+        alembic_cfg = AlembicConfig()
+        alembic_cfg.set_main_option("script_location", migrations_dir)
+        alembic_cfg.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
 
         # Detect untracked databases created outside of Alembic (e.g. via
         # create_all).  We must distinguish two cases:
@@ -101,56 +110,24 @@ async def run_migrations(authorized: bool = Depends(verify_admin)) -> MigrationR
         #   2. Pre-existing DB  → tables exist but no alembic_version row → stamp
         #                         at 0996a25c0866 so Alembic skips create-table
         #                         migrations and only runs additive ones.
-        current_result = subprocess.run(
-            [sys.executable, "-m", "alembic", "current"],
-            cwd=str(project_root),
-            capture_output=True,
-            text=True,
-        )
-        is_untracked = (
-            current_result.returncode != 0 or not current_result.stdout.strip()
-        )
+        inspector = sa_inspect(engine)
+        table_names = inspector.get_table_names()
+        has_existing_tables = bool(table_names)
+        has_alembic_version = "alembic_version" in table_names
 
-        if is_untracked:
-            from sqlalchemy import inspect as sa_inspect
+        if has_existing_tables and not has_alembic_version:
+            alembic_command.stamp(alembic_cfg, "0996a25c0866")
 
-            from taskmanagement_app.db.base import engine
-
-            has_existing_tables = bool(sa_inspect(engine).get_table_names())
-            if has_existing_tables:
-                stamp_result = subprocess.run(
-                    [sys.executable, "-m", "alembic", "stamp", "0996a25c0866"],
-                    cwd=str(project_root),
-                    capture_output=True,
-                    text=True,
-                )
-                if stamp_result.returncode != 0:
-                    raise HTTPException(
-                        status_code=500,
-                        detail=f"Failed to stamp database: {stamp_result.stderr}",
-                    )
-
-        # Run alembic upgrade using subprocess
-        # We use subprocess because alembic.config.main() is not thread-safe
-        result = subprocess.run(
-            [sys.executable, "-m", "alembic", "upgrade", "head"],
-            cwd=str(project_root),
-            capture_output=True,
-            text=True,
-        )
-
-        if result.returncode != 0:
-            raise HTTPException(
-                status_code=500, detail=f"Migration failed: {result.stderr}"
-            )
+        alembic_command.upgrade(alembic_cfg, "head")
 
         return MigrationResponse(
             message="Migrations completed successfully",
-            details=result.stdout,
+            details="All migrations applied via Alembic API.",
         )
     except HTTPException:
         raise
     except Exception as e:
+        logger.exception("Migration failed")
         raise HTTPException(
             status_code=500, detail=f"Failed to run migrations: {str(e)}"
         )

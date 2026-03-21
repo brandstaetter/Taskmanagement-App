@@ -1,4 +1,3 @@
-from types import SimpleNamespace
 from unittest.mock import patch
 
 from fastapi.testclient import TestClient
@@ -24,65 +23,64 @@ def test_admin_db_init_failure_returns_500(client: TestClient) -> None:
 
 
 def test_admin_db_migrate_success(client: TestClient) -> None:
-    with patch(
-        "taskmanagement_app.api.v1.endpoints.admin.subprocess.run",
-        return_value=SimpleNamespace(returncode=0, stdout="ok", stderr=""),
+    with (
+        patch("alembic.command.upgrade"),
+        patch(
+            "taskmanagement_app.api.v1.endpoints.admin.sa_inspect",
+        ) as mock_inspect,
     ):
+        mock_inspect.return_value.get_table_names.return_value = [
+            "users",
+            "tasks",
+            "alembic_version",
+        ]
         response = client.post("/api/v1/admin/db/migrate")
 
     assert response.status_code == 200
     data = response.json()
     assert data["message"] == "Migrations completed successfully"
-    assert data["details"] == "ok"
-
-
-def test_admin_db_migrate_missing_alembic_ini_returns_500(client: TestClient) -> None:
-    with patch(
-        "taskmanagement_app.api.v1.endpoints.admin.Path.exists",
-        return_value=False,
-    ):
-        response = client.post("/api/v1/admin/db/migrate")
-
-    assert response.status_code == 500
-    assert response.json()["detail"] == "alembic.ini not found"
 
 
 def test_admin_db_migrate_failure_returns_500(client: TestClient) -> None:
-    # Simulate: alembic current succeeds (DB is tracked), but upgrade fails
-    def run_side_effect(cmd: list, **kwargs):  # type: ignore[no-untyped-def]
-        if "current" in cmd:
-            return SimpleNamespace(returncode=0, stdout="001_initial (head)", stderr="")
-        return SimpleNamespace(returncode=1, stdout="", stderr="boom")
-
-    with patch(
-        "taskmanagement_app.api.v1.endpoints.admin.subprocess.run",
-        side_effect=run_side_effect,
+    with (
+        patch(
+            "alembic.command.upgrade",
+            side_effect=RuntimeError("boom"),
+        ),
+        patch(
+            "taskmanagement_app.api.v1.endpoints.admin.sa_inspect",
+        ) as mock_inspect,
     ):
+        mock_inspect.return_value.get_table_names.return_value = [
+            "users",
+            "alembic_version",
+        ]
         response = client.post("/api/v1/admin/db/migrate")
 
     assert response.status_code == 500
-    assert "Migration failed" in response.json()["detail"]
+    assert "Failed to run migrations" in response.json()["detail"]
 
 
-def test_admin_db_migrate_stamp_failure_returns_500(client: TestClient) -> None:
-    # Simulate: DB is untracked (current returns nothing), stamp fails
-    def run_side_effect(cmd: list, **kwargs):  # type: ignore[no-untyped-def]
-        return SimpleNamespace(returncode=1, stdout="", stderr="boom")
-
-    with patch(
-        "taskmanagement_app.api.v1.endpoints.admin.subprocess.run",
-        side_effect=run_side_effect,
+def test_admin_db_migrate_stamps_untracked_db(client: TestClient) -> None:
+    with (
+        patch("alembic.command.upgrade"),
+        patch("alembic.command.stamp") as mock_stamp,
+        patch(
+            "taskmanagement_app.api.v1.endpoints.admin.sa_inspect",
+        ) as mock_inspect,
     ):
+        # Tables exist but no alembic_version → should stamp
+        mock_inspect.return_value.get_table_names.return_value = ["users", "tasks"]
         response = client.post("/api/v1/admin/db/migrate")
 
-    assert response.status_code == 500
-    assert "Failed to stamp database" in response.json()["detail"]
+    assert response.status_code == 200
+    mock_stamp.assert_called_once()
 
 
 def test_admin_db_migrate_unexpected_exception_returns_500(client: TestClient) -> None:
     with patch(
-        "taskmanagement_app.api.v1.endpoints.admin.subprocess.run",
-        side_effect=RuntimeError("no subprocess"),
+        "taskmanagement_app.api.v1.endpoints.admin.sa_inspect",
+        side_effect=RuntimeError("no db"),
     ):
         response = client.post("/api/v1/admin/db/migrate")
 
