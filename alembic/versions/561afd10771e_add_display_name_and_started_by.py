@@ -5,14 +5,15 @@ Revises: 002_add_created_by
 Create Date: 2026-03-21 08:08:48.999601
 
 """
+
 import sqlalchemy as sa
 from sqlalchemy import inspect
 
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = '561afd10771e'
-down_revision = '002_add_created_by'
+revision = "561afd10771e"
+down_revision = "002_add_created_by"
 branch_labels = None
 depends_on = None
 
@@ -31,9 +32,7 @@ def upgrade() -> None:
     task_columns = [col["name"] for col in inspector.get_columns("tasks")]
     if "started_by" not in task_columns:
         with op.batch_alter_table("tasks") as batch_op:
-            batch_op.add_column(
-                sa.Column("started_by", sa.Integer(), nullable=True)
-            )
+            batch_op.add_column(sa.Column("started_by", sa.Integer(), nullable=True))
             batch_op.create_foreign_key(
                 "fk_tasks_started_by_users",
                 "users",
