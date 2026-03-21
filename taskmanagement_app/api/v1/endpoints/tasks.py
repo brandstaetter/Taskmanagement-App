@@ -24,7 +24,7 @@ from taskmanagement_app.crud.task import (
     update_task,
     weighted_random_choice,
 )
-from taskmanagement_app.db.models.task import TaskState
+from taskmanagement_app.db.models.task import TaskModel, TaskState
 from taskmanagement_app.db.models.user import User
 from taskmanagement_app.db.session import get_db
 from taskmanagement_app.schemas.common import MaintenanceResponse
@@ -35,7 +35,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(dependencies=[Depends(verify_not_superadmin)])
 
 
-def _task_response(db_task: "TaskModel") -> Task:  # type: ignore[name-defined]
+def _task_response(db_task: TaskModel) -> Task:
     """Build a Task response including resolved display names."""
 
     assigned_user_ids = (
@@ -386,6 +386,8 @@ def update_task_endpoint(
 
     try:
         updated_task = update_task(db, task_id, task)
+        if not updated_task:
+            raise HTTPException(status_code=404, detail="Task not found")
         return _task_response(updated_task)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
