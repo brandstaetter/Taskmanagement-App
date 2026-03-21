@@ -10,9 +10,8 @@ Create Date: 2026-03-21
 """
 
 import sqlalchemy as sa
-from sqlalchemy import inspect, text
-
 from alembic import op
+from sqlalchemy import inspect, text
 
 # revision identifiers, used by Alembic.
 revision = "003_remove_assignment"
