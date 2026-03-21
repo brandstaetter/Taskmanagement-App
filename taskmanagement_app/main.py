@@ -2,8 +2,9 @@ from contextlib import asynccontextmanager
 from importlib.metadata import PackageNotFoundError, version
 from typing import AsyncGenerator
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 
 from taskmanagement_app.api.v1.api import api_router
 from taskmanagement_app.core.config import get_settings
@@ -46,6 +47,21 @@ app = FastAPI(
     version=_get_app_version(),
     lifespan=lifespan,
 )
+
+
+class NoCacheMiddleware(BaseHTTPMiddleware):
+    """Prevent browsers from caching API responses."""
+
+    async def dispatch(
+        self, request: Request, call_next: RequestResponseEndpoint
+    ) -> Response:
+        response = await call_next(request)
+        if request.url.path.startswith(settings.API_V1_STR):
+            response.headers["Cache-Control"] = "no-store"
+        return response
+
+
+app.add_middleware(NoCacheMiddleware)
 
 # Setup CORS
 origins = settings.BACKEND_CORS_ORIGINS
