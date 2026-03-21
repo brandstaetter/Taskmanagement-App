@@ -25,9 +25,9 @@ from taskmanagement_app.crud.task import (
     weighted_random_choice,
 )
 from taskmanagement_app.db.models.task import TaskState
+from taskmanagement_app.db.models.user import User
 from taskmanagement_app.db.session import get_db
 from taskmanagement_app.schemas.common import MaintenanceResponse
-from taskmanagement_app.db.models.user import User
 from taskmanagement_app.schemas.task import Task, TaskCreate, TaskUpdate
 
 logger = logging.getLogger(__name__)
