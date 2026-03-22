@@ -1,5 +1,6 @@
 import logging
 from pathlib import Path
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import inspect as sa_inspect
@@ -10,6 +11,7 @@ from taskmanagement_app.core.auth import (
     verify_admin,
     verify_superadmin,
 )
+from taskmanagement_app.crud.data_export import export_data, import_data
 from taskmanagement_app.crud.user import (
     admin_create_user,
     delete_user,
@@ -26,6 +28,7 @@ from taskmanagement_app.schemas.common import (
     MigrationResponse,
     PasswordResetResponse,
 )
+from taskmanagement_app.schemas.data_export import DataExport, ImportResult
 from taskmanagement_app.schemas.user import AdminUserCreate, AdminUserRoleUpdate
 from taskmanagement_app.schemas.user import User as UserSchema
 from taskmanagement_app.utils.gravatar import gravatar_url
@@ -221,3 +224,29 @@ def update_role(
     if updated is None:
         raise HTTPException(status_code=404, detail="User not found")
     return _user_response(updated)
+
+
+@router.get("/data/export", response_model=DataExport)
+def export_all_data(
+    db: Session = Depends(get_db),
+    _: bool = Depends(verify_admin),
+) -> DataExport:
+    """Export all tasks and users as JSON. Admin-only."""
+    return export_data(db)
+
+
+@router.post("/data/import", response_model=ImportResult)
+def import_all_data(
+    data: dict[str, Any],
+    db: Session = Depends(get_db),
+    _: bool = Depends(verify_admin),
+) -> ImportResult:
+    """Import tasks and users from a JSON export. Admin-only.
+
+    Merges with existing data — does not replace the database.
+    Returns a summary of what was imported and what was skipped.
+    """
+    try:
+        return import_data(db, data)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
