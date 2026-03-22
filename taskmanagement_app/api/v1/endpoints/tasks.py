@@ -102,6 +102,10 @@ def read_tasks(
     include_created: bool = Query(
         True, description="Include tasks created by the user"
     ),
+    show_all: bool = Query(
+        False,
+        description="Show all tasks regardless of assignment (bypasses user filtering)",
+    ),
     db: Session = Depends(get_db),
     current_user: Optional[User] = Depends(get_current_user),
 ) -> List[Task]:
@@ -114,12 +118,14 @@ def read_tasks(
         include_archived: Whether to include archived tasks in the result
         state: Optional state to filter tasks by (todo, in_progress, done, archived)
         include_created: Whether to include tasks created by the current user
+        show_all: Show all tasks regardless of user assignment
         db: Database session
         current_user: Current authenticated user
     """
-    user_id = current_user.id if current_user else None
-    # For admin users (current_user is None), show all tasks
-    # For regular users, show only their assigned/created tasks
+    if show_all:
+        user_id = None
+    else:
+        user_id = current_user.id if current_user else None
     db_tasks = get_tasks(
         db,
         skip=skip,
