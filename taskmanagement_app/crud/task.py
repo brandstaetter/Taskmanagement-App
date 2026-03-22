@@ -59,6 +59,7 @@ def get_tasks(
     state: Optional[str] = None,
     user_id: Optional[int] = None,
     include_created: bool = True,
+    include_private: bool = False,
     search: Optional[str] = None,
 ) -> Sequence[TaskModel]:
     """Get a list of tasks.
@@ -67,12 +68,13 @@ def get_tasks(
     - user_id is None (admin): see all tasks
     - assigned_users is empty: visible to everyone
     - assigned_users is non-empty: visible to assigned users + task creator
+    - private tasks: only visible to creator/assignee when include_private=True
     """
     query = db.query(TaskModel)
 
     # Apply user visibility filter if user_id is provided
     if user_id is not None:
-        from sqlalchemy import or_
+        from sqlalchemy import and_, or_
 
         from taskmanagement_app.db.models.task import task_assigned_users
 
@@ -102,7 +104,30 @@ def get_tasks(
         else:
             visibility_filter = base_visibility_filter
 
-        query = query.filter(visibility_filter)
+        # Private task filtering
+        if include_private:
+            # Show private tasks only if user is creator or assignee
+            private_visible = and_(
+                TaskModel.is_private.is_(True),
+                or_(
+                    TaskModel.created_by == user_id,
+                    user_assigned_filter,
+                ),
+            )
+            query = query.filter(
+                or_(
+                    and_(visibility_filter, TaskModel.is_private.is_(False)),
+                    private_visible,
+                )
+            )
+        else:
+            # Exclude all private tasks
+            query = query.filter(visibility_filter)
+            query = query.filter(TaskModel.is_private.is_(False))
+    else:
+        # Admin: if not including private, filter them out
+        if not include_private:
+            query = query.filter(TaskModel.is_private.is_(False))
 
     # Apply state filter if provided
     if state:
@@ -141,6 +166,7 @@ def create_task(db: Session, task: TaskCreate) -> TaskModel:
         state=task.state,
         due_date=task.due_date,
         reward=task.reward,
+        is_private=task.is_private,
         created_by=task.created_by,
     )
     db.add(db_task)
