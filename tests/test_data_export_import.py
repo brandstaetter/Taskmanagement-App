@@ -14,13 +14,15 @@ class TestExportData:
     def test_export_empty_db(self, db_session: Session) -> None:
         result = export_data(db_session)
         assert result.version == 1
-        assert result.users == []
         assert result.tasks == []
+        # Users list may contain pre-seeded users (e.g. superadmin);
+        # just verify it's a list.
+        assert isinstance(result.users, list)
 
     def test_export_with_users_and_tasks(self, db_session: Session) -> None:
         user = TestUserFactory.create_test_user(db_session, "export")
         task = TaskModel(
-            title="Test Task",
+            title="Export Test Task",
             description="A test task",
             state=TaskState.todo,
             created_by=user["id"],
@@ -33,10 +35,10 @@ class TestExportData:
         assert len(result.users) >= 1
         assert len(result.tasks) >= 1
 
-        exported_user = next(u for u in result.users if u.id == user["id"])
-        assert exported_user.email == user["email"]
+        exported_user = next(u for u in result.users if u.email == user["email"])
+        assert exported_user.id == user["id"]
 
-        exported_task = next(t for t in result.tasks if t.title == "Test Task")
+        exported_task = next(t for t in result.tasks if t.title == "Export Test Task")
         assert exported_task.created_by == user["id"]
         assert exported_task.state == "todo"
 
