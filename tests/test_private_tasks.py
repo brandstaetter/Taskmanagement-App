@@ -178,6 +178,7 @@ class TestPrivateTasksAPI:
     ) -> None:
         """POST /tasks/{id}/print rejects private tasks by default."""
         user = TestUserFactory.create_test_user(db_session, "api_priv_print")
+        token = create_user_token(user["email"])
 
         create_resp = client.post(
             "/api/v1/tasks",
@@ -190,14 +191,18 @@ class TestPrivateTasksAPI:
         )
         task_id = create_resp.json()["id"]
 
-        response = client.post(f"/api/v1/tasks/{task_id}/print")
+        response = client.post(
+            f"/api/v1/tasks/{task_id}/print",
+            headers={"Authorization": f"Bearer {token}"},
+        )
         assert response.status_code == 403
 
     def test_print_private_task_allowed_with_flag(
         self, client: TestClient, db_session: Session
     ) -> None:
-        """POST /tasks/{id}/print?include_private=true allows printing."""
+        """POST /tasks/{id}/print?include_private=true allows printing by creator."""
         user = TestUserFactory.create_test_user(db_session, "api_priv_print_ok")
+        token = create_user_token(user["email"])
 
         create_resp = client.post(
             "/api/v1/tasks",
@@ -210,8 +215,36 @@ class TestPrivateTasksAPI:
         )
         task_id = create_resp.json()["id"]
 
-        response = client.post(f"/api/v1/tasks/{task_id}/print?include_private=true")
+        response = client.post(
+            f"/api/v1/tasks/{task_id}/print?include_private=true",
+            headers={"Authorization": f"Bearer {token}"},
+        )
         assert response.status_code == 200
+
+    def test_print_private_task_blocked_for_non_creator(
+        self, client: TestClient, db_session: Session
+    ) -> None:
+        """POST /tasks/{id}/print is blocked for non-creator/non-assignee."""
+        creator = TestUserFactory.create_test_user(db_session, "api_priv_print_creator")
+        other = TestUserFactory.create_test_user(db_session, "api_priv_print_other")
+        other_token = create_user_token(other["email"])
+
+        create_resp = client.post(
+            "/api/v1/tasks",
+            json={
+                "title": "Creator Only Print",
+                "description": "Blocked",
+                "is_private": True,
+                "created_by": creator["id"],
+            },
+        )
+        task_id = create_resp.json()["id"]
+
+        response = client.post(
+            f"/api/v1/tasks/{task_id}/print?include_private=true",
+            headers={"Authorization": f"Bearer {other_token}"},
+        )
+        assert response.status_code == 403
 
     def test_reassign_private_task_by_creator(
         self, client: TestClient, db_session: Session
@@ -261,6 +294,32 @@ class TestPrivateTasksAPI:
         response = client.patch(
             f"/api/v1/tasks/{task_id}",
             json={"assigned_user_ids": [other["id"]]},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert response.status_code == 403
+
+    def test_modify_private_task_fields_by_other_rejected(
+        self, client: TestClient, db_session: Session
+    ) -> None:
+        """Non-creator/non-assignee cannot modify any field of a private task."""
+        creator = TestUserFactory.create_test_user(db_session, "priv_mod_creator")
+        other = TestUserFactory.create_test_user(db_session, "priv_mod_other")
+        token = create_user_token(other["email"])
+
+        create_resp = client.post(
+            "/api/v1/tasks",
+            json={
+                "title": "Immutable Private",
+                "description": "Test",
+                "is_private": True,
+                "created_by": creator["id"],
+            },
+        )
+        task_id = create_resp.json()["id"]
+
+        response = client.patch(
+            f"/api/v1/tasks/{task_id}",
+            json={"title": "Hacked Title"},
             headers={"Authorization": f"Bearer {token}"},
         )
         assert response.status_code == 403

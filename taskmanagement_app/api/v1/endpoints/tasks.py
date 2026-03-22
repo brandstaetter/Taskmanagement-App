@@ -322,21 +322,31 @@ async def print_task(
         False, description="Allow printing private tasks (excluded by default)"
     ),
     db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_user),
 ) -> Response:
     """
     Print a task using the specified printer (defaults to PDF).
     Private tasks are excluded by default unless include_private=True.
+    Only the creator or an assignee may print a private task.
     """
     task = get_task(db, task_id=task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
 
-    if task.is_private and not include_private:
-        raise HTTPException(
-            status_code=403,
-            detail="Private tasks are excluded from printing by default. "
-            "Set include_private=true to print this task.",
-        )
+    if task.is_private:
+        user_id = current_user.id if current_user else None
+        assigned_ids = {u.id for u in task.assigned_users}
+        if user_id != task.created_by and user_id not in assigned_ids:
+            raise HTTPException(
+                status_code=403,
+                detail="Only the creator or an assignee can access " "a private task",
+            )
+        if not include_private:
+            raise HTTPException(
+                status_code=403,
+                detail="Private tasks are excluded from printing by default. "
+                "Set include_private=true to print this task.",
+            )
 
     try:
         printer = PrinterFactory.create_printer(printer_type)
@@ -401,16 +411,14 @@ def update_task_endpoint(
     if not db_task:
         raise HTTPException(status_code=404, detail="Task not found")
 
-    # Restrict reassignment of private tasks to creator/assignee
-    update_data = task.model_dump(exclude_unset=True)
-    if db_task.is_private and "assigned_user_ids" in update_data:
+    # Block all modifications to private tasks by non-creator/non-assignees
+    if db_task.is_private:
         user_id = current_user.id if current_user else None
         assigned_ids = {u.id for u in db_task.assigned_users}
         if user_id != db_task.created_by and user_id not in assigned_ids:
             raise HTTPException(
                 status_code=403,
-                detail="Only the creator or current assignee can reassign "
-                "a private task",
+                detail="Only the creator or an assignee can modify " "a private task",
             )
 
     try:
