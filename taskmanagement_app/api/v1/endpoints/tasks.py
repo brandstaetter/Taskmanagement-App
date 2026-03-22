@@ -82,6 +82,7 @@ def _task_response(db_task: TaskModel) -> Task:
             "started_at": db_task.started_at,
             "completed_at": db_task.completed_at,
             "created_by": db_task.created_by,
+            "is_private": db_task.is_private,
             "assigned_user_ids": assigned_user_ids,
             "started_by": db_task.started_by,
             "creator_display_name": creator_display,
@@ -106,21 +107,14 @@ def read_tasks(
         False,
         description="Show all tasks regardless of assignment (bypasses user filtering)",
     ),
+    include_private: bool = Query(
+        False, description="Include private tasks (only visible to creator/assignee)"
+    ),
     db: Session = Depends(get_db),
     current_user: Optional[User] = Depends(get_current_user),
 ) -> List[Task]:
     """
     Retrieve tasks.
-
-    Args:
-        skip: Number of records to skip
-        limit: Maximum number of records to return
-        include_archived: Whether to include archived tasks in the result
-        state: Optional state to filter tasks by (todo, in_progress, done, archived)
-        include_created: Whether to include tasks created by the current user
-        show_all: Show all tasks regardless of user assignment
-        db: Database session
-        current_user: Current authenticated user
     """
     if show_all:
         user_id = None
@@ -134,6 +128,7 @@ def read_tasks(
         state=state,
         user_id=user_id,
         include_created=include_created,
+        include_private=include_private,
     )
     return [_task_response(task) for task in db_tasks]
 
@@ -212,26 +207,21 @@ def get_random_task(
 def search_tasks(
     q: str = Query(..., description="Search query"),
     include_archived: bool = False,
+    include_private: bool = Query(
+        False, description="Include private tasks in search results"
+    ),
     db: Session = Depends(get_db),
     current_user: Optional[User] = Depends(get_current_user),
 ) -> List[Task]:
     """
     Search tasks by title or description.
-
-    Args:
-        q: Search query
-        include_archived: Whether to include archived tasks in the result
-        db: Database session
-        current_user: Current authenticated user
     """
     user_id = current_user.id if current_user else None
-    # For admin users (current_user is None), show all tasks
-    # For regular users, show only their assigned/created tasks
-    # Search filtering is now performed at the database level for better performance
     db_tasks = get_tasks(
         db,
         include_archived=include_archived,
         user_id=user_id,
+        include_private=include_private,
         search=q,
     )
 
@@ -328,19 +318,25 @@ async def print_task(
         None,
         description="IANA timezone name (e.g. 'Europe/Vienna') for timestamps",
     ),
+    include_private: bool = Query(
+        False, description="Allow printing private tasks (excluded by default)"
+    ),
     db: Session = Depends(get_db),
 ) -> Response:
     """
     Print a task using the specified printer (defaults to PDF).
-
-    The optional ``tz`` query parameter accepts an IANA timezone name
-    (e.g. ``Europe/Vienna``).  When provided, all timestamps on the
-    printout are converted from UTC to the given timezone so they match
-    the user's local time.
+    Private tasks are excluded by default unless include_private=True.
     """
     task = get_task(db, task_id=task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
+
+    if task.is_private and not include_private:
+        raise HTTPException(
+            status_code=403,
+            detail="Private tasks are excluded from printing by default. "
+            "Set include_private=true to print this task.",
+        )
 
     try:
         printer = PrinterFactory.create_printer(printer_type)
@@ -395,24 +391,27 @@ def update_task_endpoint(
     task_id: int,
     task: TaskUpdate,
     db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_user),
 ) -> Task:
     """
     Update an existing task.
-
-    Args:
-        task_id: ID of task to update
-        task: Updated task data
-        db: Database session
-
-    Returns:
-        Updated task
-
-    Raises:
-        HTTPException: If task not found
+    Private tasks can only be reassigned by their creator or current assignee.
     """
     db_task = get_task(db, task_id)
     if not db_task:
         raise HTTPException(status_code=404, detail="Task not found")
+
+    # Restrict reassignment of private tasks to creator/assignee
+    update_data = task.model_dump(exclude_unset=True)
+    if db_task.is_private and "assigned_user_ids" in update_data:
+        user_id = current_user.id if current_user else None
+        assigned_ids = {u.id for u in db_task.assigned_users}
+        if user_id != db_task.created_by and user_id not in assigned_ids:
+            raise HTTPException(
+                status_code=403,
+                detail="Only the creator or current assignee can reassign "
+                "a private task",
+            )
 
     try:
         updated_task = update_task(db, task_id, task)

@@ -1,7 +1,7 @@
 import enum
 from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import Column, Enum, ForeignKey, Integer, String, Table
+from sqlalchemy import Boolean, Column, Enum, ForeignKey, Integer, String, Table
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
@@ -42,6 +42,7 @@ class TaskModel(Base):
     created_at: Mapped[str] = mapped_column(String, server_default=func.now())
     started_at: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     completed_at: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    is_private: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
 
     # Creator and worker fields
     created_by: Mapped[int] = mapped_column(

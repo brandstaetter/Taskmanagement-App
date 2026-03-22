@@ -27,6 +27,7 @@ class TaskBase(BaseModel):
     started_at: Optional[str] = None
     completed_at: Optional[str] = None
     created_by: Optional[int] = None
+    is_private: bool = False
     assigned_user_ids: Optional[list[int]] = None
 
     model_config = ConfigDict(from_attributes=True)
@@ -52,6 +53,7 @@ class TaskUpdate(BaseModel):
     state: Optional[Literal["todo", "in_progress", "done", "archived"]] = None
     due_date: Optional[str] = None
     reward: Optional[str] = None
+    is_private: Optional[bool] = None
     assigned_user_ids: Optional[list[int]] = None
 
     @field_validator("due_date")
