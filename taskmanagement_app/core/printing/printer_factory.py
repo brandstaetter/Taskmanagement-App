@@ -63,6 +63,7 @@ class PrinterFactory:
                 "product_id": "0x0289",
                 "profile": "ZJ-5870",
                 "frontend_url": "http://localhost:4200",
+                "ascii_mode": "false",
             }
             with open(config_path, "w") as f:
                 config.write(f)
@@ -97,6 +98,7 @@ class PrinterFactory:
             printer_config["product_id"] = settings.USB_PRINTER_PRODUCT_ID
             printer_config["profile"] = settings.USB_PRINTER_PROFILE
             printer_config["frontend_url"] = settings.FRONTEND_URL
+            printer_config["ascii_mode"] = settings.USB_PRINTER_ASCII_MODE
 
         logger.debug(f"Printer config for {printer_type}: {printer_config}")
 

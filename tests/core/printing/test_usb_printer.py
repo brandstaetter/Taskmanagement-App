@@ -1,6 +1,10 @@
 import logging
+from unittest.mock import MagicMock
 
 import pytest
+from escpos.printer import Usb
+
+from taskmanagement_app.core.printing.usb_printer import USBPrinter
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -120,3 +124,110 @@ class TestTextWrapping:
                 f"Other lines check: expected_max={expected_other_lines_max}, actual_lengths={other_line_lengths}"
             )
             assert all(len(line) <= expected_other_lines_max for line in result[1:])
+
+
+class TestAsciiMode:
+    """Tests for per-printer ASCII mode character replacement."""
+
+    @pytest.fixture
+    def ascii_printer(self) -> USBPrinter:
+        config = {
+            "vendor_id": "0x0416",
+            "product_id": "0x5011",
+            "frontend_url": "http://localhost:4200",
+            "ascii_mode": True,
+        }
+        printer = USBPrinter(config)
+        printer.device = MagicMock(spec=Usb)
+        return printer
+
+    @pytest.fixture
+    def non_ascii_printer(self) -> USBPrinter:
+        config = {
+            "vendor_id": "0x0416",
+            "product_id": "0x5011",
+            "frontend_url": "http://localhost:4200",
+            "ascii_mode": False,
+        }
+        printer = USBPrinter(config)
+        printer.device = MagicMock(spec=Usb)
+        return printer
+
+    def test_german_lowercase_replacements(self, ascii_printer: USBPrinter) -> None:
+        assert ascii_printer._ascii_replace("ä") == "ae"
+        assert ascii_printer._ascii_replace("ö") == "oe"
+        assert ascii_printer._ascii_replace("ü") == "ue"
+        assert ascii_printer._ascii_replace("ß") == "ss"
+
+    def test_german_uppercase_replacements(self, ascii_printer: USBPrinter) -> None:
+        assert ascii_printer._ascii_replace("Ä") == "Ae"
+        assert ascii_printer._ascii_replace("Ö") == "Oe"
+        assert ascii_printer._ascii_replace("Ü") == "Ue"
+
+    def test_unknown_non_ascii_replaced_with_question_mark(
+        self, ascii_printer: USBPrinter
+    ) -> None:
+        assert ascii_printer._ascii_replace("é") == "?"
+        assert ascii_printer._ascii_replace("日本語") == "???"
+
+    def test_mixed_text(self, ascii_printer: USBPrinter) -> None:
+        result = ascii_printer._ascii_replace("Müller straße café")
+        assert result == "Mueller strasse caf?"
+
+    def test_ascii_mode_disabled_preserves_text(
+        self, non_ascii_printer: USBPrinter
+    ) -> None:
+        text = "Müller straße"
+        assert non_ascii_printer._ascii_replace(text) == text
+
+    def test_pure_ascii_unchanged(self, ascii_printer: USBPrinter) -> None:
+        text = "Hello world 123 !@#"
+        assert ascii_printer._ascii_replace(text) == text
+
+    def test_wrapping_recalculated_after_replacement(
+        self, ascii_printer: USBPrinter
+    ) -> None:
+        """Replacement expands text (ü→ue), so wrapping must use the longer string."""
+        # "für" (3 chars) becomes "fuer" (4 chars) — verify wrap uses replaced length
+        text = "für"
+        replaced = ascii_printer._ascii_replace(text)
+        assert replaced == "fuer"
+        lines = ascii_printer.wrap_text(replaced, max_length=4)
+        assert lines == ["fuer"]
+
+    def test_heading_applies_ascii_replacement(self, ascii_printer: USBPrinter) -> None:
+        """printHeading should apply ASCII replacement before wrapping."""
+        device = ascii_printer.device
+        assert device is not None
+        ascii_printer.printHeading(device, "Übung")
+        # Verify the printer received the replaced text
+        text_calls = device.text.call_args_list
+        printed_text = "".join(
+            call.args[0] for call in text_calls if call.args[0].strip()
+        )
+        assert "Ue" in printed_text
+        assert "Ü" not in printed_text
+
+    def test_print_value_applies_ascii_replacement(
+        self, ascii_printer: USBPrinter
+    ) -> None:
+        """printValue should apply ASCII replacement before wrapping."""
+        device = ascii_printer.device
+        assert device is not None
+        ascii_printer.printValue(device, "Größe", label_length=5)
+        text_calls = device.text.call_args_list
+        printed_text = "".join(
+            call.args[0] for call in text_calls if call.args[0].strip()
+        )
+        assert "Groesse" in printed_text
+        assert "ö" not in printed_text
+
+    def test_default_ascii_mode_is_false(self) -> None:
+        """Without ascii_mode in config, it defaults to False."""
+        config = {
+            "vendor_id": "0x0416",
+            "product_id": "0x5011",
+            "frontend_url": "http://localhost:4200",
+        }
+        printer = USBPrinter(config)
+        assert printer.ascii_mode is False

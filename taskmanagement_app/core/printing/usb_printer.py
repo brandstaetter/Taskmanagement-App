@@ -1,4 +1,5 @@
 import logging
+import re
 from datetime import datetime
 from typing import Any, Optional
 from zoneinfo import ZoneInfo
@@ -25,6 +26,22 @@ label_dict = {
 max_label_length = max(len(lbl) for lbl in label_dict.values())
 
 
+# Character replacement map for ASCII mode
+_ASCII_REPLACEMENTS: dict[str, str] = {
+    "ä": "ae",
+    "ö": "oe",
+    "ü": "ue",
+    "ß": "ss",
+    "Ä": "Ae",
+    "Ö": "Oe",
+    "Ü": "Ue",
+}
+
+# Regex matching any character outside printable ASCII (0x20–0x7E) and common
+# control characters we want to keep (newline, tab, carriage return).
+_NON_ASCII_RE = re.compile(r"[^\x09\x0A\x0D\x20-\x7E]")
+
+
 class USBPrinter(BasePrinter):
     """USB printer implementation."""
 
@@ -45,6 +62,7 @@ class USBPrinter(BasePrinter):
             self.vendor_id = int(config["vendor_id"], 16)
             self.product_id = int(config["product_id"], 16)
             self.profile = config.get("profile", "default")
+            self.ascii_mode: bool = bool(config.get("ascii_mode", False))
 
             self.logger.info(
                 "Initializing USB printer with "
@@ -65,6 +83,19 @@ class USBPrinter(BasePrinter):
             error_msg = f"Invalid vendor or product ID format: {e}"
             self.logger.error(error_msg)
             raise PrinterError(error_msg)
+
+    def _ascii_replace(self, text: str) -> str:
+        """Replace non-ASCII characters when ASCII mode is enabled.
+
+        Known German characters are replaced with their ASCII equivalents
+        (e.g. ä→ae). All remaining non-ASCII characters become ``?``.
+        """
+        if not self.ascii_mode:
+            return text
+        for char, replacement in _ASCII_REPLACEMENTS.items():
+            text = text.replace(char, replacement)
+        text = _NON_ASCII_RE.sub("?", text)
+        return text
 
     def _detach_kernel_driver(self) -> None:
         """Detach the kernel driver from all interfaces of the USB device.
@@ -150,7 +181,7 @@ class USBPrinter(BasePrinter):
         """Apply heading style to printer."""
         printer.set(align="center", bold=True, double_height=True, double_width=True)
         printer.text("\n")  # Ensure no leftover from previous print
-        lines = self.wrap_text(title, wide=True)
+        lines = self.wrap_text(self._ascii_replace(title), wide=True)
         for line in lines:
             printer.text(line + "\n")
 
@@ -246,8 +277,8 @@ class USBPrinter(BasePrinter):
         """Print text value with proper wrapping and formatting."""
         printer.set(align="left", bold=False, double_height=False, double_width=False)
 
-        # Wrap text to printer width
-        lines = self.wrap_text(text, label_length=label_length)
+        # Wrap text to printer width (ASCII replacement applied before wrapping)
+        lines = self.wrap_text(self._ascii_replace(text), label_length=label_length)
         indent = " " * label_length
         for i, line in enumerate(lines):
             if i > 0:
