@@ -61,11 +61,13 @@ def get_tasks(
     include_created: bool = True,
     include_private: bool = False,
     search: Optional[str] = None,
+    show_all: bool = False,
 ) -> Sequence[TaskModel]:
     """Get a list of tasks.
 
     Visibility rules:
     - user_id is None (admin): see all tasks
+    - show_all=True: bypass assignment filter but still enforce private visibility
     - assigned_users is empty: visible to everyone
     - assigned_users is non-empty: visible to assigned users + task creator
     - private tasks: only visible to creator/assignee when include_private=True
@@ -86,44 +88,64 @@ def get_tasks(
             .select()
         )
 
-        # Subquery: tasks with no assigned users (open to all)
-        no_assigned_users_filter = ~TaskModel.id.in_(
-            db.query(task_assigned_users.c.task_id).subquery().select()
-        )
-
-        # Base visibility: open tasks OR tasks assigned to this user
-        base_visibility_filter = or_(
-            no_assigned_users_filter,
-            user_assigned_filter,
-        )
-
-        if include_created:
-            visibility_filter = or_(
-                base_visibility_filter, TaskModel.created_by == user_id
+        if not show_all:
+            # Subquery: tasks with no assigned users (open to all)
+            no_assigned_users_filter = ~TaskModel.id.in_(
+                db.query(task_assigned_users.c.task_id).subquery().select()
             )
-        else:
-            visibility_filter = base_visibility_filter
 
-        # Private task filtering
-        if include_private:
-            # Show private tasks only if user is creator or assignee
-            private_visible = and_(
-                TaskModel.is_private.is_(True),
-                or_(
-                    TaskModel.created_by == user_id,
-                    user_assigned_filter,
-                ),
+            # Base visibility: open tasks OR tasks assigned to this user
+            base_visibility_filter = or_(
+                no_assigned_users_filter,
+                user_assigned_filter,
             )
-            query = query.filter(
-                or_(
-                    and_(visibility_filter, TaskModel.is_private.is_(False)),
-                    private_visible,
+
+            if include_created:
+                visibility_filter = or_(
+                    base_visibility_filter, TaskModel.created_by == user_id
                 )
-            )
+            else:
+                visibility_filter = base_visibility_filter
+
+            # Private task filtering
+            if include_private:
+                # Show private tasks only if user is creator or assignee
+                private_visible = and_(
+                    TaskModel.is_private.is_(True),
+                    or_(
+                        TaskModel.created_by == user_id,
+                        user_assigned_filter,
+                    ),
+                )
+                query = query.filter(
+                    or_(
+                        and_(visibility_filter, TaskModel.is_private.is_(False)),
+                        private_visible,
+                    )
+                )
+            else:
+                # Exclude all private tasks
+                query = query.filter(visibility_filter)
+                query = query.filter(TaskModel.is_private.is_(False))
         else:
-            # Exclude all private tasks
-            query = query.filter(visibility_filter)
-            query = query.filter(TaskModel.is_private.is_(False))
+            # show_all: skip assignment filter but still enforce privacy
+            if include_private:
+                # Show private tasks only if user is creator or assignee
+                private_visible = and_(
+                    TaskModel.is_private.is_(True),
+                    or_(
+                        TaskModel.created_by == user_id,
+                        user_assigned_filter,
+                    ),
+                )
+                query = query.filter(
+                    or_(
+                        TaskModel.is_private.is_(False),
+                        private_visible,
+                    )
+                )
+            else:
+                query = query.filter(TaskModel.is_private.is_(False))
     else:
         # Admin: if not including private, filter them out
         if not include_private:
