@@ -208,6 +208,12 @@ def get_current_user(
     # For user tokens, try to get the user from database
     if subject and "@" in subject:  # Simple check for email format
         user = get_user_by_email(db, email=subject)
+        if user is None:
+            raise HTTPException(
+                status_code=401,
+                detail="User account no longer exists",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
         return user
 
     return None
