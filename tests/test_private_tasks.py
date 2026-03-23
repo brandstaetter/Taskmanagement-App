@@ -173,10 +173,10 @@ class TestPrivateTasksAPI:
         titles = [t["title"] for t in response.json()]
         assert "Visible Private" in titles
 
-    def test_print_private_task_excluded_by_default(
+    def test_print_private_task_always_blocked(
         self, client: TestClient, db_session: Session
     ) -> None:
-        """POST /tasks/{id}/print rejects private tasks by default."""
+        """POST /tasks/{id}/print always rejects private tasks."""
         user = TestUserFactory.create_test_user(db_session, "api_priv_print")
         token = create_user_token(user["email"])
 
@@ -194,55 +194,6 @@ class TestPrivateTasksAPI:
         response = client.post(
             f"/api/v1/tasks/{task_id}/print",
             headers={"Authorization": f"Bearer {token}"},
-        )
-        assert response.status_code == 403
-
-    def test_print_private_task_allowed_with_flag(
-        self, client: TestClient, db_session: Session
-    ) -> None:
-        """POST /tasks/{id}/print?include_private=true allows printing by creator."""
-        user = TestUserFactory.create_test_user(db_session, "api_priv_print_ok")
-        token = create_user_token(user["email"])
-
-        create_resp = client.post(
-            "/api/v1/tasks",
-            json={
-                "title": "Printable Private",
-                "description": "Can print",
-                "is_private": True,
-                "created_by": user["id"],
-            },
-        )
-        task_id = create_resp.json()["id"]
-
-        response = client.post(
-            f"/api/v1/tasks/{task_id}/print?include_private=true",
-            headers={"Authorization": f"Bearer {token}"},
-        )
-        assert response.status_code == 200
-
-    def test_print_private_task_blocked_for_non_creator(
-        self, client: TestClient, db_session: Session
-    ) -> None:
-        """POST /tasks/{id}/print is blocked for non-creator/non-assignee."""
-        creator = TestUserFactory.create_test_user(db_session, "api_priv_print_creator")
-        other = TestUserFactory.create_test_user(db_session, "api_priv_print_other")
-        other_token = create_user_token(other["email"])
-
-        create_resp = client.post(
-            "/api/v1/tasks",
-            json={
-                "title": "Creator Only Print",
-                "description": "Blocked",
-                "is_private": True,
-                "created_by": creator["id"],
-            },
-        )
-        task_id = create_resp.json()["id"]
-
-        response = client.post(
-            f"/api/v1/tasks/{task_id}/print?include_private=true",
-            headers={"Authorization": f"Bearer {other_token}"},
         )
         assert response.status_code == 403
 
@@ -296,7 +247,7 @@ class TestPrivateTasksAPI:
             json={"assigned_user_ids": [other["id"]]},
             headers={"Authorization": f"Bearer {token}"},
         )
-        assert response.status_code == 403
+        assert response.status_code == 404
 
     def test_modify_private_task_fields_by_other_rejected(
         self, client: TestClient, db_session: Session
@@ -322,4 +273,168 @@ class TestPrivateTasksAPI:
             json={"title": "Hacked Title"},
             headers={"Authorization": f"Bearer {token}"},
         )
-        assert response.status_code == 403
+        assert response.status_code == 404
+
+    def test_get_private_task_by_id_blocked_for_other(
+        self, client: TestClient, db_session: Session
+    ) -> None:
+        """GET /tasks/{id} returns 404 for non-creator/non-assignee."""
+        creator = TestUserFactory.create_test_user(db_session, "priv_get_creator")
+        other = TestUserFactory.create_test_user(db_session, "priv_get_other")
+        token = create_user_token(other["email"])
+
+        create_resp = client.post(
+            "/api/v1/tasks",
+            json={
+                "title": "Secret Task",
+                "description": "Hidden",
+                "is_private": True,
+                "created_by": creator["id"],
+            },
+        )
+        task_id = create_resp.json()["id"]
+
+        response = client.get(
+            f"/api/v1/tasks/{task_id}",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert response.status_code == 404
+
+    def test_complete_private_task_blocked_for_other(
+        self, client: TestClient, db_session: Session
+    ) -> None:
+        """POST /tasks/{id}/complete returns 404 for non-creator/non-assignee."""
+        creator = TestUserFactory.create_test_user(db_session, "priv_compl_creator")
+        other = TestUserFactory.create_test_user(db_session, "priv_compl_other")
+        token = create_user_token(other["email"])
+
+        create_resp = client.post(
+            "/api/v1/tasks",
+            json={
+                "title": "Complete Blocked",
+                "description": "Hidden",
+                "is_private": True,
+                "created_by": creator["id"],
+            },
+        )
+        task_id = create_resp.json()["id"]
+
+        response = client.post(
+            f"/api/v1/tasks/{task_id}/complete",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert response.status_code == 404
+
+    def test_delete_private_task_blocked_for_other(
+        self, client: TestClient, db_session: Session
+    ) -> None:
+        """DELETE /tasks/{id} returns 404 for non-creator/non-assignee."""
+        creator = TestUserFactory.create_test_user(db_session, "priv_del_creator")
+        other = TestUserFactory.create_test_user(db_session, "priv_del_other")
+        token = create_user_token(other["email"])
+
+        create_resp = client.post(
+            "/api/v1/tasks",
+            json={
+                "title": "Delete Blocked",
+                "description": "Hidden",
+                "is_private": True,
+                "created_by": creator["id"],
+            },
+        )
+        task_id = create_resp.json()["id"]
+
+        response = client.delete(
+            f"/api/v1/tasks/{task_id}",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert response.status_code == 404
+
+    def test_reset_private_task_blocked_for_other(
+        self, client: TestClient, db_session: Session
+    ) -> None:
+        """PATCH /tasks/{id}/reset-to-todo returns 404 for non-creator/non-assignee."""
+        creator = TestUserFactory.create_test_user(db_session, "priv_reset_creator")
+        other = TestUserFactory.create_test_user(db_session, "priv_reset_other")
+        token = create_user_token(other["email"])
+
+        create_resp = client.post(
+            "/api/v1/tasks",
+            json={
+                "title": "Reset Blocked",
+                "description": "Hidden",
+                "is_private": True,
+                "created_by": creator["id"],
+            },
+        )
+        task_id = create_resp.json()["id"]
+
+        response = client.patch(
+            f"/api/v1/tasks/{task_id}/reset-to-todo",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert response.status_code == 404
+
+    def test_show_all_does_not_expose_private_tasks(
+        self, client: TestClient, db_session: Session
+    ) -> None:
+        """GET /tasks?show_all=true does not leak private tasks to other users."""
+        creator = TestUserFactory.create_test_user(db_session, "priv_showall_creator")
+        other = TestUserFactory.create_test_user(db_session, "priv_showall_other")
+        token = create_user_token(other["email"])
+
+        client.post(
+            "/api/v1/tasks",
+            json={
+                "title": "ShowAll Private",
+                "description": "Should not leak",
+                "is_private": True,
+                "created_by": creator["id"],
+            },
+        )
+
+        # Even with show_all and include_private, other user cannot see it
+        response = client.get(
+            "/api/v1/tasks?show_all=true&include_private=true",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert response.status_code == 200
+        titles = [t["title"] for t in response.json()]
+        assert "ShowAll Private" not in titles
+
+    def test_show_all_shows_private_to_creator(
+        self, client: TestClient, db_session: Session
+    ) -> None:
+        """GET /tasks?show_all=true&include_private=true shows own private tasks."""
+        creator = TestUserFactory.create_test_user(db_session, "priv_showall_own")
+        token = create_user_token(creator["email"])
+
+        client.post(
+            "/api/v1/tasks",
+            json={
+                "title": "ShowAll Own Private",
+                "description": "Should appear",
+                "is_private": True,
+                "created_by": creator["id"],
+            },
+        )
+
+        response = client.get(
+            "/api/v1/tasks?show_all=true&include_private=true",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert response.status_code == 200
+        titles = [t["title"] for t in response.json()]
+        assert "ShowAll Own Private" in titles
+
+    def test_deleted_user_token_rejected(
+        self, client: TestClient, db_session: Session
+    ) -> None:
+        """A token for a deleted user should be rejected with 401."""
+        token = create_user_token("nonexistent@example.com")
+
+        response = client.get(
+            "/api/v1/tasks",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert response.status_code == 401

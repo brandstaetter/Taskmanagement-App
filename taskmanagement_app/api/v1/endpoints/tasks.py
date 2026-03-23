@@ -41,6 +41,26 @@ logger = logging.getLogger(__name__)
 router = APIRouter(dependencies=[Depends(verify_not_superadmin)])
 
 
+def _check_private_task_access(task: TaskModel, current_user: Optional[User]) -> None:
+    """Raise 404 if the task is private and the user is not the creator or assignee.
+
+    Admins (current_user is None) bypass this check.
+    """
+    if not task.is_private:
+        return
+    # Admins can see everything
+    if current_user is None:
+        return
+    user_id = current_user.id
+    if user_id == task.created_by:
+        return
+    assigned_ids = {u.id for u in task.assigned_users}
+    if user_id in assigned_ids:
+        return
+    # Return 404 instead of 403 to avoid leaking that the task exists
+    raise HTTPException(status_code=404, detail="Task not found")
+
+
 def _task_response(db_task: TaskModel) -> Task:
     """Build a Task response including resolved display names."""
 
@@ -116,10 +136,7 @@ def read_tasks(
     """
     Retrieve tasks.
     """
-    if show_all:
-        user_id = None
-    else:
-        user_id = current_user.id if current_user else None
+    user_id = current_user.id if current_user else None
     db_tasks = get_tasks(
         db,
         skip=skip,
@@ -129,6 +146,7 @@ def read_tasks(
         user_id=user_id,
         include_created=include_created,
         include_private=include_private,
+        show_all=show_all,
     )
     return [_task_response(task) for task in db_tasks]
 
@@ -234,6 +252,7 @@ def search_tasks(
 def read_task(
     task_id: int,
     db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_user),
 ) -> Task:
     """
     Get task by ID.
@@ -241,6 +260,7 @@ def read_task(
     db_task = get_task(db, task_id=task_id)
     if not db_task:
         raise HTTPException(status_code=404, detail="Task not found")
+    _check_private_task_access(db_task, current_user)
     return _task_response(db_task)
 
 
@@ -256,6 +276,7 @@ def start_task(
     db_task = get_task(db, task_id=task_id)
     if not db_task:
         raise HTTPException(status_code=404, detail="Task not found")
+    _check_private_task_access(db_task, current_user)
 
     if db_task.state != TaskState.todo:
         raise HTTPException(
@@ -270,13 +291,18 @@ def start_task(
 
 
 @router.post("/{task_id}/complete", response_model=Task)
-def complete_task(task_id: int, db: Session = Depends(get_db)) -> Task:
+def complete_task(
+    task_id: int,
+    db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_user),
+) -> Task:
     """
     Mark a task as completed and set the completed_at timestamp.
     """
     db_task = get_task(db, task_id=task_id)
     if not db_task:
         raise HTTPException(status_code=404, detail="Task not found")
+    _check_private_task_access(db_task, current_user)
 
     if db_task.state != TaskState.in_progress:
         raise HTTPException(
@@ -293,7 +319,11 @@ def complete_task(task_id: int, db: Session = Depends(get_db)) -> Task:
 
 
 @router.delete("/{task_id}", response_model=Task)
-def delete_task_endpoint(task_id: int, db: Session = Depends(get_db)) -> Task:
+def delete_task_endpoint(
+    task_id: int,
+    db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_user),
+) -> Task:
     """
     Archive a task by ID.
 
@@ -301,6 +331,12 @@ def delete_task_endpoint(task_id: int, db: Session = Depends(get_db)) -> Task:
         task_id: ID of task to archive
         db: Database session
     """
+    # Check privacy before archiving
+    db_task = get_task(db, task_id=task_id)
+    if not db_task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    _check_private_task_access(db_task, current_user)
+
     try:
         task = archive_task(db, task_id)
         if not task:
@@ -318,35 +354,22 @@ async def print_task(
         None,
         description="IANA timezone name (e.g. 'Europe/Vienna') for timestamps",
     ),
-    include_private: bool = Query(
-        False, description="Allow printing private tasks (excluded by default)"
-    ),
     db: Session = Depends(get_db),
     current_user: Optional[User] = Depends(get_current_user),
 ) -> Response:
     """
     Print a task using the specified printer (defaults to PDF).
-    Private tasks are excluded by default unless include_private=True.
-    Only the creator or an assignee may print a private task.
+    Private tasks cannot be printed.
     """
     task = get_task(db, task_id=task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
 
     if task.is_private:
-        user_id = current_user.id if current_user else None
-        assigned_ids = {u.id for u in task.assigned_users}
-        if user_id != task.created_by and user_id not in assigned_ids:
-            raise HTTPException(
-                status_code=403,
-                detail="Only the creator or an assignee can access " "a private task",
-            )
-        if not include_private:
-            raise HTTPException(
-                status_code=403,
-                detail="Private tasks are excluded from printing by default. "
-                "Set include_private=true to print this task.",
-            )
+        raise HTTPException(
+            status_code=403,
+            detail="Private tasks cannot be printed.",
+        )
 
     try:
         printer = PrinterFactory.create_printer(printer_type)
@@ -379,8 +402,18 @@ async def trigger_maintenance(db: Session = Depends(get_db)) -> MaintenanceRespo
 
 
 @router.patch("/{task_id}/reset-to-todo", response_model=Task)
-def reset_task_to_todo_endpoint(task_id: int, db: Session = Depends(get_db)) -> Task:
+def reset_task_to_todo_endpoint(
+    task_id: int,
+    db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_user),
+) -> Task:
     """Reset a task to todo state and clear its progress timestamps."""
+    # Check privacy before resetting
+    existing_task = get_task(db, task_id=task_id)
+    if not existing_task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    _check_private_task_access(existing_task, current_user)
+
     try:
         db_task = reset_task_to_todo(db=db, task_id=task_id)
         return _task_response(db_task)
@@ -411,15 +444,7 @@ def update_task_endpoint(
     if not db_task:
         raise HTTPException(status_code=404, detail="Task not found")
 
-    # Block all modifications to private tasks by non-creator/non-assignees
-    if db_task.is_private:
-        user_id = current_user.id if current_user else None
-        assigned_ids = {u.id for u in db_task.assigned_users}
-        if user_id != db_task.created_by and user_id not in assigned_ids:
-            raise HTTPException(
-                status_code=403,
-                detail="Only the creator or an assignee can modify " "a private task",
-            )
+    _check_private_task_access(db_task, current_user)
 
     try:
         updated_task = update_task(db, task_id, task)
