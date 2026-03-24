@@ -173,7 +173,7 @@ def test_process_due_tasks(db_session: Session) -> None:
         assert updated_due_soon is not None
         assert updated_due_soon.state == TaskState.in_progress
         assert updated_due_soon.started_at is not None
-        mock_printer.print.assert_called()
+        mock_printer.print.assert_called_once()
 
         # Verify not due task wasn't processed
         not_due = get_task(db_session, not_due_task.id)
@@ -191,6 +191,22 @@ def test_process_due_tasks(db_session: Session) -> None:
         assert archived is not None
         assert archived.state == "archived"
         assert archived.started_at is None
+
+
+def test_get_due_tasks_excludes_in_progress(db_session: Session) -> None:
+    """Regression: in_progress tasks must not be returned by get_due_tasks."""
+    from taskmanagement_app.crud.task import get_due_tasks
+
+    task = create_test_task(
+        db_session,
+        title="Started Task",
+        state="in_progress",
+    )
+    task.due_date = (datetime.now(timezone.utc) + timedelta(hours=3)).isoformat()
+    db_session.commit()
+
+    tasks = get_due_tasks(db_session)
+    assert task.id not in {t.id for t in tasks}
 
 
 def test_process_due_tasks_printer_error(db_session: Session) -> None:

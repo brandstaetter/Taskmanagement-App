@@ -233,10 +233,7 @@ def get_due_tasks(db: Session) -> Sequence[TaskModel]:
             invalid_tasks.append(task)
             continue
 
-        if (
-            task.state not in (TaskState.done, TaskState.archived)
-            and now <= due_date <= tomorrow
-        ):
+        if task.state == TaskState.todo and now <= due_date <= tomorrow:
             due_tasks.append((due_date, task))
 
     if invalid_tasks:
