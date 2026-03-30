@@ -127,4 +127,12 @@ jobs:
       run: poetry install
 
     - name: Run mutation testing with pytest-gremlins
-      run: poetry run pytest --gremlins --gremlin-parallel --gremlin-cache tests/
+      run: poetry run pytest --gremlins --gremlin-parallel --gremlin-cache --gremlin-report=html --gremlins-html-dir=mutation-report tests/
+
+    - name: Upload mutation testing report
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: mutation-testing-report
+        path: mutation-report/
+        if-no-files-found: warn
