@@ -53,6 +53,7 @@ types-requests = "*"
 types-setuptools = "*"
 types-qrcode = "*"
 httpx = ">=0.25.0,<0.29.0"
+pytest-gremlins = ">=1.7.0,<2.0.0"
 
 [tool.black]
 line-length = 88
@@ -119,6 +120,13 @@ ignore = [
     "W504",  # Allow line break after binary operator
     "D103",  # Don't require docstrings for tests
 ]
+
+[tool.pytest-gremlins]
+paths = ["taskmanagement_app"]
+exclude = ["**/migrations/*"]
+operators = ["comparison", "arithmetic", "boolean", "boundary", "return"]
+cache = true
+report = ["console"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
