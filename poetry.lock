@@ -527,11 +527,11 @@ description = "Cross-platform colored terminal text."
 optional = false
 python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,!=3.5.*,!=3.6.*,>=2.7"
 groups = ["main", "dev"]
+markers = "platform_system == \"Windows\" or sys_platform == \"win32\""
 files = [
     {file = "colorama-0.4.6-py2.py3-none-any.whl", hash = "sha256:4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6"},
     {file = "colorama-0.4.6.tar.gz", hash = "sha256:08695f5cb7ed6e0531a20572697297273c47b8cae5a63ffc6d6ed5c201be6e44"},
 ]
-markers = {main = "sys_platform == \"win32\" or platform_system == \"Windows\"", dev = "platform_system == \"Windows\" or sys_platform == \"win32\""}
 
 [[package]]
 name = "coverage"
@@ -1866,14 +1866,14 @@ testing = ["process-tests", "pytest-xdist", "virtualenv"]
 
 [[package]]
 name = "pytest-gremlins"
-version = "1.7.0"
+version = "1.8.0"
 description = "Fast-first mutation testing for pytest. Let the gremlins loose, see which ones survive."
 optional = false
 python-versions = ">=3.11"
 groups = ["dev"]
 files = [
-    {file = "pytest_gremlins-1.7.0-py3-none-any.whl", hash = "sha256:0ddde9eced0b1f46f16468b9b8d81a7be38db0ef0bfd49a35f5303f6896cff83"},
-    {file = "pytest_gremlins-1.7.0.tar.gz", hash = "sha256:c166adb0b39317445c324ecb222ba3668e8cf00da468f7549c37d4d8e5eb6324"},
+    {file = "pytest_gremlins-1.8.0-py3-none-any.whl", hash = "sha256:e5432f94fb561bb765a1694166975b771ddd78ecc4fcf7beb2e441e7a27256cd"},
+    {file = "pytest_gremlins-1.8.0.tar.gz", hash = "sha256:b652000731eeec98ec8d87485441f40f7e233a39e645e99ef6d0066ebcf20382"},
 ]
 
 [package.dependencies]
@@ -2784,5 +2784,5 @@ files = [
 
 [metadata]
 lock-version = "2.1"
-python-versions = ">=3.11,<3.15"
+python-versions = ">=3.14,<3.15"
 content-hash = "08a8bcceffdd5cc39e27d7018c7cdebfaf46e81998395cef41d0dd5355a60a37"
