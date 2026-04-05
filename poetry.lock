@@ -1976,14 +1976,14 @@ test = ["pytest", "pytest-cov"]
 
 [[package]]
 name = "python-multipart"
-version = "0.0.22"
+version = "0.0.23"
 description = "A streaming multipart parser for Python"
 optional = false
 python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "python_multipart-0.0.22-py3-none-any.whl", hash = "sha256:2b2cd894c83d21bf49d702499531c7bafd057d730c201782048f7945d82de155"},
-    {file = "python_multipart-0.0.22.tar.gz", hash = "sha256:7340bef99a7e0032613f56dc36027b959fd3b30a787ed62d310e951f7c3a3a58"},
+    {file = "python_multipart-0.0.23-py3-none-any.whl", hash = "sha256:e94160daa012dbf7f6d84279e93f7b716c11f372a4d995edbdf2843ee10fc9e9"},
+    {file = "python_multipart-0.0.23.tar.gz", hash = "sha256:c6fe0413b4964a36956c9602d3be5c5a7ecc8ae17a1450750df7e4cd2a70b906"},
 ]
 
 [[package]]
@@ -2792,4 +2792,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.14,<3.15"
-content-hash = "e3b8dee2d027f86d5116c1b9d7c4cc59222b3bc011fa9123fca8e7b6e546bfc8"
+content-hash = "f8309224e8f3e8693b8464b43eaa51c33d3927f4dbb84b718432dc5d0a07bd54"
