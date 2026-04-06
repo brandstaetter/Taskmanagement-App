@@ -31,7 +31,7 @@ pydantic = "2.12.5"
 "pydantic-settings" = "2.13.1"
 "python-dotenv" = "1.2.2"
 "python-jose" = {version = "3.5.0", extras = ["cryptography"]}
-"python-multipart" = "0.0.23"
+"python-multipart" = "0.0.24"
 httpx = "0.28.1"
 reportlab = "4.4.10"
 "python-escpos" = "3.1"
