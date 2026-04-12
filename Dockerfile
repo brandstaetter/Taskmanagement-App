@@ -21,7 +21,6 @@ RUN poetry config virtualenvs.create false \
 # Copy application code
 COPY taskmanagement_app ./taskmanagement_app
 COPY alembic.ini ./
-COPY migrations ./migrations
 
 # Create a non-root user
 RUN useradd -m appuser && chown -R appuser:appuser /app
