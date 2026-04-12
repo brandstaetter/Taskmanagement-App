@@ -132,7 +132,7 @@ jobs:
 
   smoke-test:
     name: Post-Deploy Smoke Test
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, lan]
     needs: [deploy]
     timeout-minutes: 10
 
