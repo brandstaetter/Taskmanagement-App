@@ -52,8 +52,13 @@ class TestSmoke:
 
     def test_auth_valid_credentials(self, http_client, base_url):
         """POST /api/v1/auth/user/token with valid creds returns a token."""
-        username = os.environ.get("ADMIN_USERNAME", "admin")
-        password = os.environ.get("ADMIN_PASSWORD", "admin")
+        # Use E2E credentials (smoke test user), fall back to admin for local dev
+        username = os.environ.get("E2E_USERNAME") or os.environ.get(
+            "ADMIN_USERNAME", "admin"
+        )
+        password = os.environ.get("E2E_PASSWORD") or os.environ.get(
+            "ADMIN_PASSWORD", "admin"
+        )
         resp = http_client.post(
             _TOKEN_PATH,
             data={"username": username, "password": password},

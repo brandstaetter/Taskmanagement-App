@@ -80,21 +80,30 @@ def http_client(base_url: str) -> Generator[httpx.Client, None, None]:
 # ---------------------------------------------------------------------------
 
 
-@pytest.fixture(scope="session")
-def admin_token(base_url: str) -> str:
-    """Bearer token for the superadmin user."""
+def _get_admin_token(base_url: str) -> str:
+    """Obtain admin token (helper, not a fixture to avoid eager resolution)."""
     username = os.environ.get("E2E_ADMIN_USERNAME", _DEFAULT_ADMIN_USERNAME)
     password = os.environ.get("E2E_ADMIN_PASSWORD", _DEFAULT_ADMIN_PASSWORD)
     return _obtain_token(base_url, username, password)
 
 
 @pytest.fixture(scope="session")
-def auth_token(base_url: str, admin_token: str) -> Generator[str, None, None]:
+def admin_token(base_url: str) -> str:
+    """Bearer token for the superadmin user."""
+    return _get_admin_token(base_url)
+
+
+@pytest.fixture(scope="session")
+def auth_token(base_url: str) -> Generator[str, None, None]:
     """Bearer token for a regular (non-admin) user.
 
     If E2E_USERNAME / E2E_PASSWORD are set, uses those credentials.
     Otherwise, creates a temporary test user via the admin API and
     cleans it up when the session ends.
+
+    Note: This fixture does NOT depend on admin_token to avoid requiring
+    admin credentials when E2E_USERNAME/E2E_PASSWORD are provided (e.g.,
+    in production smoke tests).
     """
     username = os.environ.get("E2E_USERNAME", "")
     password = os.environ.get("E2E_PASSWORD", "")
@@ -103,10 +112,11 @@ def auth_token(base_url: str, admin_token: str) -> Generator[str, None, None]:
         yield _obtain_token(base_url, username, password)
         return
 
-    # Auto-bootstrap a temporary test user
+    # Auto-bootstrap a temporary test user (requires admin credentials)
+    admin_tok = _get_admin_token(base_url)
     user_id = None
     with httpx.Client(base_url=base_url, timeout=_DEFAULT_TIMEOUT) as client:
-        headers = {"Authorization": f"Bearer {admin_token}"}
+        headers = {"Authorization": f"Bearer {admin_tok}"}
         resp = client.post(
             "/api/v1/admin/users",
             json={"email": _TEST_USER_EMAIL, "password": _TEST_USER_PASSWORD},
@@ -126,7 +136,7 @@ def auth_token(base_url: str, admin_token: str) -> Generator[str, None, None]:
     # Teardown: delete the temporary user
     if user_id is not None:
         with httpx.Client(base_url=base_url, timeout=_DEFAULT_TIMEOUT) as client:
-            headers = {"Authorization": f"Bearer {admin_token}"}
+            headers = {"Authorization": f"Bearer {admin_tok}"}
             client.delete(f"/api/v1/admin/users/{user_id}", headers=headers)
 
 
