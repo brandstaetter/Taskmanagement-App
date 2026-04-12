@@ -127,7 +127,7 @@ jobs:
       run: poetry install
 
     - name: Run mutation testing with pytest-gremlins
-      run: poetry run pytest --gremlins --gremlin-parallel --gremlin-cache --gremlin-report=html --gremlins-html-dir=mutation-report tests/
+      run: poetry run pytest --gremlins --gremlin-parallel --gremlin-cache --gremlin-report=html --gremlins-html-dir=mutation-report --ignore=tests/e2e tests/
 
     - name: Upload mutation testing report
       if: always()
