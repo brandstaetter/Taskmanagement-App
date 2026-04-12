@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "taskmanagement_app"
-version = "0.13.4"
+version = "0.13.5"
 description = "A task management application"
 authors = ["Hannes Brandstätter-Müller <hannes.mueller@gmail.com>"]
 readme = "README.md"
@@ -133,6 +133,9 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_functions = ["test_*"]
 addopts = "-v --cov=taskmanagement_app --cov-report=term-missing"
+markers = [
+    "smoke: Lightweight smoke tests that verify basic API health",
+]
 filterwarnings = [
     "ignore::DeprecationWarning",
     "ignore::UserWarning",
