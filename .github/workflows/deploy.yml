@@ -168,3 +168,10 @@ jobs:
           E2E_USERNAME: ${{ secrets.E2E_USERNAME }}
           E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
         run: poetry run pytest tests/e2e/ -m smoke -v --tb=short
+
+      - name: Cleanup caches
+        if: always()
+        run: |
+          rm -rf ~/.cache/pip/* 2>/dev/null || true
+          rm -rf ~/.cache/pypoetry/cache/* 2>/dev/null || true
+          rm -rf ~/.cache/pypoetry/artifacts/* 2>/dev/null || true
