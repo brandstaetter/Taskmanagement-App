@@ -132,7 +132,7 @@ jobs:
 
   smoke-test:
     name: Post-Deploy Smoke Test
-    runs-on: [self-hosted, lan]
+    runs-on: [self-hosted, deploy]
     needs: [deploy]
     timeout-minutes: 10
 
