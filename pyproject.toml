@@ -33,7 +33,7 @@ pydantic = "2.13.0"
 "python-jose" = {version = "3.5.0", extras = ["cryptography"]}
 "python-multipart" = "0.0.26"
 httpx = "0.28.1"
-reportlab = "4.4.10"
+reportlab = "4.5.1"
 "python-escpos" = "3.1"
 pyusb = ">=1.2.1,<2.0.0"
 "qrcode" = {version = "8.2", extras = ["pil"]}
