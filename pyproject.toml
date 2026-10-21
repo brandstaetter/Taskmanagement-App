@@ -15,7 +15,7 @@ packages = [{include = "taskmanagement_app"}]
 python = ">=3.14,<3.15"
 alembic = "1.18.4"
 annotated-types = "0.8.0"
-anyio = "4.14.2"
+anyio = "4.15.1"
 appdirs = "1.4.4"
 apscheduler = "3.11.2"
 argcomplete = "3.7.2"
