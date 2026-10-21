@@ -65,3 +65,15 @@ jobs:
           artifacts: openapi.json
           allowUpdates: true
           replacesArtifacts: true
+
+  deploy:
+    name: Deploy tested wheel
+    needs: publish-openapi
+    uses: ./.github/workflows/deploy.yml
+    permissions:
+      contents: read
+      actions: read
+    with:
+      ci_run_id: ${{ format('{0}', github.event.workflow_run.id) }}
+      commit_sha: ${{ github.event.workflow_run.head_sha }}
+    secrets: inherit
