@@ -5,11 +5,16 @@ permissions:
   actions: read
 
 on:
-  workflow_run:
-    workflows: ["Publish OpenAPI Release Artifact"]
-    types:
-      - completed
-    branches: [ main ]
+  workflow_call:
+    inputs:
+      ci_run_id:
+        description: Successful CI run that produced the wheel
+        required: true
+        type: string
+      commit_sha:
+        description: Commit tested by the originating CI run
+        required: true
+        type: string
 
 concurrency:
   group: deploy-main
@@ -18,105 +23,48 @@ concurrency:
 jobs:
   deploy:
     name: Deploy wheel to server
-    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' }}
+    outputs:
+      deployed: ${{ steps.deploy.outcome == 'success' }}
     runs-on: [self-hosted, linux, deploy]
 
     steps:
       - name: Skip if not latest main commit
+        id: latest
+        env:
+          RUN_SHA: ${{ inputs.commit_sha }}
         shell: bash
         run: |
           set -euo pipefail
           LATEST_MAIN_SHA="$(git ls-remote https://github.com/brandstaetter/Taskmanagement-App.git refs/heads/main | awk '{print $1}')"
-          RUN_SHA="${{ github.event.workflow_run.head_sha }}"
           if [ "$LATEST_MAIN_SHA" != "$RUN_SHA" ]; then
             echo "Skipping deploy: workflow_run SHA is not the latest main SHA"
             echo "LATEST_MAIN_SHA=$LATEST_MAIN_SHA"
             echo "RUN_SHA=$RUN_SHA"
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+          echo "deploy=true" >> "$GITHUB_OUTPUT"
 
       - name: Clean wheel artifact directory
+        if: steps.latest.outputs.deploy == 'true'
         shell: bash
         run: |
           set -euo pipefail
           rm -rf ./wheel
           mkdir -p ./wheel
 
-      - name: Find matching CI run id
-        id: ci_run
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RUN_SHA: ${{ github.event.workflow_run.head_sha }}
-        run: |
-          set -euo pipefail
-
-          PYTHON_BIN=""
-          if command -v python3 >/dev/null 2>&1; then
-            PYTHON_BIN="python3"
-          elif command -v python >/dev/null 2>&1; then
-            PYTHON_BIN="python"
-          else
-            echo "Neither python3 nor python is available on this runner" >&2
-            exit 1
-          fi
-
-          CI_RUN_ID=$($PYTHON_BIN - <<'PY'
-          import json
-          import os
-          import sys
-          import urllib.request
-          import urllib.error
-
-          repo = os.environ['GITHUB_REPOSITORY']
-          token = os.environ['GH_TOKEN']
-          run_sha = os.environ['RUN_SHA']
-
-          url = f"https://api.github.com/repos/{repo}/actions/runs?per_page=50"
-          req = urllib.request.Request(url)
-          req.add_header('Authorization', f'Bearer {token}')
-          req.add_header('Accept', 'application/vnd.github+json')
-
-          try:
-              with urllib.request.urlopen(req) as resp:
-                  payload = json.loads(resp.read().decode('utf-8'))
-          except urllib.error.HTTPError as e:
-              print(f"GitHub API HTTP error: {e.code} {e.reason}", file=sys.stderr)
-              print(f"Response: {e.read().decode('utf-8')}", file=sys.stderr)
-              sys.exit(1)
-          except urllib.error.URLError as e:
-              print(f"Network error accessing GitHub API: {e.reason}", file=sys.stderr)
-              sys.exit(1)
-
-          run_id = None
-          for r in payload.get('workflow_runs', []):
-              if (
-                  r.get('name') == 'CI'
-                  and r.get('head_sha') == run_sha
-                  and r.get('conclusion') == 'success'
-              ):
-                  run_id = r.get('id')
-                  break
-
-          if not run_id:
-              print(f"Could not find successful CI workflow run for sha {run_sha}", file=sys.stderr)
-              sys.exit(1)
-
-          print(run_id)
-          PY
-          )
-
-          echo "ci_run_id=$CI_RUN_ID" >> "$GITHUB_OUTPUT"
-
       - name: Download wheel artifact
+        if: steps.latest.outputs.deploy == 'true'
         uses: actions/download-artifact@v8
         with:
           name: wheel
           path: ./wheel
-          run-id: ${{ steps.ci_run.outputs.ci_run_id }}
+          run-id: ${{ inputs.ci_run_id }}
           github-token: ${{ github.token }}
 
       - name: Deploy
+        if: steps.latest.outputs.deploy == 'true'
+        id: deploy
         shell: bash
         run: |
           set -euo pipefail
@@ -134,10 +82,13 @@ jobs:
     name: Post-Deploy Smoke Test
     runs-on: [self-hosted, deploy]
     needs: [deploy]
+    if: needs.deploy.outputs.deployed == 'true'
     timeout-minutes: 10
 
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.commit_sha }}
 
       - name: Verify Python 3.14
         run: python3.14 --version
