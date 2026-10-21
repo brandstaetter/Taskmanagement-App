@@ -1889,22 +1889,22 @@ testing = ["process-tests", "pytest-xdist", "virtualenv"]
 
 [[package]]
 name = "pytest-gremlins"
-version = "1.8.1"
+version = "1.12.2"
 description = "Fast-first mutation testing for pytest. Let the gremlins loose, see which ones survive."
 optional = false
 python-versions = ">=3.11"
 groups = ["dev"]
 files = [
-    {file = "pytest_gremlins-1.8.1-py3-none-any.whl", hash = "sha256:13e1ab7c15dedf2acaa19bba995cf7f7c7d69f7ed258189e852c011adf0deed1"},
-    {file = "pytest_gremlins-1.8.1.tar.gz", hash = "sha256:906b55f55148272fda95e39d66bbbea7f4b4f8c13d20818fde67ccc7818ec8cb"},
+    {file = "pytest_gremlins-1.12.2-py3-none-any.whl", hash = "sha256:f0f75eeaa1713143de01ea516fff683bda10e24bebfb5d609d9910e02e3b2f48"},
+    {file = "pytest_gremlins-1.12.2.tar.gz", hash = "sha256:28ac7f9748ab95452c157c1d06b5a3958b3b7c34e642f75d53bea144b96899e6"},
 ]
 
 [package.dependencies]
 coverage = ">=7.12.0"
-pytest = ">=7.0.0"
+pytest = ">=8.4.2"
 
 [package.extras]
-docs = ["mkdocs (>=1.5.0)", "mkdocs-material[imaging] (>=9.0.0)", "mkdocs-minify-plugin (>=0.7.0)", "mkdocstrings[python] (>=0.24.0)"]
+docs = ["mkdocs (>=1.5.0)", "mkdocs-material[imaging] (>=9.7.7)", "mkdocs-minify-plugin (>=0.7.0)", "mkdocstrings[python] (>=0.24.0)"]
 
 [[package]]
 name = "python-barcode"
