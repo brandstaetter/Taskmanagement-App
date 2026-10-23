@@ -22,7 +22,7 @@ argcomplete = "3.7.2"
 argparse = "1.4.0"
 bcrypt = ">=5.0.0,<5.1.0"
 cffi = "2.1.1"
-fastapi = "0.161.1"
+fastapi = "0.162.0"
 gunicorn = ">=25.3.0,<25.4.0"
 starlette = "1.9.0"
 uvicorn = {version = "0.44.0", extras = ["standard"]}
